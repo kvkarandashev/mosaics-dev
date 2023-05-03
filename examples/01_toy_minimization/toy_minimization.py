@@ -85,7 +85,7 @@ rw = RandomWalk(
 
 for MC_step in range(num_MC_steps):
     rw.global_random_change(**global_change_params)
-    if MC_step % 40 == 0:
+    if MC_step % 200 == 0:
         print(MC_step, rw.cur_tps)
 
 rw.make_restart()
