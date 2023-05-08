@@ -18,7 +18,7 @@ class ExtGraphCompound:
         additional_data={},
     ):
         """
-        An "extended" version of GraphCompound.
+        Contains all data known about a compound along with its ChemGraph.
         """
         if (nuclear_charges is None) and (elements is not None):
             nuclear_charges = [NUCLEAR_CHARGE[element] for element in elements]
@@ -101,7 +101,7 @@ class ExtGraphCompound:
             for atom_id, modified_val in enumerate(modified_sort_vals)
         ]
         comp_tuples.sort(reverse=True)
-        return [comp_tuple[1] for comp_tuple in comp_tuples]
+        return np.array([comp_tuple[1] for comp_tuple in comp_tuples])
 
     def reverse_sorting_with_invariance_indices(self, sort_vals):
         """
@@ -147,7 +147,7 @@ class ExtGraphCompound:
                 (equiv_class_order_dict[equiv_class], canonical_ordering, atom_id)
             )
         atom_comp_tuples.sort()
-        return [atom_comp_tuple[-1] for atom_comp_tuple in atom_comp_tuples]
+        return np.array([atom_comp_tuple[-1] for atom_comp_tuple in atom_comp_tuples])
 
     def original_equivalence_classes(self):
         """
