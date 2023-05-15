@@ -16,7 +16,13 @@ from .periodic import (
     unshared_pairs,
     coord_num_hybrid,
 )
-from .misc_procedures import str_atom_corr, int_atom_checked
+from .misc_procedures import (
+    str_atom_corr,
+    int_atom_checked,
+    sorted_by_membership,
+    sorted_tuple,
+    sorted_tuples,
+)
 
 
 class InvalidAdjMat(Exception):
@@ -32,39 +38,6 @@ DEFAULT_ELEMENT = 1
 
 # To avoid equality expressions for two reals.
 irrelevant_bond_order_difference = 1.0e-8
-
-# Sorting-related.
-#
-def sorted_by_membership(membership_vector, l=None):
-    """
-    Sort a list into several lists by membership. Entries with negative membership values are ignored.
-    """
-    if l is None:
-        l = list(range(len(membership_vector)))
-    n = max(membership_vector)
-    output = [[] for _ in range(n + 1)]
-    for val, m in zip(l, membership_vector):
-        if m >= 0:
-            output[m].append(val)
-    return output
-
-
-# Sorted a tuple either by its value or by value of ordering tuple.
-def sorted_tuple(*orig_tuple, ordering_tuple=None):
-    if ordering_tuple is None:
-        return tuple(sorted(orig_tuple))
-    else:
-        temp_list = [(i, io) for i, io in zip(orig_tuple, ordering_tuple)]
-        temp_list.sort(key=lambda x: x[1])
-        return tuple([i for (i, io) in temp_list])
-
-
-# Sort several tuples.
-def sorted_tuples(*orig_tuples):
-    output = []
-    for orig_tuple in orig_tuples:
-        output.append(sorted_tuple(*orig_tuple))
-    return sorted(output)
 
 
 def avail_val_list(atom_id):
@@ -1041,6 +1014,9 @@ class ChemGraph:
                         self.hatoms[ha_id].possible_valences = []
                     self.hatoms[ha_id].possible_valences.append(ha_val)
         if min_found_vcc is None:
+            print("Invalid molecule:")
+            print("HeavyAtom list:", self.hatoms)
+            print("Graph:", self.graph)
             raise InvalidAdjMat
         for ha_id, ha_val in zip(IteratedValenceIds, saved_heavy_atom_valences_list):
             ha = self.hatoms[ha_id]

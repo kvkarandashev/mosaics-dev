@@ -2,7 +2,7 @@ from .ext_graph_compound import ExtGraphCompound
 import numpy as np
 from igraph import Graph
 from sortedcontainers import SortedList
-from .misc_procedures import int_atom
+from .misc_procedures import int_atom, str_atom_corr
 
 # Routines for xyz import/export.
 def check_byte(byte_or_str):

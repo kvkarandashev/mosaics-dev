@@ -81,6 +81,14 @@ class ExtGraphCompound:
                 self.inv_original_chemgraph_mapping[cur_hatom_index] = atom_id
                 cur_hatom_index += 1
 
+    def hatom_ids_to_original_ids(self, hatom_ids):
+        """
+        Convert an array of indices corresponding to ChemGraph's heavy atoms to indices of original imported data.
+        """
+        return np.array(
+            [self.inv_original_chemgraph_mapping[hatom_id] for hatom_id in hatom_ids]
+        )
+
     def reverse_sorting_with_invariance_delta(self, sort_vals, delta):
         """
         Generate indices corresponding to sorting of sort_vals*(1+delta*canonical_premutation) for heavy atoms and hydrogens moved to the end.
