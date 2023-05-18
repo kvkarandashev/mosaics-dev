@@ -1,5 +1,4 @@
 from xyz2mol import (
-    AC2BO,
     xyz2AC,
     chiral_stereo_check,
     AC2mol,
@@ -19,22 +18,15 @@ import numpy as np
 
 def xyz2mol_graph(nuclear_charges, charge, coords, get_chirality=False):
     try:
-        _adj_matrix, mol = xyz2AC(nuclear_charges, coords, charge)
-        bond_order_matrix, _ = AC2BO(
-            _adj_matrix,
-            nuclear_charges,
-            charge,
-            allow_charged_fragments=True,
-            use_graph=True,
-        )
+        adj_matrix, mol = xyz2AC(nuclear_charges, coords, charge)
     except:
         raise InvalidAdjMat
     if get_chirality is False:
-        return bond_order_matrix, nuclear_charges, coords
+        return adj_matrix, nuclear_charges, coords
     else:
         chiral_mol = AC2mol(
             mol,
-            _adj_matrix,
+            adj_matrix,
             nuclear_charges,
             charge,
             allow_charged_fragments=True,
@@ -42,7 +34,7 @@ def xyz2mol_graph(nuclear_charges, charge, coords, get_chirality=False):
         )
         chiral_stereo_check(chiral_mol)
         chiral_centers = Chem.FindMolChiralCenters(chiral_mol)
-        return bond_order_matrix, nuclear_charges, coords, chiral_centers
+        return adj_matrix, nuclear_charges, coords, chiral_centers
 
 
 def xyz_list2mols_extgraph(xyz_file_list, leave_nones=False, xyz_to_add_data=False):
@@ -68,10 +60,10 @@ def chemgraph_from_ncharges_coords(nuclear_charges, coordinates, charge=0):
     converted_coordinates = [
         [float(atom_coord) for atom_coord in atom_coords] for atom_coords in coordinates
     ]
-    bond_order_matrix, ncharges, _ = xyz2mol_graph(
+    adj_matrix, ncharges, _ = xyz2mol_graph(
         converted_ncharges, charge, converted_coordinates
     )
-    return ChemGraph(adj_mat=bond_order_matrix, nuclear_charges=ncharges)
+    return ChemGraph(adj_mat=adj_matrix, nuclear_charges=ncharges)
 
 
 def egc_from_ncharges_coords(nuclear_charges, coordinates, charge=0):

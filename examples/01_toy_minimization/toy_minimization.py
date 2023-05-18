@@ -37,8 +37,7 @@ bias_coeff = 0.1
 
 randomized_change_params = {
     "max_fragment_num": 1,
-    "nhatoms_range": [1, 16],  #
-    "final_nhatoms_range": [1, 16],
+    "nhatoms_range": [1, 16],
     "possible_elements": possible_elements,
     "bond_order_changes": [-1, 1],
     "forbidden_bonds": forbidden_bonds,
