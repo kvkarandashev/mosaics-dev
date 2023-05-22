@@ -28,7 +28,7 @@ from .random_walk import (
 )
 from .ext_graph_compound import ExtGraphCompound
 from .misc_procedures import str_atom_corr
-from ..utils import mkdir
+from .utils import mkdir
 
 # Some colors that I think look good on print.
 RED = (1.0, 0.0, 0.0)
@@ -309,11 +309,15 @@ class ChemGraphDrawing:
 
     def save(self, filename):
         text = self.drawing.GetDrawingText()
+        print_output_io_type = "w"
         if self.file_format == pdf:
             print_output = filename + drawing_file_suffix[svg]
         else:
             print_output = filename
-        with open(print_output, "w") as f:
+            if self.file_format == png:
+                print_output_io_type = "wb"
+
+        with open(print_output, print_output_io_type) as f:
             f.write(text)
         if self.file_format == pdf:
             subprocess.run(

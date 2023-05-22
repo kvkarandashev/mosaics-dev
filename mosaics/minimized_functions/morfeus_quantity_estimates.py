@@ -1,8 +1,5 @@
-from ..utils import (
-    chemgraph_to_canonical_rdkit,
-    InvalidAdjMat,
-    chemgraph_from_ncharges_coords,
-)
+from ..rdkit_utils import chemgraph_to_canonical_rdkit
+from ..xyz2graph import chemgraph_from_ncharges_coords
 from ..misc_procedures import (
     weighted_array,
     checked_environ_val,
@@ -10,6 +7,7 @@ from ..misc_procedures import (
     all_None_dict,
     any_element_in_list,
 )
+from ..valence_treatment import InvalidAdjMat
 import numpy as np
 from ..data import room_T, conversion_coefficient
 import copy

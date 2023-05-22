@@ -433,14 +433,16 @@ class TrajectoryPoint:
                 else:
                     kwargs = kwargs_dict[quant_name]
                 func = func_dict[quant_name]
-                try:
-                    calc_val = func(self, *args, **kwargs)
-                except:
-                    print("Exception encountered while evaluating function ", func)
-                    print("Trajectory point:", self)
-                    print("Arguments:", args, kwargs)
-                    print("Previously calculated data:", self.calculated_data)
-                    quit()
+                calc_val = func(self, *args, **kwargs)
+                # TODO make this hard approach on exceptions optional?
+                # try:
+                #    calc_val = func(self, *args, **kwargs)
+                # except:
+                #    print("Exception encountered while evaluating function ", func)
+                #    print("Trajectory point:", self)
+                #    print("Arguments:", args, kwargs)
+                #    print("Previously calculated data:", self.calculated_data)
+                #    quit()
                 self.calculated_data[quant_name] = calc_val
             output[quant_name] = self.calculated_data[quant_name]
         return output

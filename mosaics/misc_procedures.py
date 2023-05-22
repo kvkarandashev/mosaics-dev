@@ -1,6 +1,6 @@
 # Several auxiliary functions that appear everywhere.
 from .data import NUCLEAR_CHARGE
-import os
+import os, copy
 
 
 def canonical_atomtype(atomtype):
@@ -138,3 +138,25 @@ class weighted_array(list):
                     0.0, self[el_id].rho - density_cut
                 )  # max was introduced in case there is some weird numerical noise.
             self.normalize_rhos()
+
+
+# Misc procedures for list and dictionnary handling.
+def any_element_in_list(list_in, *els):
+    for el in els:
+        if el in list_in:
+            return True
+    return False
+
+
+def repeated_dict(labels, repeated_el, copy_needed=False):
+    output = {}
+    for l in labels:
+        if copy_needed:
+            output[l] = copy.deepcopy(repeated_el)
+        else:
+            output[l] = repeated_el
+    return output
+
+
+def all_None_dict(labels):
+    return repeated_dict(labels, None)
