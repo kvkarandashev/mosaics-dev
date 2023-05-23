@@ -19,9 +19,9 @@ def main():
         "verbose": False
     }
 
-    D, MOLS = chemspace_potentials.chemspacesampler_ECFP(smiles="CCCCCC", params=params)
-    print(D)
+    MOLS, D = chemspace_potentials.chemspacesampler_ECFP(smiles="CCCCCC", params=params)    
     print(MOLS)
+    print(D)
 
 if __name__ == "__main__":
     main()
