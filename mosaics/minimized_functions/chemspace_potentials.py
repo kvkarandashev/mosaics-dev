@@ -822,6 +822,7 @@ class Analyze_Chemspace:
             X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
             D = np.array([norm(X_I - X) for X in X_ALL])
             SMILES = SMILES[np.argsort(D)]
+            SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
             D = D[np.argsort(D)]
 
         if params["rep_type"] == "3d":
