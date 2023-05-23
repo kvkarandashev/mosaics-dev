@@ -29,6 +29,7 @@ conversion_coefficient = {
 }
 
 room_T = 298.15
+K_B_KCAL_PER_MOL_PER_K = 1.987204259 * 1e-3
 
 NUCLEAR_CHARGE = {
     "H": 1,

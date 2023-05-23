@@ -3,10 +3,10 @@ from mosaics.beta_choice import gen_exp_beta_array
 
 def main():
     params = {
-        'min_d': 800.0,
-        'max_d': 900.0,
-        'NPAR': 4,
-        'Nsteps': 10,
+        'min_d': 0.0,
+        'max_d': 130.0,
+        'NPAR': 12,
+        'Nsteps': 100,
         'bias_strength': "none",
         'possible_elements': ["C", "O", "N", "F"],
         'not_protonated': None, 
