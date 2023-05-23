@@ -1,50 +1,72 @@
+# Standard library imports
+import glob
+import random
+import tempfile
+import shutil
+import copy
+
+# Third party imports
 import numpy as np
 from numpy.linalg import norm
-from mosaics.rdkit_utils import chemgraph_to_canonical_rdkit
-from mosaics.minimized_functions.morfeus_quantity_estimates import (
-    morfeus_coord_info_from_tp,
-)
-from mosaics.rdkit_utils import RdKitFailure
-from mosaics import RandomWalk
-from rdkit.Chem import DataStructs, rdMolDescriptors
 from rdkit import Chem
+from rdkit.Chem import DataStructs, rdMolDescriptors
+from joblib import Parallel, delayed
+import pandas as pd
+from tqdm import tqdm
+
 try:
     from ase import Atoms
     from dscribe.descriptors import SOAP
 except:
     print("local_space_sampling: ase or dscribe not installed")
 
-from mosaics.rdkit_utils import SMILES_to_egc
+# Local application/library specific imports
+from mosaics import RandomWalk
 from mosaics.random_walk import TrajectoryPoint, ordered_trajectory_from_restart
-from joblib import Parallel, delayed
+from mosaics.beta_choice import gen_exp_beta_array
+from mosaics.utils import loadpkl
+from mosaics.data import *
+from mosaics.rdkit_utils import (
+    chemgraph_to_canonical_rdkit, 
+    RdKitFailure,
+    SMILES_to_egc
+)
 from mosaics.minimized_functions.morfeus_quantity_estimates import (
+    morfeus_coord_info_from_tp,
     morfeus_FF_xTB_code_quants,
 )
 
+
+
 def trajectory_point_to_canonical_rdkit(tp_in, SMILES_only=False):
+    """
+    Converts a trajectory point to a canonical RDKit molecule.
+
+    Args:
+        tp_in: A trajectory point (typically an instance of the TrajectoryPoint class)
+        SMILES_only: If True, only the SMILES string of the molecule is returned. Otherwise, 
+                     a RDKit molecule object is returned. Default is False.
+
+    Returns:
+        RDKit molecule object or SMILES string, based on the value of SMILES_only.
+    """
     return chemgraph_to_canonical_rdkit(tp_in.egc.chemgraph, SMILES_only=SMILES_only)
 
-#value of boltzmann constant in kcal/mol/K
 
-from mosaics.beta_choice import gen_exp_beta_array
-import copy
-import pandas as pd
-from mosaics.utils import loadpkl
-from mosaics.data import *
-import glob
-from tqdm import tqdm
-import random
-import tempfile
-import shutil
-import pdb
-
-
-def gen_soap(crds, chgs, species=["B", "C", "N", "O", "F", "Si", "P", "S", "Cl", "Br", "H"]):
-    # average output
-    # https://singroup.github.io/dscribe/latest/tutorials/descriptors/soap.html
+def gen_soap(crds, chgs, species):
     """
-    Generate the average SOAP, i.e. the average of the SOAP vectors is
-    a global of the molecule.
+    Generate the Smooth Overlap of Atomic Positions (SOAP) descriptor for a molecule.
+
+    Args:
+        crds: A list or array of atomic coordinates.
+        chgs: A list or array of atomic charges.
+        species: A list of species for atoms present in the molecule.
+    
+    Returns:
+        A SOAP descriptor for the molecule.
+
+    Note:
+        The average output is a global of the molecule. See https://singroup.github.io/dscribe/latest/tutorials/descriptors/soap.html for more details.
     """
     average_soap = SOAP(
         r_cut=6.0,
@@ -56,125 +78,181 @@ def gen_soap(crds, chgs, species=["B", "C", "N", "O", "F", "Si", "P", "S", "Cl",
     )
 
     molecule = Atoms(numbers=chgs, positions=crds)
+    
     return average_soap.create(molecule)
 
 
 def get_boltzmann_weights(energies, T=300):
-
     """
-    Calculate the boltzmann weights for a set of energies at a given temperature.
+    Calculate the Boltzmann weights for a set of energies at a given temperature.
+
     Parameters
     ----------
-    energies : np.array
-        Array of energies
-    T : float
-        Temperature in Kelvin
-        default: 300 K
+    energies : np.array of shape (n,) 
+        1-D array containing the energies of 'n' states.
+    T : float, optional
+        Temperature in Kelvin. Default is 300 K.
+
     Returns
     -------
-    boltzmann_weights : np.array
-        Array of boltzmann weights
+    boltzmann_weights : np.array of shape (n,)
+        1-D array containing the Boltzmann weights corresponding to the input energies.
     """
-
     beta = 1/(K_B_KCAL_PER_MOL_PER_K * T)
     boltzmann_weights = np.exp(-energies * beta)
-    # normalize weights
     boltzmann_weights /= np.sum(boltzmann_weights)
     return boltzmann_weights
 
 
-
-def fml_rep(COORDINATES, NUC_CHARGES, WEIGHTS,repfct=gen_soap):
+def fml_rep(COORDINATES, NUC_CHARGES, WEIGHTS, possible_elements=["C", "O", "N", "F"]):
     """
-    Calculate the FML representation = boltzmann weighted representation
+    Calculate the FML (Free Energy Machine Learning) representation, which is the Boltzmann-weighted SOAP representation.
+
     Parameters
     ----------
-    NUC_CHARGES : np.array
-        Array of nuclear charges
-    COORDINATES : np.array
-        Array of coordinates
-    WEIGHTS : np.array
-        Array of weights
-    repfct : function of representation
-        default: local_space_sampling.gen_soap
+    COORDINATES : np.array of shape (n, m, 3)
+        3-D array containing the coordinates of 'm' atoms for 'n' states.
+    NUC_CHARGES : np.array of shape (m,)
+        1-D array containing the nuclear charges of 'm' atoms.
+    WEIGHTS : np.array of shape (n,)
+        1-D array containing the weights for 'n' states.
+    possible_elements : list of strings, optional
+        List of possible elements present in the molecules. Default is ["C", "O", "N", "F"].
+
     Returns
     ------- 
-    fml_rep : np.array
-        Array of FML representation 
+    fml_rep : np.array of shape (N,) where 'N' is the dimension of the SOAP vector
+        FML representation of the input molecular system.
     """
-
     X = []
+    
     for i in range(len(COORDINATES)):
-        X.append(repfct(COORDINATES[i], NUC_CHARGES))
+        X.append(gen_soap(COORDINATES[i], NUC_CHARGES, possible_elements))
     X = np.array(X)
     X = np.average(X, axis=0, weights=WEIGHTS)
     return X
 
 
 def ExplicitBitVect_to_NumpyArray(fp_vec):
-
     """
-    Convert the rdkit fingerprint to a numpy array
-    """
+    Convert the RDKit fingerprint to a numpy array.
 
+    Parameters
+    ----------
+    fp_vec : rdkit.DataStructs.cDataStructs.ExplicitBitVect
+        The RDKit fingerprint vector.
+
+    Returns
+    -------
+    fp2 : numpy.ndarray
+        The fingerprint vector converted to a numpy array.
+    """
     fp2 = np.zeros((0,), dtype=int)
     DataStructs.ConvertToNumpyArray(fp_vec, fp2)
     return fp2
 
-def extended_get_single_FP(
-    smi, nBits=2048, useFeatures=True
-):
 
+def extended_get_single_FP(smi, nBits=2048, useFeatures=True):
+    """
+    Get the fingerprint of a molecule in numpy array form.
+
+    Parameters
+    ----------
+    smi : str
+        SMILES string of the molecule.
+    nBits : int, optional
+        Length of the fingerprint. Default is 2048.
+    useFeatures : bool, optional
+        Whether to use feature information when generating the fingerprint. Default is True.
+
+    Returns
+    -------
+    x : numpy.ndarray
+        The fingerprint of the molecule as a numpy array.
+    """
     x = ExplicitBitVect_to_NumpyArray(
         get_single_FP(smi, nBits=nBits, useFeatures=useFeatures)
     )
-
     return x
 
 
-
 def get_single_FP(mol, nBits=2048, useFeatures=True):
-
     """
-    Computes the fingerprint of a molecule given its SMILES
-    Input:
-    mol: SMILES string or rdkit molecule
+    Compute the fingerprint of a molecule.
+
+    Parameters
+    ----------
+    mol : str or rdkit.Chem.rdchem.Mol
+        SMILES string or RDKit molecule object.
+    nBits : int, optional
+        Length of the fingerprint. Default is 2048.
+    useFeatures : bool, optional
+        Whether to use feature information when generating the fingerprint. Default is True.
+
+    Returns
+    -------
+    fp_mol : rdkit.DataStructs.cDataStructs.ExplicitBitVect
+        The fingerprint of the molecule.
     """
-
-
     fp_mol = rdMolDescriptors.GetMorganFingerprintAsBitVect(
         mol,
         radius=4,
         nBits=nBits,
         useFeatures=useFeatures
     )
-
     return fp_mol
 
+
 def get_all_FP(SMILES, **kwargs):
-
     """
-    Returns a list of fingerprints for all the molecules in the list of SMILES
-    """
+    Return a list of fingerprints for all the molecules in the list of SMILES.
 
+    Parameters
+    ----------
+    SMILES : list of str
+        List of SMILES strings.
+
+    Returns
+    -------
+    X : numpy.ndarray
+        An array of fingerprints for all the molecules.
+    """
     X = []
     for smi in SMILES:
         X.append(extended_get_single_FP(smi, **kwargs))
     return np.array(X)
 
+
 class potential_SOAP:
+    """
+    Class to represent a potential using Smooth Overlap of Atomic Positions (SOAP).
+    """
     def __init__(
         self,
         X_init,
         Q_init,
-        sigma=70.0,
-        gamma=80.0,
+        gamma=70.0,
+        sigma=80.0,
+        possible_elements=["C", "O", "N", "F", "H"],
         verbose=False,
     ):
+        """
+        Initializes the potential_SOAP class.
+        
+        Parameters:
+        X_init (np.array): Initial positions of particles.
+        Q_init (np.array): Initial charges.
+        gamma (float): A parameter for flat_parabola_potential function.
+        sigma (float): A parameter for flat_parabola_potential function.
+        possible_elements (list): List of possible atomic elements.
+        verbose (bool): Verbosity flag.
+        """
+
         self.X_init = X_init
         self.Q_init = Q_init
-        self.sigma = sigma
         self.gamma = gamma
+        self.sigma = sigma
+        self.possible_elements = possible_elements
         self.verbose = verbose
         
         
@@ -184,20 +262,32 @@ class potential_SOAP:
 
 
     def fml_distance(self,coords,charges,energies):
+        """
+        Calculates the FML distance.
+        
+        Parameters:
+        coords (np.array): Positions of particles.
+        charges (np.array): Charges.
+        energies (np.array): Energies.
+        
+        Returns:
+        float: FML distance.
+        """
+        
         X_test = self.repfct(coords, charges,energies)
         return norm(X_test - self.X_init)
 
 
-    def euclidean_distance(self, coords, charges):
-        """
-        Compute the euclidean distance between the test
-        point and the initial point.
-        """
-        X_test = self.repfct(coords, charges)
-        return norm(X_test - self.X_init)
-
-
     def flat_parabola_potential(self, d):
+        """
+        A function to describe the potential as a flat parabola.
+        
+        Parameters:
+        d (float): Distance.
+        
+        Returns:
+        float: Potential value.
+        """
 
         if d < self.gamma:
             return 0.05 * (d - self.gamma) ** 2
@@ -208,8 +298,15 @@ class potential_SOAP:
 
     def __call__(self, trajectory_point_in):
         """
-        Compute the potential energy of a trajectory point.
+        Calculates the potential energy of a trajectory point.
+        
+        Parameters:
+        trajectory_point_in (TrajectoryPoint): Trajectory point.
+        
+        Returns:
+        float: Potential energy of the trajectory point.
         """
+
         try:
             output = trajectory_point_in.calc_or_lookup(
                 self.morfeus_output,
@@ -227,8 +324,7 @@ class potential_SOAP:
 
             charges = output["nuclear_charges"]
             SMILES = output["canon_rdkit_SMILES"]
-            
-            X_test = fml_rep(coords, charges, output["rdkit_Boltzmann"])
+            X_test = fml_rep(coords, charges, output["rdkit_Boltzmann"],possible_elements= self.possible_elements)
         except Exception as e:
             print(e)
             print("Error in 3d conformer sampling")
@@ -334,7 +430,6 @@ class potential_ECFP:
     
 
 def mc_run(init_egc,min_func,min_func_name, respath,label, params):
-
     seed = int(str(hash(label))[1:8])
     np.random.seed(1337+seed)
     random.seed(1337+seed)
@@ -571,7 +666,7 @@ class Analyze_Chemspace:
                         CURR_TRAJECTORIES.append(TRAJECTORY)
                     ALL_TRAJECTORIES.append(CURR_TRAJECTORIES)
         else:
-            ALL_HISTOGRAMS = Parallel(n_jobs=8)(delayed(self.process_run)(run) for run in tqdm(self.results))
+            ALL_HISTOGRAMS = Parallel(n_jobs=8)(delayed(self.process_run)(run) for run in self.results)
 
 
         self.ALL_HISTOGRAMS, self.ALL_TRAJECTORIES = ALL_HISTOGRAMS, ALL_TRAJECTORIES
@@ -706,13 +801,6 @@ class Analyze_Chemspace:
             return X_2d ,clusters,cluster_X_2d, X_rep_2d,SMILES_rep,reducer
 
 
-
-
-
-
-
-
-
     def to_dataframe(self, obj):
         """
         Convert the trajectory point object to a dataframe
@@ -775,17 +863,23 @@ class Analyze_Chemspace:
 
 
 def chemspacesampler_ECFP(smiles, params=None):
+    """
+    Run the chemspacesampler with ECFP fingerprints.
+    """
+
     X, rdkit_init, egc = initialize_from_smiles(smiles)
-    num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
+    
 
     if params is None:
+        num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
+        elements = list({atom.GetSymbol() for atom in rdkit_init.GetAtoms()})
         params = {
             'min_d': 0.0,
             'max_d': 6.0,
             'NPAR': 1,
             'Nsteps': 100,
             'bias_strength': "none",
-            'possible_elements': ["C", "O", "N", "F"],
+            'possible_elements': elements,
             'not_protonated': None, 
             'forbidden_bonds': [(8, 9), (8,8), (9,9), (7,7)],
             'nhatoms_range': [num_heavy_atoms, num_heavy_atoms],
@@ -794,8 +888,6 @@ def chemspacesampler_ECFP(smiles, params=None):
             "verbose": False,
         }
 
-
-    
     
     min_func = potential_ECFP(X ,gamma=params['min_d'], sigma=params['max_d'], nbits=2048,verbose=params["verbose"])
 
@@ -809,18 +901,33 @@ def chemspacesampler_ECFP(smiles, params=None):
     return N, MOLS
 
 def chemspacesampler_SOAP(smiles, params=None):
-    init_egc, tp,rdkit_H =  initialize_fml_from_smiles(smiles)
+    """
+    Runs the chemspacesampler with SOAP Ensemble representations.
 
-    num_heavy_atoms = rdkit_H.GetNumHeavyAtoms()
+    Parameters:
+    smiles (str): SMILES string of the molecule.
+    params (dict, optional): Parameters for SOAP representation. If None, default parameters will be used.
+
+    Returns:
+    tuple: Number of structures (N) and molecular SMILES (MOLS).
+    """
+
+    init_egc, tp,rdkit_init =  initialize_fml_from_smiles(smiles)
+
+
 
     if params is None:
+        
+        num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
+        elements = list({atom.GetSymbol() for atom in rdkit_init.GetAtoms()})
+
         params = {
             'min_d': 0.0,
             'max_d': 150.0,
             'NPAR': 1,
             'Nsteps': 100,
             'bias_strength': "none",
-            'possible_elements': ["C", "O", "N", "F"],
+            'possible_elements': elements,
             'not_protonated': None, 
             'forbidden_bonds': [(8, 9), (8,8), (9,9), (7,7)],
             'nhatoms_range': [num_heavy_atoms, num_heavy_atoms],
@@ -829,10 +936,9 @@ def chemspacesampler_SOAP(smiles, params=None):
             "verbose": False,
         }
     
-
-    X        = fml_rep(tp["coordinates"], tp["nuclear_charges"], tp["rdkit_Boltzmann"])
-    min_func  = potential_SOAP(X,tp["nuclear_charges"],gamma=params["min_d"], sigma=params["max_d"], verbose=params["verbose"] )
-    respath = tempfile.mkdtemp()
+    X         = fml_rep(tp["coordinates"], tp["nuclear_charges"], tp["rdkit_Boltzmann"], params['possible_elements']+["H"])
+    min_func  = potential_SOAP(X,tp["nuclear_charges"],gamma=params["min_d"], sigma=params["max_d"],possible_elements= params["possible_elements"]+["H"], verbose=params["verbose"] )
+    respath   = tempfile.mkdtemp()
     Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
