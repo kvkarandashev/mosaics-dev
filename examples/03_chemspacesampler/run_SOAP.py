@@ -5,7 +5,7 @@ def main():
     params = {
         'min_d': 0.0,
         'max_d': 130.0,
-        'NPAR': 12,
+        'NPAR': 18,
         'Nsteps': 100,
         'bias_strength': "none",
         'possible_elements': ["C", "O", "N", "F"],

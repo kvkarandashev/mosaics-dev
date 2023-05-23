@@ -817,7 +817,7 @@ class Analyze_Chemspace:
         SMILES = curr_h["SMILES"][in_interval].values
     
         if params["rep_type"] == "2d":
-            SMILES = [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] 
+            SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
             explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
             X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
             D = np.array([norm(X_I - X) for X in X_ALL])
@@ -827,7 +827,6 @@ class Analyze_Chemspace:
         if params["rep_type"] == "3d":
             TP_ALL, INIT_EGC_ALL, RDKIT_ALL          = [], [],[]
             for smi in SMILES:
-
                 init_egc, output,curr_rdkit =  initialize_fml_from_smiles(smi)
                 TP_ALL.append(output)
                 INIT_EGC_ALL.append(init_egc)
