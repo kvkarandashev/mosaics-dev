@@ -484,7 +484,7 @@ def mc_run(init_egc,min_func,min_func_name, respath,label, params):
 def mc_run_QM9(init_egc,Nsteps, min_func,min_func_name, respath,label):
     bias_strength = "none"
     possible_elements = ["C", "O", "N", "F"]
-    not_protonated = None # [5, 8, 9, 14, 15, 16, 17, 35]
+    not_protonated = None
 
     forbidden_bonds= [(8, 9), (8,8), (9,9), (7,7)]
 
@@ -544,7 +544,6 @@ def mc_run_QM9(init_egc,Nsteps, min_func,min_func_name, respath,label):
 
 
 def initialize_fml_from_smiles(smiles, mode=True):
-    #TODO add option to deactive morpheus calculation for 2d sampling!
     rdkit_H =Chem.AddHs(Chem.MolFromSmiles(smiles))
     smiles_with_H = Chem.MolToSmiles(rdkit_H)
     init_egc  = SMILES_to_egc(smiles_with_H)
@@ -575,8 +574,6 @@ def compute_values(smi,**kwargs):
         "HOMO_LUMO_gap",
     ]
 
-    # More available quantites: "energy", "energy_no_solvent", "atomization_energy", "normalized_atomization_energy", "num_evals"
-    # These are parameters corresponding to the overconverged estimates.
 
     kwargs = {
         "ff_type": "MMFF94",
@@ -718,11 +715,10 @@ class Analyze_Chemspace:
 
             SMILES = []
             VALUES = []
-            #len(tp.calculated_data["morfeus"]["coordinates"])
+            
             for tp in mols:
                 curr_data = tp.calculated_data
                 SMILES.append(curr_data["morfeus"]["canon_rdkit_SMILES"])
-                #VALUES.append(curr_data["3d"])
                 VALUES.append(curr_data["chemspacesampler"])
 
             VALUES = np.array(VALUES)
