@@ -36,7 +36,7 @@ from mosaics.minimized_functions.morfeus_quantity_estimates import (
     morfeus_FF_xTB_code_quants,
 )
 
-
+import pdb
 
 def trajectory_point_to_canonical_rdkit(tp_in, SMILES_only=False):
     """
@@ -352,13 +352,13 @@ class potential_ECFP:
         X_init,
         sigma=1.0,
         gamma=1,
-        nbits=4096,
+        nBits=4096,
         verbose=False
     ):
         self.X_init = X_init
         self.sigma = sigma
         self.gamma = gamma
-        self.nbits = nbits
+        self.nBits = nBits
         self.verbose = verbose
 
         self.canonical_rdkit_output = {
@@ -391,7 +391,7 @@ class potential_ECFP:
         if rdkit_mol is None:
             raise RdKitFailure
             
-        X_test = extended_get_single_FP(rdkit_mol, nBits=self.nbits) 
+        X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits) 
         d = norm(X_test - self.X_init)
         V = self.potential(d)
 
@@ -410,7 +410,7 @@ class potential_ECFP:
         )["canonical_rdkit"]
 
         X_test = extended_get_single_FP(
-            rdkit_mol, nBits=self.nbits
+            rdkit_mol, nBits=self.nBits
         )
         d = norm(X_test - self.X_init)
         V = self.potential(d)
@@ -610,11 +610,11 @@ def compute_values_parallel(SMILES, njobs=10):
     PROPERTIES = [Parallel(n_jobs=njobs)(delayed(compute_values)(smi) for smi in SMILES)]
     return PROPERTIES[0]
 
-def initialize_from_smiles(SMILES, bits=2048):
+def initialize_from_smiles(SMILES, nBits=2048):
     smiles_with_H = Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(SMILES)))
     output =  SMILES_to_egc(smiles_with_H)
     rdkit_init = Chem.AddHs(Chem.MolFromSmiles(smiles_with_H))
-    X_init = get_all_FP([rdkit_init],nBits=bits) 
+    X_init = get_all_FP([rdkit_init],nBits=nBits) 
     return X_init,rdkit_init, output
 
 
@@ -812,13 +812,34 @@ class Analyze_Chemspace:
         df = df.reset_index(drop=True)
         return df
 
-    def count_shell_value(self, curr_h, return_mols=False):
+    def count_shell_value(self, curr_h,X_I, params):
         in_interval = curr_h["VALUES"] == 0.0
+        SMILES = curr_h["SMILES"][in_interval].values
+    
+        if params["rep_type"] == "2d":
+            SMILES = [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] 
+            explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+            X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
+            D = np.array([norm(X_I - X) for X in X_ALL])
+            SMILES = SMILES[np.argsort(D)]
+            D = D[np.argsort(D)]
 
-        if return_mols:
-            return in_interval.sum(), curr_h["SMILES"][in_interval].values
-        else:
-            return in_interval.sum()
+        if params["rep_type"] == "3d":
+            TP_ALL, INIT_EGC_ALL, RDKIT_ALL          = [], [],[]
+            for smi in SMILES:
+
+                init_egc, output,curr_rdkit =  initialize_fml_from_smiles(smi)
+                TP_ALL.append(output)
+                INIT_EGC_ALL.append(init_egc)
+                RDKIT_ALL.append(curr_rdkit)        
+            
+            X_ALL           = np.asarray(Parallel(n_jobs=params["NPAR"])(delayed(fml_rep)(TP["coordinates"], TP["nuclear_charges"], TP["rdkit_Boltzmann"], possible_elements= params['possible_elements']+['H']) for TP in TP_ALL))
+            D = np.array([norm(X_I - X) for X in X_ALL])
+            SMILES = SMILES[np.argsort(D)]
+            D = D[np.argsort(D)]
+
+        return SMILES, D
+
 
     def count_shell(
         self, X_init, SMILES_sampled, dl, dh, nBits=2048, return_mols=False
@@ -862,7 +883,6 @@ def chemspacesampler_ECFP(smiles, params=None):
     """
     Run the chemspacesampler with ECFP fingerprints.
     """
-
     X, rdkit_init, egc = initialize_from_smiles(smiles)
     
 
@@ -881,20 +901,22 @@ def chemspacesampler_ECFP(smiles, params=None):
             'nhatoms_range': [num_heavy_atoms, num_heavy_atoms],
             'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
             'make_restart_frequency': None,
-            "verbose": False,
+            "rep_type": "2d",
+            "nBits": 2048,
+            "verbose": False
         }
 
     
-    min_func = potential_ECFP(X ,gamma=params['min_d'], sigma=params['max_d'], nbits=2048,verbose=params["verbose"])
+    min_func = potential_ECFP(X ,gamma=params['min_d'], sigma=params['max_d'], nBits=2048,verbose=params["verbose"])
 
     respath = tempfile.mkdtemp()
     Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-    N, MOLS  = ana.count_shell_value(GLOBAL_HISTOGRAM, return_mols=True )
+    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X, params )
     shutil.rmtree(respath)
 
-    return N, MOLS
+    return MOLS, D
 
 def chemspacesampler_SOAP(smiles, params=None):
     """
@@ -930,7 +952,8 @@ def chemspacesampler_SOAP(smiles, params=None):
             'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
             'make_restart_frequency': None,
             "verbose": False,
-        }
+        } #TODO put reptype in params, and for count shell, use the right rep type
+        # return the smiles with dsitances in order
     
     X         = fml_rep(tp["coordinates"], tp["nuclear_charges"], tp["rdkit_Boltzmann"], params['possible_elements']+["H"])
     min_func  = potential_SOAP(X,tp["nuclear_charges"],gamma=params["min_d"], sigma=params["max_d"],possible_elements= params["possible_elements"]+["H"], verbose=params["verbose"] )
@@ -938,7 +961,7 @@ def chemspacesampler_SOAP(smiles, params=None):
     Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-    N, MOLS  = ana.count_shell_value(GLOBAL_HISTOGRAM, return_mols=True )
+    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM,X, params)
     shutil.rmtree(respath)
 
-    return N, MOLS
+    return MOLS, D

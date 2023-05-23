@@ -3,9 +3,9 @@ from mosaics.beta_choice import gen_exp_beta_array
 
 def main():
     params = {
-        'min_d': 0.0,
-        'max_d': 300.0,
-        'NPAR': 1,
+        'min_d': 800.0,
+        'max_d': 900.0,
+        'NPAR': 4,
         'Nsteps': 10,
         'bias_strength': "none",
         'possible_elements': ["C", "O", "N", "F"],
@@ -14,11 +14,12 @@ def main():
         'nhatoms_range': [6, 6],
         'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
         'make_restart_frequency': None,
+        'rep_type': '3d',
         "verbose": True,
     }
 
-    N, MOLS = chemspace_potentials.chemspacesampler_SOAP(smiles="CCCCCC", params=params)
-    print(N)
+    D, MOLS = chemspace_potentials.chemspacesampler_SOAP(smiles="CCCCCC", params=params)
+    print(D)
     print(MOLS)
 
 if __name__ == "__main__":

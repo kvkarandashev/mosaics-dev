@@ -1,34 +1,27 @@
 from mosaics.minimized_functions import chemspace_potentials
 from mosaics.beta_choice import gen_exp_beta_array
-import pdb
 
-
-
-
-
-
-
-
-
-if __name__ == "__main__":
-    min_d, max_d = 0.0, 4.0
+def main():
     params = {
-        'min_d': min_d,
-        'max_d': max_d,
+        'min_d': 0.0,
+        'max_d': 4.0,
         'NPAR': 1,
         'Nsteps': 100,
         'bias_strength': "none",
         'possible_elements': ["C", "O", "N", "F"],
         'not_protonated': None, 
-        'forbidden_bonds': [(8, 9), (8,8), (9,9), (7,7)],
+        'forbidden_bonds': [(8, 9), (8, 8), (9, 9), (7, 7)],
         'nhatoms_range': [6, 6],
         'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
         'make_restart_frequency': None,
-        "verbose": False,
+        "rep_type": "2d",
+        "nBits": 2048,
+        "verbose": False
     }
 
-    
-    N, MOLS = chemspace_potentials.chemspacesampler_ECFP(smiles = "CCCCCC",  params=params)
-    print(N)
+    D, MOLS = chemspace_potentials.chemspacesampler_ECFP(smiles="CCCCCC", params=params)
+    print(D)
     print(MOLS)
-    pdb.set_trace()
+
+if __name__ == "__main__":
+    main()
