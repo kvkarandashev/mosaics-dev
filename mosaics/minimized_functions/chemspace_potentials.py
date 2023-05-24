@@ -2,6 +2,7 @@
 import glob
 import random
 import tempfile
+import os
 import shutil
 import copy
 
@@ -10,6 +11,11 @@ import numpy as np
 from numpy.linalg import norm
 from rdkit import Chem
 from rdkit.Chem import DataStructs, rdMolDescriptors, Descriptors
+from rdkit.Chem import RDConfig
+#from rdkit.Contrib.SA_Score import sascorer
+import sys
+sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
+import sascorer
 from joblib import Parallel, delayed
 import pandas as pd
 from tqdm import tqdm
@@ -352,11 +358,13 @@ class potential_MolDescriptors:
         X_init,
         sigma=1.0,
         gamma=2.0,
+        synth_cut=3.0,
         verbose=False
     ):
         self.X_init = X_init
         self.sigma = sigma
         self.gamma = gamma
+        self.synth_cut = synth_cut
         self.verbose = verbose
 
         self.canonical_rdkit_output = {
@@ -365,6 +373,7 @@ class potential_MolDescriptors:
 
         self.potential = self.flat_parabola_potential
         self.norm_init = norm(X_init)
+        #self.score_init  = sascorer.calculateScore(rdkit_mol)
 
     def flat_parabola_potential(self, d):
         """
@@ -383,16 +392,19 @@ class potential_MolDescriptors:
         rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
             self.canonical_rdkit_output
         )["canonical_rdkit"]
-
+        #pdb.set_trace()
         if rdkit_mol is None:
             raise RdKitFailure
-            
+        
+        score  = sascorer.calculateScore( Chem.RemoveHs(rdkit_mol))
+        if score > self.synth_cut:
+            return None
         X_test = calc_all_descriptors(rdkit_mol)
         d = norm(X_test - self.X_init)/self.norm_init
         V = self.potential(d)
 
         if self.verbose:
-            print(canon_SMILES, d, V)
+            print(canon_SMILES, d, V, score)
 
         return V        
 
@@ -1018,10 +1030,11 @@ def chemspacesampler_MolDescriptors(smiles, params=None):
             'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
             'make_restart_frequency': None,
             'rep_type': 'MolDescriptors',
+            'synth_cut':3,
             "verbose": False
         }
 
-    min_func = potential_MolDescriptors(X ,gamma=params['min_d'], sigma=params['max_d'], verbose=params["verbose"])
+    min_func = potential_MolDescriptors(X ,gamma=params['min_d'], sigma=params['max_d'],synth_cut=params["synth_cut"], verbose=params["verbose"])
 
     respath = tempfile.mkdtemp()
     Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
