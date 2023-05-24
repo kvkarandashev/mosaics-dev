@@ -9,7 +9,7 @@ import copy
 import numpy as np
 from numpy.linalg import norm
 from rdkit import Chem
-from rdkit.Chem import DataStructs, rdMolDescriptors
+from rdkit.Chem import DataStructs, rdMolDescriptors, Descriptors
 from joblib import Parallel, delayed
 import pandas as pd
 from tqdm import tqdm
@@ -37,6 +37,14 @@ from mosaics.minimized_functions.morfeus_quantity_estimates import (
 )
 
 import pdb
+
+
+def calc_all_descriptors(mol):
+    descriptors = {}
+    for descriptor_name in Descriptors.descList:
+        descriptor_function = descriptor_name[1]
+        descriptors[descriptor_name[0]] = descriptor_function(mol)
+    return np.array(list(descriptors.values()))
 
 def trajectory_point_to_canonical_rdkit(tp_in, SMILES_only=False):
     """
@@ -78,7 +86,7 @@ def gen_soap(crds, chgs, species):
     )
 
     molecule = Atoms(numbers=chgs, positions=crds)
-    
+
     return average_soap.create(molecule)
 
 
@@ -338,6 +346,55 @@ class potential_SOAP:
             print(SMILES, distance, V)
         return V
     
+class potential_MolDescriptors:
+
+    def __init__(self,
+        X_init,
+        sigma=1.0,
+        gamma=2.0,
+        verbose=False
+    ):
+        self.X_init = X_init
+        self.sigma = sigma
+        self.gamma = gamma
+        self.verbose = verbose
+
+        self.canonical_rdkit_output = {
+            "canonical_rdkit": trajectory_point_to_canonical_rdkit
+        }
+
+        self.potential = self.flat_parabola_potential
+        self.norm_init = norm(X_init)
+
+    def flat_parabola_potential(self, d):
+        """
+        Flat parabola potential. Allows sampling within a distance basin
+        interval of I in [gamma, sigma]. The potential is given by:
+        """
+
+        if d < self.gamma:
+            return 0.05 * (d - self.gamma) ** 2
+        if self.gamma <= d <= self.sigma:
+            return 0
+        if d > self.sigma:
+            return 0.05 * (d - self.sigma) ** 2
+    
+    def __call__(self, trajectory_point_in):
+        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
+            self.canonical_rdkit_output
+        )["canonical_rdkit"]
+
+        if rdkit_mol is None:
+            raise RdKitFailure
+            
+        X_test = calc_all_descriptors(rdkit_mol)
+        d = norm(X_test - self.X_init)/self.norm_init
+        V = self.potential(d)
+
+        if self.verbose:
+            print(canon_SMILES, d, V)
+
+        return V        
 
 
 class potential_ECFP:
@@ -351,7 +408,7 @@ class potential_ECFP:
         self,
         X_init,
         sigma=1.0,
-        gamma=1,
+        gamma=2.0,
         nBits=4096,
         verbose=False
     ):
@@ -689,7 +746,21 @@ class Analyze_Chemspace:
         tp_list: list of molecudfles as trajectory points
         smiles_mol: list of rdkit molecules
         """
+    
+        if self.rep_type == "MolDescriptors":
+            SMILES = []
+            VALUES = []
 
+            
+            for tp in mols:
+                curr_data = tp.calculated_data
+                SMILES.append(curr_data["canonical_rdkit"][-1])
+                VALUES.append(curr_data["chemspacesampler"])
+
+
+            VALUES = np.array(VALUES)
+
+            return SMILES, VALUES
 
         if self.rep_type == "2d":
             SMILES = []
@@ -816,6 +887,16 @@ class Analyze_Chemspace:
         in_interval = curr_h["VALUES"] == 0.0
         SMILES = curr_h["SMILES"][in_interval].values
     
+        if params["rep_type"] == "MolDescriptors":
+            SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+            explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+            X_ALL = np.array([calc_all_descriptors(rdkit_mol) for rdkit_mol in explored_rdkit])
+            D = np.array([norm(X_I - X) for X in X_ALL])/norm(X_I)
+            SMILES = SMILES[np.argsort(D)]
+            SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+            D = D[np.argsort(D)]
+
+
         if params["rep_type"] == "2d":
             SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
             explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
@@ -918,6 +999,39 @@ def chemspacesampler_ECFP(smiles, params=None):
 
     return MOLS, D
 
+def chemspacesampler_MolDescriptors(smiles, params=None):
+    #TODO initiate the chemspacesampler with mol descriptors
+    #calc_all_descriptors
+    _, rdkit_init, egc = initialize_from_smiles(smiles)
+    X = calc_all_descriptors(rdkit_init)
+    if params is None:
+        params = {
+            'min_d': 0.0,
+            'max_d': 4.0,
+            'NPAR': 4,
+            'Nsteps': 100,
+            'bias_strength': "none",
+            'possible_elements': ["C", "O", "N", "F"],
+            'not_protonated': None, 
+            'forbidden_bonds': [(8, 9), (8, 8), (9, 9), (7, 7)],
+            'nhatoms_range': [6, 6],
+            'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
+            'make_restart_frequency': None,
+            'rep_type': 'MolDescriptors',
+            "verbose": False
+        }
+
+    min_func = potential_MolDescriptors(X ,gamma=params['min_d'], sigma=params['max_d'], verbose=params["verbose"])
+
+    respath = tempfile.mkdtemp()
+    Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+    ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="MolDescriptors" , full_traj=False, verbose=False)
+    _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X, params )
+    shutil.rmtree(respath)
+
+    return MOLS, D
+
 def chemspacesampler_SOAP(smiles, params=None):
     """
     Runs the chemspacesampler with SOAP Ensemble representations.
@@ -965,3 +1079,5 @@ def chemspacesampler_SOAP(smiles, params=None):
     shutil.rmtree(respath)
 
     return MOLS, D
+
+
