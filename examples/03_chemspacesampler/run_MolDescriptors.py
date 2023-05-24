@@ -4,7 +4,7 @@ from mosaics.beta_choice import gen_exp_beta_array
 
 params = {
     'min_d': 0,
-    'max_d': 1.5,
+    'max_d': 2.5,
     'NPAR': 1,
     'Nsteps': 100,
     'bias_strength': "none",
@@ -15,7 +15,7 @@ params = {
     'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
     'make_restart_frequency': None,
     'rep_type': 'MolDescriptors',
-    'synth_cut': 3,
+    'synth_cut': 2,
     "verbose": True
 }
 if __name__ == "__main__":
