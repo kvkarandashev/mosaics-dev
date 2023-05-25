@@ -44,10 +44,11 @@ st.title('ChemSpace Sampler App')
 smiles = st.text_input('Start molecule', value="CC(=O)OC1=CC=CC=C1C(=O)O")
 min_d = st.number_input('Minimal distance', value=5.0)
 max_d = st.number_input('Maximal distance', value=12.0)
-Nsteps = st.number_input('#MC iterations', value=40)
+Nsteps = st.number_input('#MC iterations', value=20)
 possible_elements = st.text_input('possible_elements', value="C, O, N, F").split(', ')
 nhatoms_range = st.text_input('Number heavy atoms (non-hydrogen)', value="13, 16").split(', ')
 synth_cut = st.number_input('Synthesizability (1 easy to 10 impossible to make) ', value=2)
+mmff_check = st.checkbox('MMFF94 paramters exist? (another sanity check)', value=True)
 user_input = st.text_input("Enter forbidden bonds", default_value_bonds)
 
 
@@ -58,7 +59,7 @@ forbidden_bonds = str_to_tuple_list(user_input)
 params = {
     'min_d': min_d,
     'max_d': max_d,
-    'NPAR': 1,
+    'NPAR': 2,
     'Nsteps': Nsteps,
     'bias_strength': "none",
     'possible_elements': possible_elements,
@@ -69,6 +70,7 @@ params = {
     'make_restart_frequency': None,
     'rep_type': 'MolDescriptors',
     'synth_cut': synth_cut,
+    'mmff_check': mmff_check,
     "verbose": True
 }
 
