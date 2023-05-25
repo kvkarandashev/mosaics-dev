@@ -29,18 +29,19 @@ def mol_to_3d(mol):
 st.title('ChemSpace Sampler App')
 
 # Parameters input
-min_d = st.number_input('min_d', value=0.0)
-max_d = st.number_input('max_d', value=2.0)
-Nsteps = st.number_input('Nsteps', value=10)
+min_d = st.number_input('min_d', value=5.0)
+max_d = st.number_input('max_d', value=12.0)
+Nsteps = st.number_input('Nsteps', value=40)
 possible_elements = st.text_input('possible_elements', value="C, O, N, F").split(', ')
-nhatoms_range = st.text_input('nhatoms_range', value="6, 9").split(', ')
+nhatoms_range = st.text_input('nhatoms_range', value="13, 16").split(', ')
+synth_cut = st.number_input('synth_cut', value=2)
 verbose = st.checkbox('Verbose', value=True)
-smiles = st.text_input('SMILES', value="CCCCCC")
+smiles = st.text_input('SMILES', value="CC(=O)OC1=CC=CC=C1C(=O)O")
 
 params = {
     'min_d': min_d,
     'max_d': max_d,
-    'NPAR': 1,
+    'NPAR': 2,
     'Nsteps': Nsteps,
     'bias_strength': "none",
     'possible_elements': possible_elements,
@@ -50,6 +51,7 @@ params = {
     'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
     'make_restart_frequency': None,
     'rep_type': 'MolDescriptors',
+    'synth_cut': synth_cut,
     "verbose": verbose
 }
 
@@ -58,7 +60,7 @@ if st.button('Run ChemSpace Sampler'):
     
     # Assuming D contains distances and has the same length as MOLS
     D = D[:10]
-
+    print(MOLS)
     # Convert MOLS to dataframe
     mol_df = pd.DataFrame(MOLS[:10], columns=['SMILES'])  # creating DataFrame from MOLS
     mol_df['Distance'] = D

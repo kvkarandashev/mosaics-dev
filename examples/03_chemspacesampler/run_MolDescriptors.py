@@ -3,15 +3,15 @@ from mosaics.beta_choice import gen_exp_beta_array
 
 
 params = {
-    'min_d': 0,
-    'max_d': 2.5,
-    'NPAR': 1,
+    'min_d': 10,
+    'max_d': 11,
+    'NPAR': 2,
     'Nsteps': 100,
     'bias_strength': "none",
     'possible_elements': ["C", "O", "N", "F"],
     'not_protonated': None, 
     'forbidden_bonds': [(8, 9), (8, 8), (9, 9), (7, 7)],
-    'nhatoms_range':[13, 13],
+    'nhatoms_range':[13, 16],
     'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
     'make_restart_frequency': None,
     'rep_type': 'MolDescriptors',
