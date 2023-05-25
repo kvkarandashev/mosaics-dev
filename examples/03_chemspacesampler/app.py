@@ -11,48 +11,65 @@ from rdkit.Chem.Draw import rdMolDraw2D
 from IPython.display import SVG, display
 import cairosvg
 from rdkit.Chem import AllChem
+from rdkit.Chem import rdDepictor
+
 
 def mol_to_img(mol):
+    mol = AllChem.RemoveHs(mol)
+    AllChem.Compute2DCoords(mol)
     drawer = rdMolDraw2D.MolDraw2DSVG(300, 300)
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
     svg = drawer.GetDrawingText()
     return cairosvg.svg2png(bytestring=svg.encode('utf-8'))
 
-
 def mol_to_3d(mol):
-    mol = Chem.AddHs(mol)
     AllChem.EmbedMolecule(mol, AllChem.ETKDG())
     return mol
 
+def str_to_tuple_list(string):
+    # Remove surrounding brackets
+    string = string[1:-1]
+    # Split into tuples
+    tuples = string.split('),')
+    # Split tuples into numbers and convert to integers
+    tuples = [tuple(map(int, t.replace('(', '').replace(')', '').split(','))) for t in tuples]
+    return tuples
+
+default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
 
 st.title('ChemSpace Sampler App')
 
 # Parameters input
-min_d = st.number_input('min_d', value=5.0)
-max_d = st.number_input('max_d', value=12.0)
-Nsteps = st.number_input('Nsteps', value=40)
+smiles = st.text_input('Start molecule', value="CC(=O)OC1=CC=CC=C1C(=O)O")
+min_d = st.number_input('Minimal distance', value=5.0)
+max_d = st.number_input('Maximal distance', value=12.0)
+Nsteps = st.number_input('#MC iterations', value=40)
 possible_elements = st.text_input('possible_elements', value="C, O, N, F").split(', ')
-nhatoms_range = st.text_input('nhatoms_range', value="13, 16").split(', ')
-synth_cut = st.number_input('synth_cut', value=2)
-verbose = st.checkbox('Verbose', value=True)
-smiles = st.text_input('SMILES', value="CC(=O)OC1=CC=CC=C1C(=O)O")
+nhatoms_range = st.text_input('Number heavy atoms (non-hydrogen)', value="13, 16").split(', ')
+synth_cut = st.number_input('Synthesizability (1 easy to 10 impossible to make) ', value=2)
+user_input = st.text_input("Enter forbidden bonds", default_value_bonds)
+
+
+
+forbidden_bonds = str_to_tuple_list(user_input)
+
 
 params = {
     'min_d': min_d,
     'max_d': max_d,
-    'NPAR': 2,
+    'NPAR': 1,
     'Nsteps': Nsteps,
     'bias_strength': "none",
     'possible_elements': possible_elements,
     'not_protonated': None, 
-    'forbidden_bonds': [(8, 9), (8, 8), (9, 9), (7, 7)],
+    'forbidden_bonds': forbidden_bonds,
     'nhatoms_range': [int(n) for n in nhatoms_range],
     'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
     'make_restart_frequency': None,
     'rep_type': 'MolDescriptors',
     'synth_cut': synth_cut,
-    "verbose": verbose
+    "verbose": True
 }
 
 if st.button('Run ChemSpace Sampler'):
