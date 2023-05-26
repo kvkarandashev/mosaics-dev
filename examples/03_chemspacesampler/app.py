@@ -11,7 +11,10 @@ from rdkit.Chem.Draw import rdMolDraw2D
 from IPython.display import SVG, display
 import cairosvg
 from rdkit.Chem import AllChem
-from rdkit.Chem import rdDepictor
+
+import random
+
+random.seed(42)
 
 
 def mol_to_img(mol):
@@ -37,11 +40,21 @@ def str_to_tuple_list(string):
     return tuples
 
 default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
+descriptor_options = ['RDKit', 'ECFP4', 'SOAP (averaged)']
 
 st.title('ChemSpace Sampler App')
+st.write('This application generates new chemical structures starting from a given molecule. \
+          Just enter the parameters below and click "Run ChemSpace Sampler"!')
+
 
 # Parameters input
+st.subheader('Input Parameters')
 smiles = st.text_input('Start molecule', value="CC(=O)OC1=CC=CC=C1C(=O)O")
+selected_descriptor = st.selectbox('Select Descriptor', descriptor_options)
+
+
+
+
 min_d = st.number_input('Minimal distance', value=5.0)
 max_d = st.number_input('Maximal distance', value=12.0)
 Nsteps = st.number_input('#MC iterations', value=20)
@@ -56,7 +69,12 @@ user_input = st.text_input("Enter forbidden bonds", default_value_bonds)
 forbidden_bonds = str_to_tuple_list(user_input)
 
 
-params = {
+
+
+# Determine the chemspacesampler function to use based on selected_descriptor
+if selected_descriptor == 'RDKit':
+    chemspace_function = chemspace_potentials.chemspacesampler_MolDescriptors
+    params = {
     'min_d': min_d,
     'max_d': max_d,
     'NPAR': 2,
@@ -72,10 +90,51 @@ params = {
     'synth_cut': synth_cut,
     'mmff_check': mmff_check,
     "verbose": True
-}
+    }
+
+elif selected_descriptor == 'ECFP4':
+    chemspace_function = chemspace_potentials.chemspacesampler_ECFP
+    params = {
+    'min_d': min_d,
+    'max_d': max_d,
+    'NPAR': 1,
+    'Nsteps': Nsteps,
+    'bias_strength': "none",
+    'possible_elements': possible_elements,
+    'not_protonated': None, 
+    'forbidden_bonds': forbidden_bonds,
+    'nhatoms_range': [int(n) for n in nhatoms_range],
+    'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
+    'make_restart_frequency': None,
+    "rep_type": "2d",
+    "nBits": 2048,
+    "verbose": False
+    }
+
+elif selected_descriptor == 'SOAP (averaged)':
+    chemspace_function = chemspace_potentials.chemspacesampler_SOAP
+    params = {
+        'min_d': min_d,
+        'max_d': max_d,
+        'NPAR': 1,
+        'Nsteps': Nsteps,
+        'bias_strength': "none",
+        'possible_elements': possible_elements,
+        'not_protonated': None, 
+        'forbidden_bonds': forbidden_bonds,
+        'nhatoms_range': [int(n) for n in nhatoms_range],
+        'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
+        'make_restart_frequency': None,
+        'rep_type': '3d',
+        "verbose": True,
+    }
+else:
+    st.error('Unknown Descriptor selected')
 
 if st.button('Run ChemSpace Sampler'):
-    MOLS, D = chemspace_potentials.chemspacesampler_MolDescriptors(smiles=smiles, params=params)
+
+
+    MOLS, D = chemspace_function(smiles=smiles, params=params)
     
     # Assuming D contains distances and has the same length as MOLS
     D = D[:10]

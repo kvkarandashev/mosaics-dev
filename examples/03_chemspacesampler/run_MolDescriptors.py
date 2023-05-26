@@ -16,6 +16,7 @@ params = {
     'make_restart_frequency': None,
     'rep_type': 'MolDescriptors',
     'synth_cut': 2,
+    'mmff_check': True,
     "verbose": True
 }
 if __name__ == "__main__":
