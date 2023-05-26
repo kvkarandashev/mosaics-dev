@@ -4,8 +4,8 @@ from mosaics.beta_choice import gen_exp_beta_array
 def main():
     params = {
         'min_d': 0.0,
-        'max_d': 120.0,
-        'NPAR': 3,
+        'max_d': 80.0,
+        'NPAR': 2,
         'Nsteps': 20,
         'bias_strength': "none",
         'possible_elements': ["C", "O", "N", "F"],
@@ -16,11 +16,11 @@ def main():
         'make_restart_frequency': None,
         'rep_type': '3d',
         'synth_cut': 2,
-        'ensemble': True,
+        'ensemble': False,
         "verbose": True,
     }
 
-    MOLS, D= chemspace_potentials.chemspacesampler_SOAP(smiles="CC(=O)OC1=CC=CC=C1C(=O)O", params=params)
+    MOLS, D= chemspace_potentials.chemspacesampler_BoB(smiles="CC(=O)OC1=CC=CC=C1C(=O)O", params=params)
     print(MOLS)
     print(D)
 

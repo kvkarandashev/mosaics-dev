@@ -40,11 +40,12 @@ def str_to_tuple_list(string):
     return tuples
 
 default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
-descriptor_options = ['RDKit', 'ECFP4', 'SOAP (averaged)']
+descriptor_options = ['RDKit', 'ECFP4', 'SOAP']
 
 st.title('ChemSpace Sampler App')
 st.write('This application generates new chemical structures starting from a given molecule. \
-          Just enter the parameters below and click "Run ChemSpace Sampler"!')
+          Just enter the parameters below and click "Run ChemSpace Sampler"! \
+          Ensemble representation will make distances less noisy. Without it you may get distances vastly outside of the defined target interval (min_d, max_d).')
 
 
 # Parameters input
@@ -62,6 +63,7 @@ possible_elements = st.text_input('possible_elements', value="C, O, N, F").split
 nhatoms_range = st.text_input('Number heavy atoms (non-hydrogen)', value="13, 16").split(', ')
 synth_cut = st.number_input('Synthesizability (1 easy to 10 impossible to make) ', value=2)
 mmff_check = st.checkbox('MMFF94 paramters exist? (another sanity check)', value=True)
+ensemble   = st.checkbox('Ensemble representation (affects only geometry-based representations)', value=False)
 user_input = st.text_input("Enter forbidden bonds", default_value_bonds)
 
 
@@ -111,7 +113,7 @@ elif selected_descriptor == 'ECFP4':
     "verbose": False
     }
 
-elif selected_descriptor == 'SOAP (averaged)':
+elif selected_descriptor == 'SOAP':
     chemspace_function = chemspace_potentials.chemspacesampler_SOAP
     params = {
         'min_d': min_d,
@@ -126,6 +128,8 @@ elif selected_descriptor == 'SOAP (averaged)':
         'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
         'make_restart_frequency': None,
         'rep_type': '3d',
+        'synth_cut': 5,
+        'ensemble': ensemble,
         "verbose": True,
     }
 else:
