@@ -4,7 +4,7 @@ from mosaics.beta_choice import gen_exp_beta_array
 def main():
     params = {
         'min_d': 0.0,
-        'max_d': 120.0,
+        'max_d': 80.0,
         'NPAR': 3,
         'Nsteps': 20,
         'bias_strength': "none",
@@ -15,6 +15,7 @@ def main():
         'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
         'make_restart_frequency': None,
         'rep_type': '3d',
+        'rep_name': 'SOAP',
         'synth_cut': 2,
         'ensemble': True,
         "verbose": True,

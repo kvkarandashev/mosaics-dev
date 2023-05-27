@@ -15,8 +15,9 @@ def main():
         'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
         'make_restart_frequency': None,
         'rep_type': '3d',
+        'rep_name': 'BoB',
         'synth_cut': 2,
-        'ensemble': False,
+        'ensemble': True,
         "verbose": True,
     }
 
