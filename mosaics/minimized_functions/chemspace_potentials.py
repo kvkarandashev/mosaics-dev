@@ -5,7 +5,7 @@ import tempfile
 import os
 import shutil
 import copy
-
+import time
 # Third party imports
 import numpy as np
 from numpy.linalg import norm
@@ -612,6 +612,158 @@ class potential_BoB:
             print(SMILES, distance, V)
         return V
 
+
+class potential_BoB_cliffs:
+    """
+    Class to represent a potential using Bag of Bonds (BoB).
+    """
+    def __init__(
+        self,
+        X_init,
+        Q_init,
+        params
+    ):
+        """
+        Initializes the potential_BoB class.
+        
+        Parameters:
+        X_init (np.array): Initial positions of particles.
+        Q_init (np.array): Initial charges.
+        gamma (float): A parameter for flat_parabola_potential function.
+        sigma (float): A parameter for flat_parabola_potential function.
+        possible_elements (list): List of possible atomic elements.
+        verbose (bool): Verbosity flag.
+        """
+        self.params = params
+        self.X_init = X_init
+        self.Q_init = Q_init
+        self.gamma = params["min_d"]
+        self.sigma = params["max_d"]
+        self.possible_elements = params["possible_elements"]+["H"]
+        self.verbose = params["verbose"]
+        self.synth_cut = params["synth_cut"]
+        self.ensemble = params["ensemble"]
+        self.jump = params["jump"]
+        self.gap_0 = params["gap_0"]
+        self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
+        
+        
+        if self.ensemble:
+            self.morfeus_args = {
+                            "morfeus": {
+                                "num_attempts": 100,
+                                "ff_type": "MMFF94",
+                                "return_rdkit_obj": False,
+                                "all_confs": True
+                            }
+                        }
+        else:
+            self.morfeus_args = {
+                            "morfeus": {
+                                "num_attempts": 2,
+                                "ff_type": "MMFF94",
+                                "return_rdkit_obj": False,
+                                "all_confs": False
+                            }
+                        }
+            
+        self.potential = self.flat_parabola_potential  
+
+    def fml_distance(self,coords,charges,energies):
+        """
+        Calculates the FML distance.
+        
+        Parameters:
+        coords (np.array): Positions of particles.
+        charges (np.array): Charges.
+        energies (np.array): Energies.
+        
+        Returns:
+        float: FML distance.
+        """
+        
+        X_test = self.repfct(coords, charges,energies)
+        return norm(X_test - self.X_init)
+
+
+    def flat_parabola_potential(self, d):
+        """
+        A function to describe the potential as a flat parabola.
+        
+        Parameters:
+        d (float): Distance.
+        
+        Returns:
+        float: Potential value.
+        """
+
+        if d < self.gamma:
+            return 0.05 * (d - self.gamma) ** 2
+        if self.gamma <= d <= self.sigma:
+            return 0
+        if d > self.sigma:
+            return 0.05 * (d - self.sigma) ** 2
+
+    def __call__(self, trajectory_point_in):
+        """
+        Calculates the potential energy of a trajectory point.
+        
+        Parameters:
+        trajectory_point_in (TrajectoryPoint): Trajectory point.
+        
+        Returns:
+        float: Potential energy of the trajectory point.
+        """
+
+        try:
+            
+            output = trajectory_point_in.calc_or_lookup(
+                self.morfeus_output,
+                kwargs_dict=self.morfeus_args,
+            )["morfeus"]
+            
+            coords = output["coordinates"]
+            charges = output["nuclear_charges"]
+            SMILES = output["canon_rdkit_SMILES"]
+
+            rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
+            score  = sascorer.calculateScore( rdkit_mol_no_H)
+        
+            
+            properties_trial = compute_values(SMILES)
+            gap_t = properties_trial[2]
+
+            if abs(gap_t - self.gap_0) > self.jump * abs(self.gap_0):
+                pass
+            else:
+                return None
+
+
+            if score > self.synth_cut:
+                return None
+
+            if self.ensemble:
+                X_test =   fml_rep_BoB(coords, charges, output["rdkit_Boltzmann"], self.params)
+                
+            else:
+                X_test =  generate_bob(charges, coords, self.params['unique_elements'], size=self.params["max_n"], asize=self.params["asize"])
+                
+
+
+        except Exception as e:
+            print(e)
+            print("Error in 3d conformer sampling")
+            return None
+            
+        
+        distance = np.linalg.norm(X_test - self.X_init)
+        V = self.potential(distance)
+
+        if self.verbose:
+            print(SMILES, distance, V, self.gap_0, gap_t)
+        return V
+
+
 class potential_ECFP:
 
     """
@@ -750,6 +902,7 @@ def mc_run(init_egc,min_func,min_func_name, respath,label, params):
         rw.global_random_change(**global_change_params)
 
     rw.ordered_trajectory()
+    time.sleep(0.5)
     rw.make_restart(tarball=True)
 
 
@@ -881,12 +1034,6 @@ def compute_values(smi,**kwargs):
     try:
         properties = [float(val), float(std), float(val_gap), float(std_gap)]
     except:
-        if not os.path.exists("errorfile.txt"):
-            errorfile = open("errorfile.txt", "w")
-            errorfile.close()
-        errorfile = open("errorfile.txt", "a")
-        errorfile.write(f"{smi} {results}/n")
-        errorfile.close()
         properties = [np.nan, np.nan, np.nan, np.nan]
     return properties
 
@@ -1341,7 +1488,8 @@ def chemspacesampler_SOAP(smiles, params=None):
 
 def chemspacesampler_BoB(smiles, params=None):
 
-    
+    init_egc, tp,rdkit_init =  initialize_fml_from_smiles(smiles, ensemble=params['ensemble'])
+
     if params is None:
         num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
         elements = list({atom.GetSymbol() for atom in rdkit_init.GetAtoms()})
@@ -1365,7 +1513,7 @@ def chemspacesampler_BoB(smiles, params=None):
             "verbose": False,
         }
         
-    init_egc, tp,rdkit_init =  initialize_fml_from_smiles(smiles, ensemble=params['ensemble'])
+    
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
     symbols = [ELEMENT_NAME[charge] for charge in charges]*3
     
@@ -1373,7 +1521,13 @@ def chemspacesampler_BoB(smiles, params=None):
     asize, max_n = max_element_counts([symbols])
     asize_copy = asize.copy()
     elements_to_exclude = ['C', 'H']
-    avg_value = sum(val for key, val in asize_copy.items() if key not in elements_to_exclude) / len([key for key in asize_copy if key not in elements_to_exclude])
+    elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
+
+    if elements_not_excluded:  # checks if list is not empty
+        avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(elements_not_excluded)
+    else:
+        avg_value = 0  # or any other value you consider appropriate when there are no elements
+
     for element in params['possible_elements']:
         if element not in asize:
             asize[element] = int(avg_value)
@@ -1402,8 +1556,71 @@ def chemspacesampler_BoB(smiles, params=None):
 
 
 
+def chemspacesampler_find_cliffs(smiles, params=None):
+    init_egc, tp,rdkit_init =  initialize_fml_from_smiles(smiles, ensemble=params['ensemble'])
+    if params is None:
+        num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
+        elements = list({atom.GetSymbol() for atom in rdkit_init.GetAtoms()})
 
-    #self.X.append(generate_bob( self.nuclear_charges[i],self.coords[i],self.species,size=self.max_n,asize=self.asize))
+        params = {
+            'min_d': 0.0,
+            'max_d': 150.0,
+            'NPAR': 1,
+            'Nsteps': 100,
+            'bias_strength': "none",
+            'possible_elements': elements,
+            'not_protonated': None, 
+            'forbidden_bonds': [(8, 9), (8,8), (9,9), (7,7)],
+            'nhatoms_range': [num_heavy_atoms, num_heavy_atoms],
+            'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
+            'make_restart_frequency': None,
+            'rep_type': '3d',
+            'rep_name':"BoB_cliffs",
+            'synth_cut':3,
+            'ensemble': False,
+            'jump': 0.5,
+            "verbose": False,
+        }
+
+    properties = compute_values(smiles)
+    params['gap_0'] = properties[2]
+    coords, charges    = tp["coordinates"], tp["nuclear_charges"]
+    symbols = [ELEMENT_NAME[charge] for charge in charges]*3
+
+    asize, max_n = max_element_counts([symbols])
+    asize_copy = asize.copy()
+    elements_to_exclude = ['C', 'H']
+    elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
+
+    if elements_not_excluded:  # checks if list is not empty
+        avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(elements_not_excluded)
+    else:
+        avg_value = 0  # or any other value you consider appropriate when there are no elements
+
+    for element in params['possible_elements']:
+        if element not in asize:
+            asize[element] = int(avg_value)
+
+
+    params["asize"], params["max_n"], params['unique_elements']  = asize, max_n, list(asize.keys())
+
+    if params['ensemble']:
+        X         = fml_rep_BoB(coords, charges, tp["rdkit_Boltzmann"], params)
+    else:
+        X         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
+    
+    min_func  = potential_BoB_cliffs(X,tp["nuclear_charges"] , params)
+
+    respath   = tempfile.mkdtemp()
+    if params['NPAR'] > 1:
+        Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
+    else:
+        mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
+    
+    #ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
+
+
+
 
 class QM9Dataset():
     def __init__(self, params):
