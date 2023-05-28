@@ -112,6 +112,8 @@ elif selected_descriptor == 'ECFP4':
     'make_restart_frequency': None,
     "rep_type": "2d",
     "nBits": 2048,
+    "mmff_check": True,
+    "synth_cut": 2,
     "verbose": False
     }
 

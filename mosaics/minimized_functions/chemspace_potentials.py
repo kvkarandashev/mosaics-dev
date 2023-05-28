@@ -773,17 +773,15 @@ class potential_ECFP:
 
     def __init__(
         self,
-        X_init,
-        sigma=1.0,
-        gamma=2.0,
-        nBits=4096,
-        verbose=False
+        X_init, params
     ):
         self.X_init = X_init
-        self.sigma = sigma
-        self.gamma = gamma
-        self.nBits = nBits
-        self.verbose = verbose
+        self.gamma = params["min_d"]
+        self.sigma = params["max_d"]
+        self.nBits = params["nBits"]
+        self.mmff_check = params["mmff_check"]
+        self.synth_cut = params["synth_cut"]
+        self.verbose = params["verbose"]
 
         self.canonical_rdkit_output = {
             "canonical_rdkit": trajectory_point_to_canonical_rdkit
@@ -814,10 +812,23 @@ class potential_ECFP:
 
         if rdkit_mol is None:
             raise RdKitFailure
+        
+
+        rdkit_mol_no_H = Chem.RemoveHs(rdkit_mol)
+        score  = sascorer.calculateScore( rdkit_mol_no_H)
+
+        if score > self.synth_cut:
+            return None
+        if self.mmff_check:
+            if not AllChem.MMFFHasAllMoleculeParams(rdkit_mol_no_H):
+                return None
+
             
         X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits) 
         d = norm(X_test - self.X_init)
         V = self.potential(d)
+
+
 
         if self.verbose:
             print(canon_SMILES, d, V)
@@ -1371,11 +1382,13 @@ def chemspacesampler_ECFP(smiles, params=None):
             'make_restart_frequency': None,
             "rep_type": "2d",
             "nBits": 2048,
+            'mmff_check': True,
+            'synth_cut':3,
             "verbose": False
         }
 
     
-    min_func = potential_ECFP(X ,gamma=params['min_d'], sigma=params['max_d'], nBits=2048,verbose=params["verbose"])
+    min_func = potential_ECFP(X ,params=params)
 
     respath = tempfile.mkdtemp()
     Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
