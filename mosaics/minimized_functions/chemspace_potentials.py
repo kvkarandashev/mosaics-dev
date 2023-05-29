@@ -1268,6 +1268,11 @@ class Analyze_Chemspace:
         df = df.reset_index(drop=True)
         return df
 
+    def process_smiles(self, smi, params):
+        init_egc, output, curr_rdkit =  initialize_fml_from_smiles(smi, ensemble=params['ensemble'])
+        return init_egc, output, curr_rdkit
+
+
     def count_shell_value(self, curr_h,X_I, params):
         in_interval = curr_h["VALUES"] == 0.0
         SMILES = curr_h["SMILES"][in_interval].values
@@ -1292,13 +1297,19 @@ class Analyze_Chemspace:
             D = D[np.argsort(D)]
 
         if params["rep_type"] == "3d":
-            
+                """
+                
+                
                 TP_ALL, INIT_EGC_ALL, RDKIT_ALL          = [], [],[]
                 for smi in SMILES:
                     init_egc, output,curr_rdkit =  initialize_fml_from_smiles(smi, ensemble=params['ensemble'])
                     TP_ALL.append(output)
                     INIT_EGC_ALL.append(init_egc)
                     RDKIT_ALL.append(curr_rdkit)        
+                """
+                results = Parallel(n_jobs=params['NPAR'])(delayed(self.process_smiles)(smi, params) for smi in SMILES)
+                _, TP_ALL, _ = zip(*results)
+
                 
                 if params["rep_name"] == "SOAP":
                     if params['ensemble']:
@@ -1311,7 +1322,7 @@ class Analyze_Chemspace:
                         X_ALL           = np.asarray([fml_rep_BoB(TP["coordinates"], TP["nuclear_charges"], TP["rdkit_Boltzmann"], params) for TP in TP_ALL])
                     else:
                         X_ALL           = np.asarray([generate_bob(TP["nuclear_charges"], TP["coordinates"], params['unique_elements'], size=params["max_n"], asize=params["asize"]) for TP in TP_ALL])
-                                                    #generate_bob(charges, coords[i], params['unique_elements'], size=params['max_n'], asize=params['asize']))
+
                 D = np.array([norm(X_I - X) for X in X_ALL])
                 SMILES = SMILES[np.argsort(D)]
                 D = D[np.argsort(D)]

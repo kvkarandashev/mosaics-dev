@@ -86,7 +86,7 @@ if selected_descriptor == 'RDKit':
     params = {
     'min_d': min_d,
     'max_d': max_d,
-    'NPAR': 1,
+    'NPAR': 2,
     'Nsteps': Nsteps,
     'bias_strength': "none",
     'possible_elements': possible_elements,
@@ -106,7 +106,7 @@ elif selected_descriptor == 'ECFP4':
     params = {
     'min_d': min_d,
     'max_d': max_d,
-    'NPAR': 1,
+    'NPAR': 2,
     'Nsteps': Nsteps,
     'bias_strength': "none",
     'possible_elements': possible_elements,
@@ -127,7 +127,7 @@ elif selected_descriptor == 'BoB':
     params = {
         'min_d': min_d,
         'max_d': max_d,
-        'NPAR':1,
+        'NPAR':2,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
@@ -147,7 +147,7 @@ elif selected_descriptor == 'SOAP':
     params = {
         'min_d': min_d,
         'max_d': max_d,
-        'NPAR': 1,
+        'NPAR': 2,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
@@ -261,4 +261,5 @@ if st.button('Run ChemSpace Sampler'):
 
     except:
         st.error('An error occurred. Please check your input parameters and try again. \
-                 Is the starting molecule consistent with the conditions i.e. number of heavy atoms, elements, etc.?')
+                 Is the starting molecule consistent with the conditions i.e. number of heavy atoms, elements, etc.? \
+                 sometimes things fail for no apparent reason, just try again.')
