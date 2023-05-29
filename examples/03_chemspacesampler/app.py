@@ -24,6 +24,12 @@ import pdb
 sns.set_style("whitegrid")  # Set style to whitegrid for better readability
 sns.set_context("notebook")  # Set context to "notebook"
 
+st.set_page_config(
+   page_title="Chemspace",
+   page_icon=":shark:",
+   layout="wide",
+)
+
 def mol_to_img(mol):
     mol = AllChem.RemoveHs(mol)
     AllChem.Compute2DCoords(mol)
@@ -127,7 +133,7 @@ elif selected_descriptor == 'BoB':
     params = {
         'min_d': min_d,
         'max_d': max_d,
-        'NPAR':1,
+        'NPAR':3,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
@@ -147,7 +153,7 @@ elif selected_descriptor == 'SOAP':
     params = {
         'min_d': min_d,
         'max_d': max_d,
-        'NPAR': 2,
+        'NPAR': 3,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
