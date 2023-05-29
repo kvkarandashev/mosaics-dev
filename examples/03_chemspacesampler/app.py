@@ -127,7 +127,7 @@ elif selected_descriptor == 'BoB':
     params = {
         'min_d': min_d,
         'max_d': max_d,
-        'NPAR':2,
+        'NPAR':1,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,

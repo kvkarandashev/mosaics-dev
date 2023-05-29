@@ -396,9 +396,15 @@ class potential_SOAP:
                 return None
 
             if self.ensemble:
-                X_test =  fml_rep_SOAP(coords, charges, output["rdkit_Boltzmann"],possible_elements= self.possible_elements)
+                if coords.shape[1] == charges.shape[0]:
+                    X_test =  fml_rep_SOAP(coords, charges, output["rdkit_Boltzmann"],possible_elements= self.possible_elements)
+                else:
+                    return None
             else:
-                X_test =  gen_soap(coords, charges,species= self.possible_elements)
+                if coords.shape[0] == charges.shape[0]:
+                    X_test =  gen_soap(coords, charges,species= self.possible_elements)
+                else:
+                    return None
 
 
         except Exception as e:
@@ -587,15 +593,21 @@ class potential_BoB:
 
             rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
             score  = sascorer.calculateScore( rdkit_mol_no_H)
-        
+            
             if score > self.synth_cut:
                 return None
 
             if self.ensemble:
-                X_test =   fml_rep_BoB(coords, charges, output["rdkit_Boltzmann"], self.params)
+                if coords.shape[1] == charges.shape[0]:
+                    X_test =   fml_rep_BoB(coords, charges, output["rdkit_Boltzmann"], self.params)
+                else:
+                    return None
                 
             else:
-                X_test =  generate_bob(charges, coords, self.params['unique_elements'], size=self.params["max_n"], asize=self.params["asize"])
+                if coords.shape[0] == charges.shape[0]:
+                    X_test =  generate_bob(charges, coords, self.params['unique_elements'], size=self.params["max_n"], asize=self.params["asize"])
+                else:
+                    return None
                 
 
 
@@ -1554,9 +1566,9 @@ def chemspacesampler_BoB(smiles, params=None):
 
     for element in params['possible_elements']:
         if element not in asize:
-            asize[element] = int(avg_value)
+            asize[element] = 3*int(avg_value)
 
-    params["asize"], params["max_n"], params['unique_elements']  = asize, max_n, list(asize.keys())
+    params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())
     
     if params['ensemble']:
         X         = fml_rep_BoB(coords, charges, tp["rdkit_Boltzmann"], params)
@@ -1623,10 +1635,10 @@ def chemspacesampler_find_cliffs(smiles, params=None):
 
     for element in params['possible_elements']:
         if element not in asize:
-            asize[element] = int(avg_value)
+            asize[element] = 3*int(avg_value)
 
 
-    params["asize"], params["max_n"], params['unique_elements']  = asize, max_n, list(asize.keys())
+    params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())
 
     if params['ensemble']:
         X         = fml_rep_BoB(coords, charges, tp["rdkit_Boltzmann"], params)
