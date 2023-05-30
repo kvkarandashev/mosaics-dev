@@ -21,10 +21,10 @@ import pandas as pd
 from tqdm import tqdm
 from rdkit.Chem import AllChem
 from sklearn.model_selection import train_test_split
-
+from mosaics.misc_procedures import str_atom_corr
+import pdb
 try:
     from qml.representations import generate_bob
-    from qml.utils.alchemy import ELEMENT_NAME
 except:
     raise ImportError("Please install qml package to use this representation")
 
@@ -50,7 +50,53 @@ from mosaics.minimized_functions.morfeus_quantity_estimates import (
     morfeus_FF_xTB_code_quants,
 )
 
-import pdb
+
+from itertools import combinations, product
+from math import comb
+
+
+def bob(atoms,coods, asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
+    keys=list(asize.keys()) 
+    elements={'C':[[],6],'H':[[],1],'N':[[],7],'O':[[],8],'F':[[],9],'P':[[],15],'S':[[],16],'Cl':[[],17],'Br':[[],35],'I':[[],53]}
+    for i in range(len(atoms)):
+        elements[atoms[i]][0].append(coods[i])
+    bob=[]
+    for i in range(len(keys)):
+        num=len(elements[keys[i]][0])
+        if num!=0:
+            bag=np.zeros((asize[keys[i]]))
+            bag[:num]=0.5*(elements[keys[i]][1]**2.4)
+            bag=-np.sort(-bag)
+            bob.extend(bag)
+            for j in range(i,len(keys)):
+                if i==j:
+                    z=elements[keys[i]][1]
+                    bag=np.zeros((comb(asize[keys[i]],2)))
+                    vec=[]
+                    for (r1,r2) in combinations(elements[keys[i]][0],2):
+                        vec.append(z**2/np.linalg.norm(r1-r2))
+                    bag[:len(vec)]=vec
+                    bag=-np.sort(-bag)
+                    bob.extend(bag)
+                elif (i!=j) and (len(elements[keys[j]][0])!=0):
+                    z1,z2=elements[keys[i]][1],elements[keys[j]][1]
+                    bag=np.zeros((asize[keys[i]]*asize[keys[j]]))
+                    vec=[]
+                    for (r1,r2) in product(elements[keys[i]][0],elements[keys[j]][0]):
+                        vec.append(z1*z2/np.linalg.norm(r1-r2))
+                    bag[:len(vec)]=vec
+                    bag=-np.sort(-bag)
+                    bob.extend(bag)
+                else:
+                    bob.extend(np.zeros((asize[keys[i]]*asize[keys[j]])))
+        else:
+            bob.extend(np.zeros((asize[keys[i]])))
+            for j in range(i,len(keys)):
+                if i==j:
+                    bob.extend(np.zeros((comb(asize[keys[i]],2))))
+                else:
+                    bob.extend(np.zeros((asize[keys[i]]*asize[keys[j]])))
+    return np.array(bob) 
 
 
 def calc_all_descriptors(mol):
@@ -1597,10 +1643,11 @@ def chemspacesampler_BoB(smiles, params=None):
         
     
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
-    symbols = [ELEMENT_NAME[charge] for charge in charges]*3
+    
+    symbols = [str_atom_corr(charge) for charge in charges]
     
     
-    asize, max_n = max_element_counts([symbols])
+    asize, max_n = max_element_counts([symbols*3])
     asize_copy = asize.copy()
     elements_to_exclude = ['C', 'H']
     elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
@@ -1619,6 +1666,7 @@ def chemspacesampler_BoB(smiles, params=None):
     if params['ensemble']:
         X         = fml_rep_BoB(coords, charges, tp["rdkit_Boltzmann"], params)
     else:
+        pdb.set_trace()
         X         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
     
     min_func  = potential_BoB(X,tp["nuclear_charges"] , params)
@@ -1666,9 +1714,9 @@ def chemspacesampler_find_cliffs(smiles, params=None):
     properties = compute_values(smiles)
     params['gap_0'] = properties[2]
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
-    symbols = [ELEMENT_NAME[charge] for charge in charges]*3
+    symbols = [str_atom_corr(charge) for charge in charges]
 
-    asize, max_n = max_element_counts([symbols])
+    asize, max_n = max_element_counts([symbols*3])
     asize_copy = asize.copy()
     elements_to_exclude = ['C', 'H']
     elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
