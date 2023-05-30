@@ -1,6 +1,6 @@
 from mosaics.beta_choice import gen_exp_beta_array
 
-def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut,ensemble, mmff_check):
+def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check):
     if selected_descriptor == 'RDKit':
 
         params = {
@@ -16,7 +16,8 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
         'make_restart_frequency': None,
         'rep_type': 'MolDescriptors',
-        'synth_cut': synth_cut,
+        'synth_cut_soft': synth_cut_soft,
+        'synth_cut_hard': synth_cut_hard,
         'mmff_check': mmff_check,
         "verbose": True
         }
@@ -36,7 +37,8 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         "rep_type": "2d",
         "nBits": 2048,
         "mmff_check": True,
-        "synth_cut": synth_cut,
+        "synth_cut_soft": synth_cut_soft,
+        "synth_cut_hard": synth_cut_hard,
         "verbose": True
         }        
     
@@ -44,7 +46,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         params = {
             'min_d': min_d,
             'max_d': max_d,
-            'NPAR':3,
+            'NPAR':2,
             'Nsteps': Nsteps,
             'bias_strength': "none",
             'possible_elements': possible_elements,
@@ -55,7 +57,8 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
             'make_restart_frequency': None,
             'rep_type': '3d',
             'rep_name': 'BoB',
-            'synth_cut': synth_cut,
+            'synth_cut_soft':synth_cut_soft,
+            'synth_cut_hard':synth_cut_hard,
             'ensemble': ensemble,
             "verbose": True}        
 
@@ -63,7 +66,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         params = {
         'min_d': min_d,
         'max_d': max_d,
-        'NPAR': 3,
+        'NPAR': 2,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
@@ -73,7 +76,8 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
         'make_restart_frequency': None,
         'rep_type': '3d',
-        'synth_cut': synth_cut,
+        'synth_cut_soft': synth_cut_soft,
+        'synth_cut_hard': synth_cut_hard,
         'rep_name': 'SOAP',
         'ensemble': ensemble,
         "verbose": True}

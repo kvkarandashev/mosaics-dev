@@ -306,7 +306,8 @@ class potential_SOAP:
         self.sigma = params["max_d"]
         self.possible_elements = params["possible_elements"]+["H"]
         self.verbose = params["verbose"]
-        self.synth_cut = params["synth_cut"]
+        self.synth_cut_soft = params["synth_cut_soft"]
+        self.synth_cut_hard = params["synth_cut_hard"]
         self.ensemble = params["ensemble"]
         self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
 
@@ -367,6 +368,14 @@ class potential_SOAP:
             return 0
         if d > self.sigma:
             return 0.05 * (d - self.sigma) ** 2
+        
+    def synth_potential(self, score):
+        if score > self.synth_cut_hard:
+            return None
+        if score > self.synth_cut_soft:
+            return 0.05 * (score - self.synth_cut_soft) ** 2
+        else:
+            return 0
 
     def __call__(self, trajectory_point_in):
         """
@@ -390,9 +399,11 @@ class potential_SOAP:
             SMILES = output["canon_rdkit_SMILES"]
 
             rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
-            score  = sascorer.calculateScore( rdkit_mol_no_H)
+            score  = sascorer.calculateScore(rdkit_mol_no_H)
         
-            if score > self.synth_cut:
+
+            V_synth = self.synth_potential(score)
+            if V_synth == None:
                 return None
 
             if self.ensemble:
@@ -414,7 +425,7 @@ class potential_SOAP:
             
         
         distance = np.linalg.norm(X_test - self.X_init)
-        V = self.potential(distance)
+        V = self.potential(distance) + V_synth
 
         if self.verbose:
             print(SMILES, distance, V)
@@ -431,7 +442,8 @@ class potential_MolDescriptors:
         self.X_init = X_init
         self.gamma = params['min_d']
         self.sigma = params['max_d']      
-        self.synth_cut = params["synth_cut"]
+        self.synth_cut_soft = params["synth_cut_soft"]
+        self.synth_cut_hard = params["synth_cut_hard"]
         self.mmff_check = params["mmff_check"]
         self.verbose = params["verbose"]
 
@@ -456,6 +468,14 @@ class potential_MolDescriptors:
         if d > self.sigma:
             return 0.05 * (d - self.sigma) ** 2
     
+    def synth_potential(self, score):
+        if score > self.synth_cut_hard:
+            return None
+        if score > self.synth_cut_soft:
+            return 0.05 * (score - self.synth_cut_soft) ** 2
+        else:
+            return 0
+        
     def __call__(self, trajectory_point_in):
         rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
             self.canonical_rdkit_output
@@ -467,15 +487,17 @@ class potential_MolDescriptors:
         rdkit_mol_no_H = Chem.RemoveHs(rdkit_mol)
         score  = sascorer.calculateScore( rdkit_mol_no_H)
 
-        if score > self.synth_cut:
+        V_synth = self.synth_potential(score)
+        if V_synth == None:
             return None
+        
         if self.mmff_check:
             if not AllChem.MMFFHasAllMoleculeParams(rdkit_mol_no_H):
                 return None
             
         X_test = calc_all_descriptors(rdkit_mol)
         d = norm(X_test - self.X_init)/self.norm_init
-        V = self.potential(d)
+        V = self.potential(d) + V_synth
 
         if self.verbose:
             print(canon_SMILES, d, V, score)
@@ -510,7 +532,8 @@ class potential_BoB:
         self.sigma = params["max_d"]
         self.possible_elements = params["possible_elements"]+["H"]
         self.verbose = params["verbose"]
-        self.synth_cut = params["synth_cut"]
+        self.synth_cut_soft = params["synth_cut_soft"]
+        self.synth_cut_hard = params["synth_cut_hard"]
         self.ensemble = params["ensemble"]
         self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
         
@@ -569,6 +592,16 @@ class potential_BoB:
             return 0
         if d > self.sigma:
             return 0.05 * (d - self.sigma) ** 2
+        
+    def synth_potential(self, score):
+        if score > self.synth_cut_hard:
+            return None
+        if score > self.synth_cut_soft:
+            return 0.05 * (score - self.synth_cut_soft) ** 2
+        else:
+            return 0
+
+
 
     def __call__(self, trajectory_point_in):
         """
@@ -594,12 +627,9 @@ class potential_BoB:
             rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
             score  = sascorer.calculateScore(rdkit_mol_no_H)
             
-            if score > self.synth_cut:
-                return None 
-                #TODO implement parabola too   
-                #syth_score_coeff if larger than sth return None (allow hard contraint)
-                #else return parabola
-                #!!!
+            V_synth = self.synth_potential(score)
+            if V_synth == None:
+                return None
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
@@ -614,7 +644,6 @@ class potential_BoB:
                     return None
                 
 
-
         except Exception as e:
             print(e)
             print("Error in 3d conformer sampling")
@@ -622,7 +651,7 @@ class potential_BoB:
             
         
         distance = np.linalg.norm(X_test - self.X_init)
-        V = self.potential(distance)
+        V = self.potential(distance) + V_synth
 
         if self.verbose:
             print(SMILES, distance, V)
@@ -800,7 +829,8 @@ class potential_ECFP:
         self.sigma = params["max_d"]
         self.nBits = params["nBits"]
         self.mmff_check = params["mmff_check"]
-        self.synth_cut = params["synth_cut"]
+        self.synth_cut_soft = params["synth_cut_soft"]
+        self.synth_cut_hard = params["synth_cut_hard"]
         self.verbose = params["verbose"]
 
         self.canonical_rdkit_output = {
@@ -824,6 +854,15 @@ class potential_ECFP:
         if d > self.sigma:
             return 0.05 * (d - self.sigma) ** 2
 
+    def synth_potential(self, score):
+        if score > self.synth_cut_hard:
+            return None
+        if score > self.synth_cut_soft:
+            return 0.05 * (score - self.synth_cut_soft) ** 2
+        else:
+            return 0
+
+
     def __call__(self, trajectory_point_in):
 
         rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
@@ -837,21 +876,23 @@ class potential_ECFP:
         rdkit_mol_no_H = Chem.RemoveHs(rdkit_mol)
         score  = sascorer.calculateScore( rdkit_mol_no_H)
 
-        if score > self.synth_cut:
+        V_synth = self.synth_potential(score)
+        if V_synth == None:
             return None
+        
         if self.mmff_check:
             if not AllChem.MMFFHasAllMoleculeParams(rdkit_mol_no_H):
                 return None
 
             
         X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits) 
-        d = norm(X_test - self.X_init)
-        V = self.potential(d)
+        distance = norm(X_test - self.X_init)
+        V = self.potential(distance) + V_synth
 
 
 
         if self.verbose:
-            print(canon_SMILES, d, V)
+            print(canon_SMILES, distance, V)
 
         return V
 
@@ -1296,6 +1337,8 @@ class Analyze_Chemspace:
     def count_shell_value(self, curr_h,X_I, params):
         in_interval = curr_h["VALUES"] == 0.0
         SMILES = curr_h["SMILES"][in_interval].values
+        if len(SMILES) == 0:
+            return [], []
     
         if params["rep_type"] == "MolDescriptors":
             SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
@@ -1317,16 +1360,7 @@ class Analyze_Chemspace:
             D = D[np.argsort(D)]
 
         if params["rep_type"] == "3d":
-                """
-                
-                
-                TP_ALL, INIT_EGC_ALL, RDKIT_ALL          = [], [],[]
-                for smi in SMILES:
-                    init_egc, output,curr_rdkit =  initialize_fml_from_smiles(smi, ensemble=params['ensemble'])
-                    TP_ALL.append(output)
-                    INIT_EGC_ALL.append(init_egc)
-                    RDKIT_ALL.append(curr_rdkit)        
-                """
+          
                 results = Parallel(n_jobs=params['NPAR'])(delayed(self.process_smiles)(smi, params) for smi in SMILES)
                 _, TP_ALL, _ = zip(*results)
 
@@ -1414,7 +1448,8 @@ def chemspacesampler_ECFP(smiles, params=None):
             "rep_type": "2d",
             "nBits": 2048,
             'mmff_check': True,
-            'synth_cut':3,
+            'synth_cut_soft': 3,
+            'synth_cut_hard': 4,
             "verbose": False
         }
 
@@ -1451,7 +1486,8 @@ def chemspacesampler_MolDescriptors(smiles, params=None):
             'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
             'make_restart_frequency': None,
             'rep_type': 'MolDescriptors',
-            'synth_cut':3,
+            'synth_cut_soft':3,
+            'synth_cut_hard':4,
             'mmff_check': True,
             "verbose": False
         }
@@ -1503,7 +1539,8 @@ def chemspacesampler_SOAP(smiles, params=None):
             'make_restart_frequency': None,
             'rep_type': '3d',
             'rep_name':"SOAP",
-            'synth_cut':3,
+            'synth_cut_soft':3,
+            'synth_cut_hard':4,
             'ensemble': True,
             "verbose": False,
         }
@@ -1552,7 +1589,8 @@ def chemspacesampler_BoB(smiles, params=None):
             'make_restart_frequency': None,
             'rep_type': '3d',
             'rep_name':"BoB",
-            'synth_cut':3,
+            'synth_cut_soft':3,
+            'synth_cut_hard':5,
             'ensemble': True,
             "verbose": False,
         }
@@ -1584,7 +1622,6 @@ def chemspacesampler_BoB(smiles, params=None):
         X         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
     
     min_func  = potential_BoB(X,tp["nuclear_charges"] , params)
-    #pdb.set_trace()
     respath   = tempfile.mkdtemp()
     if params['NPAR'] > 1:
         Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
