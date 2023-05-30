@@ -15,7 +15,8 @@ params = {
     'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
     'make_restart_frequency': None,
     'rep_type': 'MolDescriptors',
-    'synth_cut': 2,
+    'synth_cut_soft': 3,
+    'synth_cut_hard': 5,
     'mmff_check': True,
     "verbose": True
 }

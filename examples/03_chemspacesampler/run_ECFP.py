@@ -16,6 +16,8 @@ def main():
         'make_restart_frequency': None,
         "rep_type": "2d",
         "nBits": 2048,
+        'synth_cut_soft':3,
+        'synth_cut_hard':5,
         'mmff_check': True,
         'synth_cut': 2,
         "verbose": False

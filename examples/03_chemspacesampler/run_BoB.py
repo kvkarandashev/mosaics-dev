@@ -16,6 +16,8 @@ def main():
         'make_restart_frequency': None,
         'rep_type': '3d',
         'rep_name': 'BoB',
+        'synth_cut_soft':3,
+        'synth_cut_hard':5,
         'synth_cut': 7,
         'ensemble': False,
         "verbose": True,

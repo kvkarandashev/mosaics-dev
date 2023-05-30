@@ -30,6 +30,8 @@ st.set_page_config(
    layout="wide",
 )
 
+
+
 def mol_to_img(mol):
     mol = AllChem.RemoveHs(mol)
     AllChem.Compute2DCoords(mol)
@@ -70,10 +72,12 @@ selected_descriptor = st.sidebar.selectbox('Select Descriptor', descriptor_optio
 min_d = st.sidebar.number_input('Minimal distance', value=5.0, help='Enter the minimal desired distance from the start molecule.')
 max_d = st.sidebar.number_input('Maximal distance', value=12.0, help='Enter the maximal desired distance from the start molecule.')
 Nsteps = st.sidebar.number_input('#MC iterations', value=20, help='Enter the number of Monte Carlo iterations to be performed.')
-possible_elements = st.sidebar.text_input('possible_elements', value="C, O, N, F", help='Enter the elements that are allowed in the generated molecules.').split(', ')
+#possible_elements = st.sidebar.text_input('possible_elements', value="C, O, N, F", help='Enter the elements that are allowed in the generated molecules.').split(', ')
+possible_elements = st.sidebar.multiselect(
+    'Select allowed elements in the generated molecules',
+    options=['C', 'O', 'N', 'F', 'P', 'S', 'Si', 'Br', 'Cl', 'B'],
+    default=['C', 'O', 'N', 'F'],  help='Enter the elements that are allowed in the generated molecules.')
 nhatoms_range = st.sidebar.text_input('Number of heavy atoms (non-hydrogen)', value="13, 16", help='Enter the range of the number of heavy atoms that should be in the generated molecules.').split(', ')
-#synth_cut = st.sidebar.number_input('Synthesizability (1 easy to 10 impossible to make) ', value=2, help='Enter the synthesizability cut-off. A lower value means easier to synthesize.')
-
 synth_cut_soft, synth_cut_hard = st.sidebar.slider('Select a range for Synthesizability (1 easy to 10 impossible to make) read the (?) for more info',
                                            min_value=1.0,
                                            max_value=10.0,
@@ -133,8 +137,7 @@ if st.button('Run ChemSpace Sampler'):
 
         # Add download link to Streamlit
         st.markdown(href, unsafe_allow_html=True)
-
-        
+ 
         # Assuming D contains distances and has the same length as MOLS
         D = D[:10]
         print(MOLS)
@@ -165,7 +168,7 @@ if st.button('Run ChemSpace Sampler'):
         if len(ALL_RESULTS) > 4:
             # Use a diverging color palette, increase point transparency and change marker style
             st.write('PCA plot of all molecules (alwatys using ECFP4 fingerprints for speed)')
-            plt.figure(figsize=(10, 8))
+            plt.figure(figsize=(6, 6))
             other_mols = ALL_RESULTS[ALL_RESULTS['SMILES'] != smiles]
             scatter_plot = sns.scatterplot(data=other_mols, x='PCA1', y='PCA2', s=100, palette='coolwarm', hue='Distance', alpha=0.7, legend=False, marker='o')
 
