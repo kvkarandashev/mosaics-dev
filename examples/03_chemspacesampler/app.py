@@ -1,6 +1,5 @@
 import streamlit as st
 from mosaics.minimized_functions import chemspace_potentials
-from mosaics.beta_choice import gen_exp_beta_array
 from rdkit import Chem
 from rdkit.Chem import Draw
 import pandas as pd
@@ -20,6 +19,7 @@ import numpy as np
 random.seed(42)
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
+from default_params import make_params_dict
 import pdb
 sns.set_style("whitegrid")  # Set style to whitegrid for better readability
 sns.set_context("notebook")  # Set context to "notebook"
@@ -44,11 +44,8 @@ def mol_to_3d(mol):
     return mol
 
 def str_to_tuple_list(string):
-    # Remove surrounding brackets
     string = string[1:-1]
-    # Split into tuples
     tuples = string.split('),')
-    # Split tuples into numbers and convert to integers
     tuples = [tuple(map(int, t.replace('(', '').replace(')', '').split(','))) for t in tuples]
     return tuples
 
@@ -79,95 +76,19 @@ synth_cut = st.sidebar.number_input('Synthesizability (1 easy to 10 impossible t
 mmff_check = st.sidebar.checkbox('MMFF94 parameters exist? (another sanity check)', value=True, help='Check if the generated molecules should have MMFF94 parameters.')
 ensemble   = st.sidebar.checkbox('Ensemble representation (affects only geometry-based representations, BoB & SOAP)', value=False, help='Check if the ensemble representation should be used. It affects only geometry-based representations (BoB & SOAP).')
 user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
-
-
 forbidden_bonds = str_to_tuple_list(user_input)
 
 
-
-
-# Determine the chemspacesampler function to use based on selected_descriptor
+params = make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut,ensemble, mmff_check)
 if selected_descriptor == 'RDKit':
     chemspace_function = chemspace_potentials.chemspacesampler_MolDescriptors
-    params = {
-    'min_d': min_d,
-    'max_d': max_d,
-    'NPAR': 2,
-    'Nsteps': Nsteps,
-    'bias_strength': "none",
-    'possible_elements': possible_elements,
-    'not_protonated': None, 
-    'forbidden_bonds': forbidden_bonds,
-    'nhatoms_range': [int(n) for n in nhatoms_range],
-    'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
-    'make_restart_frequency': None,
-    'rep_type': 'MolDescriptors',
-    'synth_cut': synth_cut,
-    'mmff_check': mmff_check,
-    "verbose": True
-    }
-
 elif selected_descriptor == 'ECFP4':
     chemspace_function = chemspace_potentials.chemspacesampler_ECFP
-    params = {
-    'min_d': min_d,
-    'max_d': max_d,
-    'NPAR': 2,
-    'Nsteps': Nsteps,
-    'bias_strength': "none",
-    'possible_elements': possible_elements,
-    'not_protonated': None, 
-    'forbidden_bonds': forbidden_bonds,
-    'nhatoms_range': [int(n) for n in nhatoms_range],
-    'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
-    'make_restart_frequency': None,
-    "rep_type": "2d",
-    "nBits": 2048,
-    "mmff_check": True,
-    "synth_cut": 2,
-    "verbose": True
-    }
-
 elif selected_descriptor == 'BoB':
     chemspace_function = chemspace_potentials.chemspacesampler_BoB
-    params = {
-        'min_d': min_d,
-        'max_d': max_d,
-        'NPAR':3,
-        'Nsteps': Nsteps,
-        'bias_strength': "none",
-        'possible_elements': possible_elements,
-        'not_protonated': None, 
-        'forbidden_bonds': forbidden_bonds,
-        'nhatoms_range': [int(n) for n in nhatoms_range],
-        'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
-        'make_restart_frequency': None,
-        'rep_type': '3d',
-        'rep_name': 'BoB',
-        'synth_cut': synth_cut,
-        'ensemble': ensemble,
-        "verbose": True}
-
 elif selected_descriptor == 'SOAP':
     chemspace_function = chemspace_potentials.chemspacesampler_SOAP
-    params = {
-        'min_d': min_d,
-        'max_d': max_d,
-        'NPAR': 3,
-        'Nsteps': Nsteps,
-        'bias_strength': "none",
-        'possible_elements': possible_elements,
-        'not_protonated': None, 
-        'forbidden_bonds': forbidden_bonds,
-        'nhatoms_range': [int(n) for n in nhatoms_range],
-        'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
-        'make_restart_frequency': None,
-        'rep_type': '3d',
-        'synth_cut': 5,
-        'rep_name': 'SOAP',
-        'ensemble': ensemble,
-        "verbose": True,
-    }
+
 else:
     st.error('Unknown Descriptor selected')
 
@@ -193,12 +114,6 @@ if st.button('Run ChemSpace Sampler'):
             # Add PCA results to DataFrame
             ALL_RESULTS['PCA1'] = pca_result[:,0]
             ALL_RESULTS['PCA2'] = pca_result[:,1]
-
-
-
-
-
-
 
         csv = ALL_RESULTS.to_csv(index=False)
         b64 = base64.b64encode(csv.encode()).decode()  # some strings <-> bytes conversions necessary here

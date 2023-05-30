@@ -592,10 +592,14 @@ class potential_BoB:
             SMILES = output["canon_rdkit_SMILES"]
 
             rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
-            score  = sascorer.calculateScore( rdkit_mol_no_H)
+            score  = sascorer.calculateScore(rdkit_mol_no_H)
             
             if score > self.synth_cut:
-                return None
+                return None 
+                #TODO implement parabola too   
+                #syth_score_coeff if larger than sth return None (allow hard contraint)
+                #else return parabola
+                #!!!
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
@@ -748,17 +752,21 @@ class potential_BoB_cliffs:
             if abs(gap_t - self.gap_0) > self.jump * abs(self.gap_0):
                 pass
             else:
-                return None
+                return 20000
 
 
             if score > self.synth_cut:
                 return None
 
             if self.ensemble:
-                X_test =   fml_rep_BoB(coords, charges, output["rdkit_Boltzmann"], self.params)
+                if coords.shape[1] == charges.shape[0]:
+                    X_test =   fml_rep_BoB(coords, charges, output["rdkit_Boltzmann"], self.params)
+                else:
+                    return None
                 
             else:
-                X_test =  generate_bob(charges, coords, self.params['unique_elements'], size=self.params["max_n"], asize=self.params["asize"])
+                if coords.shape[0] == charges.shape[0]:
+                    X_test =  generate_bob(charges, coords, self.params['unique_elements'], size=self.params["max_n"], asize=self.params["asize"])
                 
 
 
