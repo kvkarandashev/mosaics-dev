@@ -736,9 +736,12 @@ class potential_BoB_cliffs:
         self.Q_init = Q_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
         self.possible_elements = params["possible_elements"]+["H"]
         self.verbose = params["verbose"]
-        self.synth_cut = params["synth_cut"]
+        self.synth_cut_soft = params["synth_cut_soft"]
+        self.synth_cut_hard = params["synth_cut_hard"]
         self.ensemble = params["ensemble"]
         self.jump = params["jump"]
         self.gap_0 = params["gap_0"]
@@ -795,11 +798,19 @@ class potential_BoB_cliffs:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
+
+    def synth_potential(self, score):
+        if score > self.synth_cut_hard:
+            return None
+        if score > self.synth_cut_soft:
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
+        else:
+            return 0
 
     def __call__(self, trajectory_point_in):
         """
@@ -825,7 +836,9 @@ class potential_BoB_cliffs:
 
             rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
             score  = sascorer.calculateScore( rdkit_mol_no_H)
-        
+            V_synth = self.synth_potential(score)
+            if V_synth == None:
+                return None
             
             properties_trial = compute_values(SMILES)
             gap_t = properties_trial[2]
@@ -833,11 +846,8 @@ class potential_BoB_cliffs:
             if abs(gap_t - self.gap_0) > self.jump * abs(self.gap_0):
                 pass
             else:
-                return 20000
+                return 200
 
-
-            if score > self.synth_cut:
-                return None
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
@@ -858,7 +868,7 @@ class potential_BoB_cliffs:
             
         
         distance = np.linalg.norm(X_test - self.X_init)
-        V = self.potential(distance)
+        V = self.potential(distance) + V_synth
 
         if self.verbose:
             print(SMILES, distance, V, self.gap_0, gap_t)
@@ -1698,6 +1708,8 @@ def chemspacesampler_find_cliffs(smiles, params=None):
         params = {
             'min_d': 0.0,
             'max_d': 150.0,
+            'V_0_pot': 0.05,
+            'V_0_synth': 0.05,
             'NPAR': 1,
             'Nsteps': 100,
             'bias_strength': "none",
@@ -1706,13 +1718,14 @@ def chemspacesampler_find_cliffs(smiles, params=None):
             'forbidden_bonds': [(8, 9), (8,8), (9,9), (7,7)],
             'nhatoms_range': [num_heavy_atoms, num_heavy_atoms],
             'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
-            'make_restart_frequency': None,
+            'make_restart_frequencV = self.potential(distance) + V_synthy': None,
             'rep_type': '3d',
             'rep_name':"BoB_cliffs",
-            'synth_cut':3,
+            'synth_cut_soft':3,
+            'synth_cut_hard':5,
             'ensemble': False,
-            'jump': 0.5,
-            "verbose": False,
+            'jump': 0.2,
+            "verbose": True,
         }
 
     properties = compute_values(smiles)
