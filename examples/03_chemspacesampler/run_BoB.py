@@ -5,6 +5,8 @@ def main():
     params = {
         'min_d': 0.0,
         'max_d': 80.0,
+        'V_0_pot': 0.05,
+        'V_0_synth': 0.05,
         'NPAR':1,
         'Nsteps': 30,
         'bias_strength': "none",

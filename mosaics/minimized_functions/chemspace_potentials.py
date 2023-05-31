@@ -350,6 +350,8 @@ class potential_SOAP:
         self.Q_init = Q_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
         self.possible_elements = params["possible_elements"]+["H"]
         self.verbose = params["verbose"]
         self.synth_cut_soft = params["synth_cut_soft"]
@@ -409,17 +411,17 @@ class potential_SOAP:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
         
     def synth_potential(self, score):
         if score > self.synth_cut_hard:
             return None
         if score > self.synth_cut_soft:
-            return 0.05 * (score - self.synth_cut_soft) ** 2
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
         else:
             return 0
 
@@ -487,7 +489,9 @@ class potential_MolDescriptors:
 
         self.X_init = X_init
         self.gamma = params['min_d']
-        self.sigma = params['max_d']      
+        self.sigma = params['max_d']   
+        self.V_0_pot = params['V_0_pot']
+        self.V_0_synth = params['V_0_synth']   
         self.synth_cut_soft = params["synth_cut_soft"]
         self.synth_cut_hard = params["synth_cut_hard"]
         self.mmff_check = params["mmff_check"]
@@ -508,17 +512,17 @@ class potential_MolDescriptors:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
     
     def synth_potential(self, score):
         if score > self.synth_cut_hard:
             return None
         if score > self.synth_cut_soft:
-            return 0.05 * (score - self.synth_cut_soft) ** 2
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
         else:
             return 0
         
@@ -576,6 +580,8 @@ class potential_BoB:
         self.Q_init = Q_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
         self.possible_elements = params["possible_elements"]+["H"]
         self.verbose = params["verbose"]
         self.synth_cut_soft = params["synth_cut_soft"]
@@ -633,17 +639,17 @@ class potential_BoB:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
         
     def synth_potential(self, score):
         if score > self.synth_cut_hard:
             return None
         if score > self.synth_cut_soft:
-            return 0.05 * (score - self.synth_cut_soft) ** 2
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
         else:
             return 0
 
@@ -873,6 +879,8 @@ class potential_ECFP:
         self.X_init = X_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
         self.nBits = params["nBits"]
         self.mmff_check = params["mmff_check"]
         self.synth_cut_soft = params["synth_cut_soft"]
@@ -894,17 +902,17 @@ class potential_ECFP:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
 
     def synth_potential(self, score):
         if score > self.synth_cut_hard:
             return None
         if score > self.synth_cut_soft:
-            return 0.05 * (score - self.synth_cut_soft) ** 2
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
         else:
             return 0
 
@@ -1269,12 +1277,6 @@ class Analyze_Chemspace:
 
             return SMILES, VALUES
         if self.rep_type == "3d":
-            """
-            (Pdb) tp.calculated_data["morfeus"].keys()
-            dict_keys(['coordinates', 'nuclear_charges', 'canon_rdkit_SMILES', 'rdkit_energy', 'rdkit_degeneracy', 'rdkit_Boltzmann'])
-            """
-
-
 
             SMILES = []
             VALUES = []
@@ -1574,6 +1576,8 @@ def chemspacesampler_SOAP(smiles, params=None):
         params = {
             'min_d': 0.0,
             'max_d': 150.0,
+            'V_0_pot': 0.05,
+            'V_0_synth': 0.05,
             'NPAR': 1,
             'Nsteps': 100,
             'bias_strength': "none",
@@ -1666,7 +1670,7 @@ def chemspacesampler_BoB(smiles, params=None):
     if params['ensemble']:
         X         = fml_rep_BoB(coords, charges, tp["rdkit_Boltzmann"], params)
     else:
-        pdb.set_trace()
+        #pdb.set_trace()
         X         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
     
     min_func  = potential_BoB(X,tp["nuclear_charges"] , params)
