@@ -12,6 +12,7 @@ from numpy.linalg import norm
 from rdkit import Chem
 from rdkit.Chem import DataStructs, rdMolDescriptors, Descriptors
 from rdkit.Chem import RDConfig
+import rdkit.Chem.Crippen as Crippen
 #from rdkit.Contrib.SA_Score import sascorer
 import sys
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
@@ -22,18 +23,15 @@ from tqdm import tqdm
 from rdkit.Chem import AllChem
 from sklearn.model_selection import train_test_split
 from mosaics.misc_procedures import str_atom_corr
-import pdb
-try:
-    from qml.representations import generate_bob
-except:
-    raise ImportError("Please install qml package to use this representation")
+from scipy.special import comb
+
 
 try:
     from ase import Atoms
     from dscribe.descriptors import SOAP
 except:
     print("local_space_sampling: ase or dscribe not installed")
-
+import pdb
 # Local application/library specific imports
 from mosaics import RandomWalk
 from mosaics.random_walk import TrajectoryPoint, ordered_trajectory_from_restart
@@ -49,54 +47,82 @@ from mosaics.minimized_functions.morfeus_quantity_estimates import (
     morfeus_coord_info_from_tp,
     morfeus_FF_xTB_code_quants,
 )
-
-
+from tqdm import tqdm
 from itertools import combinations, product
-from math import comb
+from scipy.special import comb
 
 
-def bob(atoms,coods, asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
-    keys=list(asize.keys()) 
-    elements={'C':[[],6],'H':[[],1],'N':[[],7],'O':[[],8],'F':[[],9],'P':[[],15],'S':[[],16],'Cl':[[],17],'Br':[[],35],'I':[[],53]}
+
+def generate_bob_new(elements,coords,n_jobs=-1,asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
+    """
+    generates the Bag of Bonds representation
+    :param elements: array of arrays of chemical element symbols for all molecules in the dataset
+    :type elements: numpy array NxM, where N is the number of molecules and M is the number of atoms (can be different for each molecule)
+    :param coords: array of arrays of input coordinates of the atoms
+    :type coords: numpy array NxMx3, where N is the number of molecules and M is the number of atoms (can be different for each molecule)
+    :param n_jobs: number of cores to parallelise the representation generation over. Default value is -1 which uses all cores in the system
+    :type n_jobs: integer
+    :param asize: The maximum number of atoms of each element type supported by the representation
+    :type asize: dictionary
+
+    :return: NxD array of D-dimensional BoB vectors for the N molecules
+    :rtype: numpy array
+    """
+    
+    elements, coords = [elements], [coords]
+    #pdb.set_trace()
+    bob_arr = [bob(atoms, coords, asize) for atoms, coords in zip(elements, coords)]
+    #pdb.set_trace()
+    #Parallel(n_jobs=n_jobs)(delayed(bob)(atoms,coods,asize) for atoms,coods in list(zip(elements,coords)))
+
+    return np.array(bob_arr)[0]
+
+def bob(atoms, coods, asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
+    keys = list(asize.keys())
+    elements = {'C': [[], 6], 'H': [[], 1], 'N': [[], 7], 'O': [[], 8], 'F': [[], 9], 'P': [[], 15], 'S': [[], 16],
+                'Cl': [[], 17], 'Br': [[], 35], 'I': [[], 53]}
     for i in range(len(atoms)):
         elements[atoms[i]][0].append(coods[i])
-    bob=[]
+    bob = []
     for i in range(len(keys)):
-        num=len(elements[keys[i]][0])
-        if num!=0:
-            bag=np.zeros((asize[keys[i]]))
-            bag[:num]=0.5*(elements[keys[i]][1]**2.4)
-            bag=-np.sort(-bag)
+        num = len(elements[keys[i]][0])
+        if num != 0:
+            bag = np.zeros((asize[keys[i]]))
+            bag[:num] = 0.5 * (elements[keys[i]][1] ** 2.4)
+            bag = -np.sort(-bag)
             bob.extend(bag)
-            for j in range(i,len(keys)):
-                if i==j:
-                    z=elements[keys[i]][1]
-                    bag=np.zeros((comb(asize[keys[i]],2)))
-                    vec=[]
-                    for (r1,r2) in combinations(elements[keys[i]][0],2):
-                        vec.append(z**2/np.linalg.norm(r1-r2))
-                    bag[:len(vec)]=vec
-                    bag=-np.sort(-bag)
+            for j in range(i, len(keys)):
+                if i == j:
+                    z = elements[keys[i]][1]
+                    bag = np.zeros((int(comb(asize[keys[i]], 2))))
+                    vec = []
+                    for (r1, r2) in combinations(elements[keys[i]][0], 2):
+                        vec.append(z ** 2 / np.linalg.norm(r1 - r2))
+                    bag[:len(vec)] = vec
+                    bag = -np.sort(-bag)
                     bob.extend(bag)
-                elif (i!=j) and (len(elements[keys[j]][0])!=0):
-                    z1,z2=elements[keys[i]][1],elements[keys[j]][1]
-                    bag=np.zeros((asize[keys[i]]*asize[keys[j]]))
-                    vec=[]
-                    for (r1,r2) in product(elements[keys[i]][0],elements[keys[j]][0]):
-                        vec.append(z1*z2/np.linalg.norm(r1-r2))
-                    bag[:len(vec)]=vec
-                    bag=-np.sort(-bag)
+                elif (i != j) and (len(elements[keys[j]][0]) != 0):
+                    z1, z2 = elements[keys[i]][1], elements[keys[j]][1]
+                    bag = np.zeros((asize[keys[i]] * asize[keys[j]]))
+                    vec = []
+                    for (r1, r2) in product(elements[keys[i]][0], elements[keys[j]][0]):
+                        vec.append(z1 * z2 / np.linalg.norm(r1 - r2))
+                    bag[:len(vec)] = vec
+                    bag = -np.sort(-bag)
                     bob.extend(bag)
                 else:
-                    bob.extend(np.zeros((asize[keys[i]]*asize[keys[j]])))
+                    bob.extend(np.zeros((asize[keys[i]] * asize[keys[j]])))
         else:
             bob.extend(np.zeros((asize[keys[i]])))
-            for j in range(i,len(keys)):
-                if i==j:
-                    bob.extend(np.zeros((comb(asize[keys[i]],2))))
+            for j in range(i, len(keys)):
+                if i == j:
+                    bob.extend(np.zeros((int(comb(asize[keys[i]], 2)))))
                 else:
-                    bob.extend(np.zeros((asize[keys[i]]*asize[keys[j]])))
-    return np.array(bob) 
+                    bob.extend(np.zeros((asize[keys[i]] * asize[keys[j]])))
+    return np.array(bob)
+
+
+
 
 
 def calc_all_descriptors(mol):
@@ -222,11 +248,10 @@ def fml_rep_SOAP(COORDINATES, NUC_CHARGES, WEIGHTS, possible_elements=["C", "O",
     X = np.average(X, axis=0, weights=WEIGHTS)
     return X
 
-def fml_rep_BoB(coords, charges, WEIGHTS, params):
+def fml_rep_BoB(coords, symbols, WEIGHTS, params):
     X = []
-    #x         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
     for i in range(len(coords)):
-        X.append(generate_bob(charges, coords[i], params['unique_elements'], size=params['max_n'], asize=params['asize']))
+        X.append(generate_bob_new(symbols, coords[i], asize=params['asize']))
     X = np.array(X)
     X = np.average(X, axis=0, weights=WEIGHTS)
     return X
@@ -674,6 +699,7 @@ class potential_BoB:
             
             coords = output["coordinates"]
             charges = output["nuclear_charges"]
+            symbols = [str_atom_corr(charge) for charge in charges]
             SMILES = output["canon_rdkit_SMILES"]
 
             rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
@@ -685,19 +711,21 @@ class potential_BoB:
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
-                    X_test =   fml_rep_BoB(coords, charges, output["rdkit_Boltzmann"], self.params)
+                    X_test =   fml_rep_BoB(coords, symbols, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
                 
             else:
                 if coords.shape[0] == charges.shape[0]:
-                    X_test =  generate_bob(charges, coords, self.params['unique_elements'], size=self.params["max_n"], asize=self.params["asize"])
+                    X_test = generate_bob_new(symbols, coords, asize=self.params["asize"])
+                    
                 else:
                     return None
                 
 
         except Exception as e:
             print(e)
+            #pdb.set_trace()
             print("Error in 3d conformer sampling")
             return None
             
@@ -743,8 +771,9 @@ class potential_BoB_cliffs:
         self.synth_cut_soft = params["synth_cut_soft"]
         self.synth_cut_hard = params["synth_cut_hard"]
         self.ensemble = params["ensemble"]
+        self.property = params["property"]
         self.jump = params["jump"]
-        self.gap_0 = params["gap_0"]
+        self.prop_0 = params["prop_0"]
         self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
         
         
@@ -832,6 +861,7 @@ class potential_BoB_cliffs:
             
             coords = output["coordinates"]
             charges = output["nuclear_charges"]
+            symbols = [str_atom_corr(charge) for charge in charges]
             SMILES = output["canon_rdkit_SMILES"]
 
             rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
@@ -840,10 +870,15 @@ class potential_BoB_cliffs:
             if V_synth == None:
                 return None
             
-            properties_trial = compute_values(SMILES)
-            gap_t = properties_trial[2]
+            if self.property == "gap":
+                prop_t = compute_values(SMILES)[2]
+            elif self.property == "MolLogP":
+                prop_t =  Crippen.MolLogP(rdkit_mol_no_H, True)
+            else:
+                print("Property not implemented")
 
-            if abs(gap_t - self.gap_0) > self.jump * abs(self.gap_0):
+
+            if abs(prop_t - self.prop_0) > self.jump * abs(self.prop_0):
                 pass
             else:
                 return 200
@@ -851,13 +886,13 @@ class potential_BoB_cliffs:
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
-                    X_test =   fml_rep_BoB(coords, charges, output["rdkit_Boltzmann"], self.params)
+                    X_test =   fml_rep_BoB(coords, symbols, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
                 
             else:
                 if coords.shape[0] == charges.shape[0]:
-                    X_test =  generate_bob(charges, coords, self.params['unique_elements'], size=self.params["max_n"], asize=self.params["asize"])
+                    X_test =   generate_bob_new(symbols, coords, asize=self.params["asize"])
                 
 
 
@@ -871,7 +906,7 @@ class potential_BoB_cliffs:
         V = self.potential(distance) + V_synth
 
         if self.verbose:
-            print(SMILES, distance, V, self.gap_0, gap_t)
+            print(SMILES, distance, V, self.prop_0, prop_t)
         return V
 
 
@@ -1431,9 +1466,9 @@ class Analyze_Chemspace:
 
                 if params["rep_name"] == "BoB":
                     if params['ensemble']:
-                        X_ALL           = np.asarray([fml_rep_BoB(TP["coordinates"], TP["nuclear_charges"], TP["rdkit_Boltzmann"], params) for TP in TP_ALL])
+                        X_ALL           = np.asarray([fml_rep_BoB(TP["coordinates"], [str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["rdkit_Boltzmann"], params) for TP in TP_ALL])
                     else:
-                        X_ALL           = np.asarray([generate_bob(TP["nuclear_charges"], TP["coordinates"], params['unique_elements'], size=params["max_n"], asize=params["asize"]) for TP in TP_ALL])
+                        X_ALL           = np.asarray([generate_bob_new([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]) for TP in TP_ALL])
 
                 D = np.array([norm(X_I - X) for X in X_ALL])
                 SMILES = SMILES[np.argsort(D)]
@@ -1657,13 +1692,12 @@ def chemspacesampler_BoB(smiles, params=None):
         
     
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
-    
     symbols = [str_atom_corr(charge) for charge in charges]
     
     
     asize, max_n = max_element_counts([symbols*3])
     asize_copy = asize.copy()
-    elements_to_exclude = ['C', 'H']
+    elements_to_exclude = ['H']
     elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
 
     if elements_not_excluded:  # checks if list is not empty
@@ -1673,21 +1707,22 @@ def chemspacesampler_BoB(smiles, params=None):
 
     for element in params['possible_elements']:
         if element not in asize:
-            asize[element] = 3*int(avg_value)
+            asize[element] = 2*int(avg_value)
 
     params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())
-    
     if params['ensemble']:
-        X         = fml_rep_BoB(coords, charges, tp["rdkit_Boltzmann"], params)
+        X         = fml_rep_BoB(coords, symbols, tp["rdkit_Boltzmann"], params)
     else:
-        #pdb.set_trace()
-        X         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
+        #
+        X         = generate_bob_new(symbols, coords, asize=params["asize"])
     
     min_func  = potential_BoB(X,tp["nuclear_charges"] , params)
     respath   = tempfile.mkdtemp()
+    
     if params['NPAR'] > 1:
         Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
     else:
+        
         mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
@@ -1724,36 +1759,44 @@ def chemspacesampler_find_cliffs(smiles, params=None):
             'synth_cut_soft':3,
             'synth_cut_hard':5,
             'ensemble': False,
+            'property': 'gap',
             'jump': 0.2,
             "verbose": True,
         }
 
-    properties = compute_values(smiles)
-    params['gap_0'] = properties[2]
+
+    if params['property'] == "gap":
+        prop_0 = compute_values(smiles)[2]
+    elif params['property'] == "MolLogP":
+        prop_0 =  Crippen.MolLogP(Chem.MolFromSmiles(smiles) , True)
+    else:
+        print("Property not implemented")
+
+
+    params['prop_0'] = prop_0
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
     symbols = [str_atom_corr(charge) for charge in charges]
 
     asize, max_n = max_element_counts([symbols*3])
     asize_copy = asize.copy()
-    elements_to_exclude = ['C', 'H']
+    elements_to_exclude = ['H']
     elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
-
-    if elements_not_excluded:  # checks if list is not empty
+    
+    if elements_not_excluded:
         avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(elements_not_excluded)
     else:
-        avg_value = 0  # or any other value you consider appropriate when there are no elements
+        avg_value = 0
 
     for element in params['possible_elements']:
         if element not in asize:
-            asize[element] = 3*int(avg_value)
-
+            asize[element] = 2*int(avg_value)
 
     params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())
 
     if params['ensemble']:
-        X         = fml_rep_BoB(coords, charges, tp["rdkit_Boltzmann"], params)
+        X         = fml_rep_BoB(coords, symbols, tp["rdkit_Boltzmann"], params)
     else:
-        X         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
+        X         = generate_bob_new(symbols, coords, asize=params["asize"])
     
     min_func  = potential_BoB_cliffs(X,tp["nuclear_charges"] , params)
 
@@ -1762,9 +1805,9 @@ def chemspacesampler_find_cliffs(smiles, params=None):
         Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
     else:
         mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
-    
-    #ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
 
+    # TODO missing implementation of the postprocessing    
+    exit()
 
 
 
@@ -1805,19 +1848,13 @@ class QM9Dataset():
 
 
     def generate_representations(self):
-        if self.params['rep_type'] == 'BoB':
-            try:
-                from qml.representations import generate_bob
-            except:
-                raise ImportError("Please install qml package to use this representation")
 
         self.X = []
 
 
         for i in range(len(self.coords)):
-            #self.X.append(gen_soap(self.coords[i], self.nuclear_charges[i],self.species))
             if self.params['rep_type'] == 'BoB':
-                self.X.append(generate_bob( self.nuclear_charges[i],self.coords[i],self.species,size=self.max_n,asize=self.asize))
+                self.X.append(generate_bob_new(self.nuclear_charges[i],self.coords[i],asize=self.asize))
         self.X = np.array(self.X)
 
 

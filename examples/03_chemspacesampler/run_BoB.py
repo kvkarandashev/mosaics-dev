@@ -8,24 +8,23 @@ def main():
         'V_0_pot': 0.05,
         'V_0_synth': 0.05,
         'NPAR':1,
-        'Nsteps': 30,
+        'Nsteps': 5,
         'bias_strength': "none",
         'possible_elements': ["C", "O", "N", "F"],
         'not_protonated': None, 
         'forbidden_bonds': [(8, 9), (8, 8), (9, 9), (7, 7)],
-        'nhatoms_range': [15,30],
+        'nhatoms_range': [1,8],
         'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
         'make_restart_frequency': None,
         'rep_type': '3d',
         'rep_name': 'BoB',
-        'synth_cut_soft':3,
-        'synth_cut_hard':5,
-        'synth_cut': 7,
-        'ensemble': False,
+        'synth_cut_soft':7,
+        'synth_cut_hard':9,
+        'ensemble': True,
         "verbose": True,
     }
 
-    MOLS, D= chemspace_potentials.chemspacesampler_BoB(smiles="CC(Cc1ccc(cc1)C(C(=O)O)C)C", params=params)
+    MOLS, D= chemspace_potentials.chemspacesampler_BoB(smiles="CCCCC", params=params)
     print(MOLS)
     print(D)
 

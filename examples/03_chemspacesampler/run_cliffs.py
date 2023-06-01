@@ -21,7 +21,8 @@ def main():
         'synth_cut_soft':3,
         'synth_cut_hard':5,
         'ensemble': False,
-        'jump': 0.9,
+        'property': 'MolLogP',
+        'jump': 0.4,
         "verbose": True,
     }
 
