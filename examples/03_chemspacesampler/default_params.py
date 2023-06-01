@@ -20,6 +20,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         'rep_type': 'MolDescriptors',
         'synth_cut_soft': synth_cut_soft,
         'synth_cut_hard': synth_cut_hard,
+        'rep_name': 'MolDescriptors',
         'mmff_check': mmff_check,
         "verbose": True
         }
@@ -43,6 +44,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         "mmff_check": True,
         "synth_cut_soft": synth_cut_soft,
         "synth_cut_hard": synth_cut_hard,
+        "rep_name": "ECFP",
         "verbose": True
         }        
     

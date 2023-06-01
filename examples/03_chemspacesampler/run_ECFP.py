@@ -20,6 +20,7 @@ def main():
         "nBits": 2048,
         'synth_cut_soft':3,
         'synth_cut_hard':5,
+        'rep_name': 'ECFP',
         'mmff_check': True,
         'synth_cut': 2,
         "verbose": False

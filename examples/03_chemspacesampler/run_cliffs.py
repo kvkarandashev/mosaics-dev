@@ -22,13 +22,14 @@ def main():
         'synth_cut_hard':5,
         'ensemble': False,
         'property': 'MolLogP',
-        'jump': 0.4,
+        'jump': 0.9,
         "verbose": True,
     }
 
-    MOLS, D= chemspace_potentials.chemspacesampler_find_cliffs(smiles="CCCC", params=params)
+    MOLS, D, P = chemspace_potentials.chemspacesampler_find_cliffs(smiles="CCCC", params=params)
     print(MOLS)
     print(D)
+    print(P)
 
 if __name__ == "__main__":
     main()

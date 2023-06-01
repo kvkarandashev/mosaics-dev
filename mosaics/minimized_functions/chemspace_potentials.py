@@ -70,10 +70,7 @@ def generate_bob_new(elements,coords,n_jobs=-1,asize={'C': 7, 'H': 16, 'N': 3, '
     """
     
     elements, coords = [elements], [coords]
-    #pdb.set_trace()
     bob_arr = [bob(atoms, coords, asize) for atoms, coords in zip(elements, coords)]
-    #pdb.set_trace()
-    #Parallel(n_jobs=n_jobs)(delayed(bob)(atoms,coods,asize) for atoms,coods in list(zip(elements,coords)))
 
     return np.array(bob_arr)[0]
 
@@ -725,7 +722,6 @@ class potential_BoB:
 
         except Exception as e:
             print(e)
-            #pdb.set_trace()
             print("Error in 3d conformer sampling")
             return None
             
@@ -1430,6 +1426,7 @@ class Analyze_Chemspace:
     def count_shell_value(self, curr_h,X_I, params):
         in_interval = curr_h["VALUES"] == 0.0
         SMILES = curr_h["SMILES"][in_interval].values
+        
         if len(SMILES) == 0:
             return [], []
     
@@ -1442,7 +1439,7 @@ class Analyze_Chemspace:
             SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
             D = D[np.argsort(D)]
 
-
+        
         if params["rep_type"] == "2d":
             SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
             explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
@@ -1470,11 +1467,38 @@ class Analyze_Chemspace:
                     else:
                         X_ALL           = np.asarray([generate_bob_new([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]) for TP in TP_ALL])
 
+                if params["rep_name"] == "BoB_cliffs":
+                    if params['ensemble']:
+                        X_ALL           = np.asarray([fml_rep_BoB(TP["coordinates"], [str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["rdkit_Boltzmann"], params) for TP in TP_ALL])
+                    else:
+                        X_ALL           = np.asarray([generate_bob_new([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]) for TP in TP_ALL])
+
+                    p_values = []
+                    for smi in SMILES:
+                        if params['property'] == "gap":
+                            prop = compute_values(smi)[2]
+                        elif params['property'] == "MolLogP":
+                            prop =  Crippen.MolLogP(Chem.MolFromSmiles(smi) , True)
+                        else:
+                            print("Property not implemented")
+                        p_values.append(prop)
+                    
+                    p_values = np.array(p_values)
+
+
+
                 D = np.array([norm(X_I - X) for X in X_ALL])
                 SMILES = SMILES[np.argsort(D)]
                 D = D[np.argsort(D)]
+                
+                if params["rep_name"] == "BoB_cliffs":
+                    p_values = p_values[np.argsort(D)]
 
-        return SMILES, D
+        if params["rep_name"] != "BoB_cliffs":
+            return SMILES, D
+        
+        else:
+            return SMILES, D, p_values
 
 
 
@@ -1807,7 +1831,13 @@ def chemspacesampler_find_cliffs(smiles, params=None):
         mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
 
     # TODO missing implementation of the postprocessing    
-    exit()
+    ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
+    _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+    MOLS, D, P  = ana.count_shell_value(GLOBAL_HISTOGRAM,X, params)
+    shutil.rmtree(respath)
+    
+
+    return MOLS, D, P
 
 
 

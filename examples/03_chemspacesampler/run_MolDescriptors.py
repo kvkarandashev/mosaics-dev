@@ -19,6 +19,7 @@ params = {
     'rep_type': 'MolDescriptors',
     'synth_cut_soft': 3,
     'synth_cut_hard': 5,
+    'rep_name': 'MolDescriptors',
     'mmff_check': True,
     "verbose": True
 }
