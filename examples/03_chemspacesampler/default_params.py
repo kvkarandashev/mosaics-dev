@@ -1,5 +1,25 @@
 from mosaics.beta_choice import gen_exp_beta_array
 
+
+morfeus_args_confs = {
+                            "morfeus": {
+                                "num_attempts": 100,
+                                "ff_type": "MMFF94",
+                                "return_rdkit_obj": False,
+                                "all_confs": True
+                            }
+                        }
+morfeus_args_single = {
+                            "morfeus": {
+                                "num_attempts": 2,
+                                "ff_type": "MMFF94",
+                                "return_rdkit_obj": False,
+                                "all_confs": False
+                            }
+                        }
+
+
+
 def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check):
     if selected_descriptor == 'RDKit':
 
@@ -8,7 +28,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         'max_d': max_d,
         'V_0_pot': 0.05,
         'V_0_synth': 0.05,
-        'NPAR': 2,
+        'NPAR': 1,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
@@ -30,7 +50,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         'max_d': max_d,
         'V_0_pot': 0.05,
         'V_0_synth': 0.05,
-        'NPAR': 2,
+        'NPAR': 1,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
@@ -54,7 +74,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
             'max_d': max_d,
             'V_0_pot': 0.05,
             'V_0_synth': 0.05,
-            'NPAR':2,
+            'NPAR':1,
             'Nsteps': Nsteps,
             'bias_strength': "none",
             'possible_elements': possible_elements,
@@ -76,7 +96,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         'max_d': max_d,
         'V_0_pot': 0.05,
         'V_0_synth': 0.05,
-        'NPAR': 2,
+        'NPAR': 1,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
