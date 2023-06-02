@@ -19,7 +19,9 @@ import numpy as np
 random.seed(42)
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
-from default_params import make_params_dict
+from mosaics.minimized_functions import chemspace_sampler_default_params
+
+
 import pdb
 sns.set_style("whitegrid")  # Set style to whitegrid for better readability
 sns.set_context("notebook")  # Set context to "notebook"
@@ -92,7 +94,7 @@ user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
 forbidden_bonds = str_to_tuple_list(user_input)
 
 
-params = make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check)
+params = chemspace_sampler_default_params.make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check)
 if selected_descriptor == 'RDKit':
     chemspace_function = chemspace_potentials.chemspacesampler_MolDescriptors
 elif selected_descriptor == 'ECFP4':

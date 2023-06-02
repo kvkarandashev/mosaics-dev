@@ -24,14 +24,14 @@ from rdkit.Chem import AllChem
 from sklearn.model_selection import train_test_split
 from mosaics.misc_procedures import str_atom_corr
 from scipy.special import comb
-
-
+from mosaics.minimized_functions import chemspace_sampler_default_params
+import pdb
 try:
     from ase import Atoms
     from dscribe.descriptors import SOAP
 except:
     print("local_space_sampling: ase or dscribe not installed")
-import pdb
+
 # Local application/library specific imports
 from mosaics import RandomWalk
 from mosaics.random_walk import TrajectoryPoint, ordered_trajectory_from_restart
@@ -53,7 +53,7 @@ from scipy.special import comb
 
 
 
-def generate_bob_new(elements,coords,n_jobs=-1,asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
+def generate_bob(elements,coords,n_jobs=-1,asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
     """
     generates the Bag of Bonds representation
     :param elements: array of arrays of chemical element symbols for all molecules in the dataset
@@ -77,9 +77,10 @@ def generate_bob_new(elements,coords,n_jobs=-1,asize={'C': 7, 'H': 16, 'N': 3, '
 def bob(atoms, coods, asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
     keys = list(asize.keys())
     elements = {'C': [[], 6], 'H': [[], 1], 'N': [[], 7], 'O': [[], 8], 'F': [[], 9], 'P': [[], 15], 'S': [[], 16],
-                'Cl': [[], 17], 'Br': [[], 35], 'I': [[], 53]}
+                'Cl': [[], 17], 'Br': [[], 35], 'I': [[], 53], 'Si': [[], 14], 'B': [[], 5]}
     for i in range(len(atoms)):
         elements[atoms[i]][0].append(coods[i])
+
     bob = []
     for i in range(len(keys)):
         num = len(elements[keys[i]][0])
@@ -245,10 +246,10 @@ def fml_rep_SOAP(COORDINATES, NUC_CHARGES, WEIGHTS, possible_elements=["C", "O",
     X = np.average(X, axis=0, weights=WEIGHTS)
     return X
 
-def fml_rep_BoB(coords, symbols, WEIGHTS, params):
+def fml_rep_bob(coords, symbols, WEIGHTS, params):
     X = []
     for i in range(len(coords)):
-        X.append(generate_bob_new(symbols, coords[i], asize=params['asize']))
+        X.append(generate_bob(symbols, coords[i], asize=params['asize']))
     X = np.array(X)
     X = np.average(X, axis=0, weights=WEIGHTS)
     return X
@@ -382,23 +383,9 @@ class potential_SOAP:
         self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
 
         if self.ensemble:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 100,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": True
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_confs
         else:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 2,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": False
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
             
         self.potential = self.flat_parabola_potential
 
@@ -612,23 +599,9 @@ class potential_BoB:
         self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
         
         if self.ensemble:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 100,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": True
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_confs
         else:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 2,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": False
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
             
         self.potential = self.flat_parabola_potential  
 
@@ -708,13 +681,13 @@ class potential_BoB:
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
-                    X_test =   fml_rep_BoB(coords, symbols, output["rdkit_Boltzmann"], self.params)
+                    X_test =   fml_rep_bob(coords, symbols, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
                 
             else:
                 if coords.shape[0] == charges.shape[0]:
-                    X_test = generate_bob_new(symbols, coords, asize=self.params["asize"])
+                    X_test = generate_bob(symbols, coords, asize=self.params["asize"])
                     
                 else:
                     return None
@@ -774,23 +747,9 @@ class potential_BoB_cliffs:
         
         
         if self.ensemble:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 100,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": True
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_confs
         else:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 2,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": False
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
             
         self.potential = self.flat_parabola_potential  
 
@@ -882,13 +841,13 @@ class potential_BoB_cliffs:
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
-                    X_test =   fml_rep_BoB(coords, symbols, output["rdkit_Boltzmann"], self.params)
+                    X_test =   fml_rep_bob(coords, symbols, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
                 
             else:
                 if coords.shape[0] == charges.shape[0]:
-                    X_test =   generate_bob_new(symbols, coords, asize=self.params["asize"])
+                    X_test =   generate_bob(symbols, coords, asize=self.params["asize"])
                 
 
 
@@ -984,8 +943,6 @@ class potential_ECFP:
         distance = norm(X_test - self.X_init)
         V = self.potential(distance) + V_synth
 
-
-
         if self.verbose:
             print(canon_SMILES, distance, V)
 
@@ -1069,8 +1026,9 @@ def mc_run(init_egc,min_func,min_func_name, respath,label, params):
         rw.global_random_change(**global_change_params)
 
     rw.ordered_trajectory()
-    time.sleep(0.5)
-    rw.make_restart(tarball=True)
+    time.sleep(0.1)
+    unique_filename = f"{label}_{os.getpid()}.pkl"
+    rw.make_restart(tarball=True, restart_file=respath + "/" + unique_filename)
 
 
 def mc_run_QM9(init_egc,Nsteps, min_func,min_func_name, respath,label):
@@ -1143,23 +1101,9 @@ def initialize_fml_from_smiles(smiles, ensemble=True):
     morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
     
     if ensemble:
-        morfeus_args = {
-                        "morfeus": {
-                            "num_attempts": 100,
-                            "ff_type": "MMFF94s",
-                            "return_rdkit_obj": False,
-                            "all_confs": True
-                        }
-                    }
+        morfeus_args = chemspace_sampler_default_params.morfeus_args_confs
     else:
-        morfeus_args =  {
-                            "morfeus": {
-                                "num_attempts": 2,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": False
-                            }
-                        }
+        morfeus_args =  chemspace_sampler_default_params.morfeus_args_single
 
     
     output = trajectory_point.calc_or_lookup(
@@ -1423,6 +1367,34 @@ class Analyze_Chemspace:
         return init_egc, output, curr_rdkit
 
 
+
+    def reevaluate_3d(self,TP_ALL, params):
+        
+        if params["rep_name"] == "BoB":
+            X = []
+            if params['ensemble'] == "ensemble":
+                
+                for TP in TP_ALL:
+                    try:
+                        X.append(fml_rep_bob(TP["coordinates"], [str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["rdkit_Boltzmann"], params))
+                    except:
+                        X.append(np.array([np.nan]))
+                
+                X = np.array(X)
+                return X
+        
+            else:
+
+                for TP in TP_ALL:
+                    try:
+                        X.append(generate_bob([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]))
+                    except:
+                        X.append(np.array([np.nan]))
+                
+                X = np.array(X)
+                return X
+
+
     def count_shell_value(self, curr_h,X_I, params):
         in_interval = curr_h["VALUES"] == 0.0
         SMILES = curr_h["SMILES"][in_interval].values
@@ -1463,15 +1435,16 @@ class Analyze_Chemspace:
 
                 if params["rep_name"] == "BoB":
                     if params['ensemble']:
-                        X_ALL           = np.asarray([fml_rep_BoB(TP["coordinates"], [str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["rdkit_Boltzmann"], params) for TP in TP_ALL])
+                        X_ALL           = self.reevaluate_3d(TP_ALL, params)
                     else:
-                        X_ALL           = np.asarray([generate_bob_new([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]) for TP in TP_ALL])
+                        X_ALL           = self.reevaluate_3d(TP_ALL, params)
+                        #np.asarray([generate_bob([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]) for TP in TP_ALL])
 
                 if params["rep_name"] == "BoB_cliffs":
                     if params['ensemble']:
-                        X_ALL           = np.asarray([fml_rep_BoB(TP["coordinates"], [str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["rdkit_Boltzmann"], params) for TP in TP_ALL])
+                        X_ALL           = np.asarray([fml_rep_bob(TP["coordinates"], [str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["rdkit_Boltzmann"], params) for TP in TP_ALL])
                     else:
-                        X_ALL           = np.asarray([generate_bob_new([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]) for TP in TP_ALL])
+                        X_ALL           = np.asarray([generate_bob([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]) for TP in TP_ALL])
 
                     p_values = []
                     for smi in SMILES:
@@ -1485,20 +1458,22 @@ class Analyze_Chemspace:
                     
                     p_values = np.array(p_values)
 
-
-
                 D = np.array([norm(X_I - X) for X in X_ALL])
-                SMILES = SMILES[np.argsort(D)]
-                D = D[np.argsort(D)]
+                non_nan_indices = np.where(~np.isnan(D))
+                D_filtered = D[non_nan_indices]
+                SMILES_filtered = SMILES[non_nan_indices]
+  
+                SMILES_filtered = SMILES_filtered[np.argsort(D_filtered)]
+                D_filtered = D_filtered[np.argsort(D_filtered)]
                 
                 if params["rep_name"] == "BoB_cliffs":
-                    p_values = p_values[np.argsort(D)]
+                    p_values = p_values[np.argsort(D_filtered)]
 
         if params["rep_name"] != "BoB_cliffs":
-            return SMILES, D
+            return SMILES_filtered, D_filtered
         
         else:
-            return SMILES, D, p_values
+            return SMILES_filtered, D_filtered, p_values
 
 
 
@@ -1735,10 +1710,10 @@ def chemspacesampler_BoB(smiles, params=None):
 
     params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())
     if params['ensemble']:
-        X         = fml_rep_BoB(coords, symbols, tp["rdkit_Boltzmann"], params)
+        X         = fml_rep_bob(coords, symbols, tp["rdkit_Boltzmann"], params)
     else:
         #
-        X         = generate_bob_new(symbols, coords, asize=params["asize"])
+        X         = generate_bob(symbols, coords, asize=params["asize"])
     
     min_func  = potential_BoB(X,tp["nuclear_charges"] , params)
     respath   = tempfile.mkdtemp()
@@ -1818,9 +1793,9 @@ def chemspacesampler_find_cliffs(smiles, params=None):
     params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())
 
     if params['ensemble']:
-        X         = fml_rep_BoB(coords, symbols, tp["rdkit_Boltzmann"], params)
+        X         = fml_rep_bob(coords, symbols, tp["rdkit_Boltzmann"], params)
     else:
-        X         = generate_bob_new(symbols, coords, asize=params["asize"])
+        X         = generate_bob(symbols, coords, asize=params["asize"])
     
     min_func  = potential_BoB_cliffs(X,tp["nuclear_charges"] , params)
 
@@ -1884,7 +1859,7 @@ class QM9Dataset():
 
         for i in range(len(self.coords)):
             if self.params['rep_type'] == 'BoB':
-                self.X.append(generate_bob_new(self.nuclear_charges[i],self.coords[i],asize=self.asize))
+                self.X.append(generate_bob(self.nuclear_charges[i],self.coords[i],asize=self.asize))
         self.X = np.array(self.X)
 
 
