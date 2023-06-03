@@ -1362,7 +1362,7 @@ class Analyze_Chemspace:
         df = df.reset_index(drop=True)
         return df
 
-    def process_smiles(self, smi, params):
+    def process_smiles_to_3d(self, smi, params):
         init_egc, output, curr_rdkit =  initialize_fml_from_smiles(smi, ensemble=params['ensemble'])
         return init_egc, output, curr_rdkit
 
@@ -1401,32 +1401,13 @@ class Analyze_Chemspace:
         
         if len(SMILES) == 0:
             return [], []
-    
-        if params["rep_type"] == "MolDescriptors":
-            SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-            explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
-            X_ALL = np.array([calc_all_descriptors(rdkit_mol) for rdkit_mol in explored_rdkit])
-            D = np.array([norm(X_I - X) for X in X_ALL])/norm(X_I)
-            SMILES = SMILES[np.argsort(D)]
-            SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-            D = D[np.argsort(D)]
 
-        
-        if params["rep_type"] == "2d":
-            SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-            explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
-            X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
-            D = np.array([norm(X_I - X) for X in X_ALL])
-            SMILES = SMILES[np.argsort(D)]
-            SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-            D = D[np.argsort(D)]
 
         if params["rep_type"] == "3d":
           
-                results = Parallel(n_jobs=params['NPAR'])(delayed(self.process_smiles)(smi, params) for smi in SMILES)
+                results = Parallel(n_jobs=params['NPAR'])(delayed(self.process_smiles_to_3d)(smi, params) for smi in SMILES)
                 _, TP_ALL, _ = zip(*results)
 
-                
                 if params["rep_name"] == "SOAP":
                     if params['ensemble']:
                         X_ALL           = np.asarray([fml_rep_SOAP(TP["coordinates"], TP["nuclear_charges"], TP["rdkit_Boltzmann"], possible_elements=params['possible_elements']+['H']) for TP in TP_ALL])
@@ -1438,7 +1419,6 @@ class Analyze_Chemspace:
                         X_ALL           = self.reevaluate_3d(TP_ALL, params)
                     else:
                         X_ALL           = self.reevaluate_3d(TP_ALL, params)
-                        #np.asarray([generate_bob([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]) for TP in TP_ALL])
 
                 if params["rep_name"] == "BoB_cliffs":
                     if params['ensemble']:
@@ -1469,11 +1449,35 @@ class Analyze_Chemspace:
                 if params["rep_name"] == "BoB_cliffs":
                     p_values = p_values[np.argsort(D_filtered)]
 
-        if params["rep_name"] != "BoB_cliffs":
-            return SMILES_filtered, D_filtered
-        
+                if params["rep_name"] != "BoB_cliffs":
+                    return SMILES_filtered, D_filtered
+                
+                else:
+                    return SMILES_filtered, D_filtered, p_values    
+                
         else:
-            return SMILES_filtered, D_filtered, p_values
+            if params["rep_type"] == "MolDescriptors":
+                SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+                X_ALL = np.array([calc_all_descriptors(rdkit_mol) for rdkit_mol in explored_rdkit])
+                D = np.array([norm(X_I - X) for X in X_ALL])/norm(X_I)
+                SMILES = SMILES[np.argsort(D)]
+                SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                D = D[np.argsort(D)]
+
+            
+            if params["rep_type"] == "2d":
+                SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+                X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
+                D = np.array([norm(X_I - X) for X in X_ALL])
+                SMILES = SMILES[np.argsort(D)]
+                SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                D = D[np.argsort(D)]
+
+
+
+            return SMILES, D
 
 
 

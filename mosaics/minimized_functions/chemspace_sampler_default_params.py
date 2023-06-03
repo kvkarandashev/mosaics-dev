@@ -74,7 +74,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
             'max_d': max_d,
             'V_0_pot': 0.05,
             'V_0_synth': 0.05,
-            'NPAR':3,
+            'NPAR':1,
             'Nsteps': Nsteps,
             'bias_strength': "none",
             'possible_elements': possible_elements,
