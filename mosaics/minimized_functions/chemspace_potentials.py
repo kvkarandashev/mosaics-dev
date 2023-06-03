@@ -481,7 +481,7 @@ class potential_SOAP:
             return None
             
         
-        distance = np.linalg.norm(X_test - self.X_init)
+        distance = norm(X_test - self.X_init)
         V = self.potential(distance) + V_synth
 
         if self.verbose:
@@ -863,6 +863,59 @@ class potential_BoB_cliffs:
         if self.verbose:
             print(SMILES, distance, V, self.prop_0, prop_t)
         return V
+
+class potential_inv_ECFP:
+    def __init__(
+        self,
+        X_target,
+        params):
+
+        self.X_target = X_target
+        self.V_0_pot = params["V_0_pot"]
+        self.sigma = params["max_d"]
+        self.nBits = params["nBits"]
+        self.verbose = params["verbose"]
+
+        self.canonical_rdkit_output = {
+            "canonical_rdkit": trajectory_point_to_canonical_rdkit
+        }
+        
+        self.potential = self.flat_parabola_potential
+
+
+    def flat_parabola_potential(self, d):
+        """
+        A function to describe the potential as a flat parabola.
+        
+        Parameters:
+        d (float): Distance.
+        
+        Returns:
+        float: Potential value.
+        """
+
+        if d <= self.sigma:
+            return 0
+        if d > self.sigma:
+            return self.V_0_pot * (d - self.sigma) ** 2
+    
+    def __call__(self, trajectory_point_in):
+        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
+            self.canonical_rdkit_output
+        )["canonical_rdkit"]
+
+        if rdkit_mol is None:
+            raise RdKitFailure
+
+        X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits)
+        distance = norm(X_test - self.X_target)
+        V = self.potential(distance)
+
+        if self.verbose:
+            print(canon_SMILES, distance, V)
+
+        return V
+
 
 
 class potential_ECFP:
@@ -1334,8 +1387,8 @@ class Analyze_Chemspace:
             X_rep_2d = []
             for label, cluster in enumerate(clusters):
                 
-                distances = [np.linalg.norm(x - kmeans.cluster_centers_[label]) for x in cluster_X_2d[label]]
-                #
+                distances = [norm(x - kmeans.cluster_centers_[label]) for x in cluster_X_2d[label]]
+                
                 representative_index = np.argmin(distances)
                 representatives.append(cluster[representative_index])
                 indices.append(representative_index)
@@ -1490,7 +1543,7 @@ class Analyze_Chemspace:
         """
         darr = np.zeros(len(SMILES_sampled))
         for i, s in enumerate(SMILES_sampled):
-            darr[i] = np.linalg.norm(
+            darr[i] = norm(
                 X_init - self.compute_representations([s], nBits=nBits)
             )
 
@@ -1514,6 +1567,7 @@ class Analyze_Chemspace:
             CANON_SMILES.append(can)
 
         return CANON_SMILES
+
 
 
 
@@ -1560,6 +1614,40 @@ def chemspacesampler_ECFP(smiles, params=None):
     shutil.rmtree(respath)
 
     return MOLS, D
+
+
+
+def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
+    X, rdkit_init, egc = initialize_from_smiles(smiles_init)
+    if params is None:
+        params = {
+            'V_0_pot': 0.05,
+            'max_d': 6.0,
+            'NPAR': 4,
+            'Nsteps': 100,
+            'bias_strength': "none",
+            'possible_elements': ["C", "O", "N", "F"],
+            'not_protonated': None, 
+            'forbidden_bonds': None,
+            'nhatoms_range': [6, 6],
+            'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
+            'make_restart_frequency': None,
+            "rep_type": "2d",
+            "nBits": 2048,
+            'rep_name': 'ECFP',
+            "verbose": False
+        }
+    
+    min_func = potential_inv_ECFP(X_target, params=params)
+    respath = tempfile.mkdtemp()
+    Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+    ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
+    _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+    shutil.rmtree(respath)
+
+    return MOLS, D
+
 
 def chemspacesampler_MolDescriptors(smiles, params=None):
     """
