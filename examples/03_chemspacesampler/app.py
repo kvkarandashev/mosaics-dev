@@ -53,7 +53,7 @@ def str_to_tuple_list(string):
     tuples = [tuple(map(int, t.replace('(', '').replace(')', '').split(','))) for t in tuples]
     return tuples
 
-default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
+
 descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP']
 
 st.title('ChemSpace Sampler App')
@@ -90,6 +90,7 @@ synth_cut_soft, synth_cut_hard = st.sidebar.slider('Select soft and hard cutoff 
 
 mmff_check = st.sidebar.checkbox('MMFF94 parameters exist? (another sanity check)', value=True, help='Check if the generated molecules should have MMFF94 parameters.')
 ensemble   = st.sidebar.checkbox('Ensemble representation (affects only geometry-based representations, BoB & SOAP)', value=False, help='Check if the ensemble representation should be used. It affects only geometry-based representations (BoB & SOAP).')
+default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
 user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
 forbidden_bonds = str_to_tuple_list(user_input)
 
@@ -108,96 +109,94 @@ else:
     st.error('Unknown Descriptor selected')
 
 if st.button('Run ChemSpace Sampler'):
-   # try:
+    try:
+        MOLS, D = chemspace_function(smiles=smiles, params=params)
+        print(MOLS)
+        if len(MOLS) == 0:
+            st.error('No molecules found. Try to change the parameters such as increasing the minimal distance or the number of iterations.')
+            st.stop()
+        ALL_RESULTS =  pd.DataFrame(MOLS, columns=['SMILES']) 
+        ALL_RESULTS['Distance'] = D
+
+        print(ALL_RESULTS)
+        if len(ALL_RESULTS) > 4:
+        # Calculate fingerprints for all molecules
+            FP_array = chemspace_potentials.get_all_FP( [Chem.MolFromSmiles(smi) for smi in ALL_RESULTS['SMILES'].values ]  , nBits=2048)
+                                            
+            # Perform PCA
+            pca = PCA(n_components=2)
+            pca_result = pca.fit_transform(FP_array)
+            pca_start = pca.transform(chemspace_potentials.get_all_FP([Chem.MolFromSmiles(smiles)], nBits=2048))
+
+            # Add PCA results to DataFrame
+            ALL_RESULTS['PCA1'] = pca_result[:,0]
+            ALL_RESULTS['PCA2'] = pca_result[:,1]
+
+        csv = ALL_RESULTS.to_csv(index=False)
+        b64 = base64.b64encode(csv.encode()).decode()  # some strings <-> bytes conversions necessary here
+        href = f'<a href="data:file/csv;base64,{b64}" download="chemspace_sampler_results.csv">Download Results CSV File</a>'
+
+        # Add download link to Streamlit
+        st.markdown(href, unsafe_allow_html=True)
+
+        # Assuming D contains distances and has the same length as MOLS
+        D = D[:10]
+        print(MOLS)
+        # Convert MOLS to dataframe
+        mol_df = pd.DataFrame(MOLS[:10], columns=['SMILES'])  # creating DataFrame from MOLS
+        mol_df['Distance'] = D
+
+        mol_df['img'] = mol_df['SMILES'].apply(lambda x: mol_to_img(mol_to_3d(Chem.MolFromSmiles(x))))
+        mol_df['img'] = mol_df['img'].apply(lambda x: base64.b64encode(x).decode())
+        st.image([BytesIO(base64.b64decode(img_str)) for img_str in mol_df['img']])
+
+        # Create a Streamlit table with SMILES strings and respective images.
+        table_data = pd.DataFrame(columns=["SMILES", "Distance"])
+        for idx, row in mol_df.iterrows():
+            table_data = table_data.append(
+                {"SMILES": row["SMILES"], "Distance": row["Distance"]}, ignore_index=True
+            )
+        plt.figure(figsize=(10, 6))
+        plt.hist(ALL_RESULTS['Distance'].values, bins=20, color='skyblue', edgecolor='black')
+        plt.title('Histogram of Distances')
+        plt.xlabel('D')
+        plt.ylabel('#')
+        st.pyplot(plt)
+        st.write('Table of the 10 closest molecules, see above to download all results.')
+        st.table(table_data)
 
 
-    MOLS, D = chemspace_function(smiles=smiles, params=params)
-    print(MOLS)
-    if len(MOLS) == 0:
-        st.error('No molecules found. Try to change the parameters such as increasing the minimal distance or the number of iterations.')
-        st.stop()
-    ALL_RESULTS =  pd.DataFrame(MOLS, columns=['SMILES']) 
-    ALL_RESULTS['Distance'] = D
+        if len(ALL_RESULTS) > 4:
+            # Use a diverging color palette, increase point transparency and change marker style
+            st.write('PCA plot of all molecules (alwatys using ECFP4 fingerprints for speed)')
+            plt.figure(figsize=(6, 6))
+            other_mols = ALL_RESULTS[ALL_RESULTS['SMILES'] != smiles]
+            scatter_plot = sns.scatterplot(data=other_mols, x='PCA1', y='PCA2', s=100, palette='coolwarm', hue='Distance', alpha=0.7, legend=False, marker='o')
 
-    print(ALL_RESULTS)
-    if len(ALL_RESULTS) > 4:
-    # Calculate fingerprints for all molecules
-        FP_array = chemspace_potentials.get_all_FP( [Chem.MolFromSmiles(smi) for smi in ALL_RESULTS['SMILES'].values ]  , nBits=2048)
-                                        
-        # Perform PCA
-        pca = PCA(n_components=2)
-        pca_result = pca.fit_transform(FP_array)
-        pca_start = pca.transform(chemspace_potentials.get_all_FP([Chem.MolFromSmiles(smiles)], nBits=2048))
-
-        # Add PCA results to DataFrame
-        ALL_RESULTS['PCA1'] = pca_result[:,0]
-        ALL_RESULTS['PCA2'] = pca_result[:,1]
-
-    csv = ALL_RESULTS.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()  # some strings <-> bytes conversions necessary here
-    href = f'<a href="data:file/csv;base64,{b64}" download="chemspace_sampler_results.csv">Download Results CSV File</a>'
-
-    # Add download link to Streamlit
-    st.markdown(href, unsafe_allow_html=True)
-
-    # Assuming D contains distances and has the same length as MOLS
-    D = D[:10]
-    print(MOLS)
-    # Convert MOLS to dataframe
-    mol_df = pd.DataFrame(MOLS[:10], columns=['SMILES'])  # creating DataFrame from MOLS
-    mol_df['Distance'] = D
-
-    mol_df['img'] = mol_df['SMILES'].apply(lambda x: mol_to_img(mol_to_3d(Chem.MolFromSmiles(x))))
-    mol_df['img'] = mol_df['img'].apply(lambda x: base64.b64encode(x).decode())
-    st.image([BytesIO(base64.b64decode(img_str)) for img_str in mol_df['img']])
-
-    # Create a Streamlit table with SMILES strings and respective images.
-    table_data = pd.DataFrame(columns=["SMILES", "Distance"])
-    for idx, row in mol_df.iterrows():
-        table_data = table_data.append(
-            {"SMILES": row["SMILES"], "Distance": row["Distance"]}, ignore_index=True
-        )
-    plt.figure(figsize=(10, 6))
-    plt.hist(ALL_RESULTS['Distance'].values, bins=20, color='skyblue', edgecolor='black')
-    plt.title('Histogram of Distances')
-    plt.xlabel('D')
-    plt.ylabel('#')
-    st.pyplot(plt)
-    st.write('Table of the 10 closest molecules, see above to download all results.')
-    st.table(table_data)
+            # Increase size of start molecule marker and its edge color for emphasis
+            plt.scatter(pca_start[:,0], pca_start[:,1], color='red', edgecolor='black', marker='*', s=500, label='Start Molecule')
+            # Create a custom legend for the start molecule
 
 
-    if len(ALL_RESULTS) > 4:
-        # Use a diverging color palette, increase point transparency and change marker style
-        st.write('PCA plot of all molecules (alwatys using ECFP4 fingerprints for speed)')
-        plt.figure(figsize=(6, 6))
-        other_mols = ALL_RESULTS[ALL_RESULTS['SMILES'] != smiles]
-        scatter_plot = sns.scatterplot(data=other_mols, x='PCA1', y='PCA2', s=100, palette='coolwarm', hue='Distance', alpha=0.7, legend=False, marker='o')
+            plt.title('PCA of Molecular Fingerprints', fontsize=21, weight='bold', pad=20)
+            plt.xlabel('PCA1', fontsize=18, labelpad=15)
+            plt.ylabel('PCA2', fontsize=18, labelpad=15)
 
-        # Increase size of start molecule marker and its edge color for emphasis
-        plt.scatter(pca_start[:,0], pca_start[:,1], color='red', edgecolor='black', marker='*', s=500, label='Start Molecule')
-        # Create a custom legend for the start molecule
+            # Create a custom legend for the start molecule
+            legend_marker = plt.Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markersize=15, markeredgecolor='black')
+            plt.legend(handles=[legend_marker], labels=['Start Molecule'], loc='upper right')
+            # Create colorbar
+            norm = Normalize(other_mols['Distance'].min(), other_mols['Distance'].max())
+            sm = ScalarMappable(norm=norm, cmap='coolwarm')
+            plt.colorbar(sm)
+            # Remove top and right spines
+            sns.despine()
 
-
-        plt.title('PCA of Molecular Fingerprints', fontsize=21, weight='bold', pad=20)
-        plt.xlabel('PCA1', fontsize=18, labelpad=15)
-        plt.ylabel('PCA2', fontsize=18, labelpad=15)
-
-        # Create a custom legend for the start molecule
-        legend_marker = plt.Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markersize=15, markeredgecolor='black')
-        plt.legend(handles=[legend_marker], labels=['Start Molecule'], loc='upper right')
-        # Create colorbar
-        norm = Normalize(other_mols['Distance'].min(), other_mols['Distance'].max())
-        sm = ScalarMappable(norm=norm, cmap='coolwarm')
-        plt.colorbar(sm)
-        # Remove top and right spines
-        sns.despine()
-
-        # Show the plot in Streamlit
-        st.pyplot(plt.gcf())
+            # Show the plot in Streamlit
+            st.pyplot(plt.gcf())
 
 
-    #except:
-    #    st.error('An error occurred. Please check your input parameters and try again. \
-    #             Is the starting molecule consistent with the conditions i.e. number of heavy atoms, elements, etc.? \
-    #             sometimes things fail for no apparent reason, just try again.')
+    except:
+        st.error('An error occurred. Please check your input parameters and try again. \
+                 Is the starting molecule consistent with the conditions i.e. number of heavy atoms, elements, etc.? \
+                 sometimes things fail for no apparent reason, just try again.')
