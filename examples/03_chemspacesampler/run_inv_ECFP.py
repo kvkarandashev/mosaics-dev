@@ -6,7 +6,7 @@ def main():
         'V_0_pot': 0.05,
         'NPAR': 48,
         'max_d': 0.1,
-        'Nsteps': 200,
+        'Nsteps': 300,
         'bias_strength': "stronger",
         'possible_elements': ["C", "O", "N", "F"],
         'not_protonated': None, 
@@ -19,12 +19,12 @@ def main():
         'rep_name': 'inv_ECFP',
         'strategy': 'contract',
         'd_threshold': 0.1,
-        'Nparts': 8,
+        'Nparts': 9,
         'growth_factor': 1.5,
         "verbose": False
     }
 
-    smiles_init, smiles_target ="CC(=O)OC1=CC=CC=C1C(=O)O", "CCCCCCC(O)CO"
+    smiles_init, smiles_target ="CCCCCCCCCC", "CC(=O)OC1=CC=CC=C1C(=O)O"
     X_target, _, _ = chemspace_potentials.initialize_from_smiles(smiles_target,nBits=params['nBits'])
     MOLS, D = chemspace_potentials.chemspacesampler_inv_ECFP(smiles_init,X_target, params=params)    
     print("MOLS", MOLS)

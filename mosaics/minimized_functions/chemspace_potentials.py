@@ -1642,7 +1642,7 @@ def chemspacesampler_ECFP(smiles, params=None):
 
 
 def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
-    X, rdkit_init, egc = initialize_from_smiles(smiles_init, nBits=params['nBits'])
+    X, rdkit_init, egc_0 = initialize_from_smiles(smiles_init, nBits=params['nBits'])
     if params is None:
         params = {
             'V_0_pot': 0.05,
@@ -1666,7 +1666,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
     if params['strategy'] == "default":
         min_func = potential_inv_ECFP(X_target, params=params)
         respath = tempfile.mkdtemp()
-        Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+        Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_0,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
         ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
         _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
         MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
@@ -1686,7 +1686,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
         N_budget[-1] += params['Nsteps'] - sum(N_budget)
         N_budget = np.array(N_budget)[::-1]
 
-        egc_rep = [copy.deepcopy(egc) for _ in range(params['NPAR'])]
+        egc_rep = [copy.deepcopy(egc_0) for _ in range(params['NPAR'])]
         for d, n in zip(d_arr, N_budget):
             params['max_d'] = d 
             params['Nsteps'] = n
@@ -1705,7 +1705,13 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                     diff = params['NPAR'] - len(MOLS)
                     MOLS_CHOICE = np.array(MOLS, dtype='<U11').tolist() + np.array(MOLS[:diff], dtype='<U11').tolist()
 
-                egc_rep = [initialize_from_smiles(mol, nBits=params['nBits'])[2] for mol in MOLS_CHOICE]
+                egc_rep = []
+                for mol in MOLS_CHOICE:
+                    try:
+                        egc_rep.append(SMILES_to_egc(mol))
+                    except:
+                        egc_rep.append(egc_0)
+                #[initialize_from_smiles(mol, nBits=params['nBits'])[2] for mol in MOLS_CHOICE]
                 smiles_closest, clostest_distance = MOLS[0], D[0]
                 print(clostest_distance, smiles_closest)
                 if clostest_distance <= params['d_threshold']:
