@@ -1618,7 +1618,7 @@ def chemspacesampler_ECFP(smiles, params=None):
 
 
 def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
-    X, rdkit_init, egc = initialize_from_smiles(smiles_init)
+    X, rdkit_init, egc = initialize_from_smiles(smiles_init, nBits=params['nBits'])
     if params is None:
         params = {
             'V_0_pot': 0.05,
@@ -1633,20 +1633,49 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
             'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
             'make_restart_frequency': None,
             "rep_type": "2d",
-            "nBits": 2048,
+            'nBits': 2048,
             'rep_name': 'ECFP',
+            'strategy': 'default',
             "verbose": False
         }
     
-    min_func = potential_inv_ECFP(X_target, params=params)
-    respath = tempfile.mkdtemp()
-    Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
-    ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
-    _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
-    shutil.rmtree(respath)
+    if params['strategy'] == "default":
+        min_func = potential_inv_ECFP(X_target, params=params)
+        respath = tempfile.mkdtemp()
+        Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+        ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
+        _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+        MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+        shutil.rmtree(respath)
 
-    return MOLS, D
+        return MOLS, D
+    else:
+        d_arr = np.linspace(norm(X-X_target), params['max_d'], params['Nparts'])
+        # Generate exponential growth series
+        series = [params['growth_factor']**i for i in range(params['Nparts'])]
+
+        # Normalize series to make sum equals Nsteps
+        N_budget = [int(round(s / sum(series) * params['Nsteps'])) for s in series]
+
+        # Correct possible rounding errors
+        N_budget[-1] += params['Nsteps'] - sum(N_budget)
+        
+        for d, n in zip(d_arr, N_budget):
+            params['max_d'] = d 
+            params['Nsteps'] = n
+
+            min_func = potential_inv_ECFP(X_target, params=params)
+            respath = tempfile.mkdtemp()
+            Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+            ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
+            _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+            MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+            shutil.rmtree(respath)
+            if len(MOLS) > 0:
+                smiles_closest, clostest_distance = MOLS[0], D[0]
+                X, rdkit_init, egc = initialize_from_smiles(smiles_closest, nBits=params['nBits'])
+                print(clostest_distance, smiles_closest)
+        #pdb.set_trace()
 
 
 def chemspacesampler_MolDescriptors(smiles, params=None):
