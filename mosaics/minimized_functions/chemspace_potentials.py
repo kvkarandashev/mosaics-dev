@@ -167,6 +167,19 @@ def max_element_counts(elements):
 
 
 
+def tanimoto_similarity(vector1, vector2):
+    intersection = np.sum(np.logical_and(vector1, vector2))
+    union = np.sum(np.logical_or(vector1, vector2))
+    tanimoto_similarity = intersection / union
+    return tanimoto_similarity
+
+
+def tanimoto_distance(vector1, vector2):
+    similarity = tanimoto_similarity(vector1, vector2)
+    distance = 1 - similarity
+    return distance
+
+
 def gen_soap(crds, chgs, species):
     """
     Generate the Smooth Overlap of Atomic Positions (SOAP) descriptor for a molecule.
@@ -908,7 +921,7 @@ class potential_inv_ECFP:
             raise RdKitFailure
 
         X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits)
-        distance = norm(X_test - self.X_target)
+        distance = tanimoto_distance(X_test , self.X_target)
         V = self.potential(distance)
 
         if self.verbose:
@@ -1038,7 +1051,7 @@ def mc_run(init_egc,min_func,min_func_name, respath,label, params):
     num_replicas = len(params['betas'])
     init_egcs = [copy.deepcopy(init_egc) for _ in range(num_replicas)]
 
-    bias_coeffs = {"none": None, "weak": 0.2, "stronger": 0.4}
+    bias_coeffs = {"none": None, "weak": 0.2, "stronger": 2.0}
     bias_coeff = bias_coeffs[params['bias_strength']]
     vbeta_bias_coeff = bias_coeffs[params['bias_strength']]
 
@@ -1520,13 +1533,24 @@ class Analyze_Chemspace:
 
             
             if params["rep_type"] == "2d":
-                SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-                explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
-                X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
-                D = np.array([norm(X_I - X) for X in X_ALL])
-                SMILES = SMILES[np.argsort(D)]
-                SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-                D = D[np.argsort(D)]
+                if params["rep_name"] == "inv_ECFP":
+                    SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+                    X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
+                    D = np.array([tanimoto_distance(X_I, X) for X in X_ALL])
+                    SMILES = SMILES[np.argsort(D)]
+                    SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    D = D[np.argsort(D)]
+
+                else:
+
+                    SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+                    X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
+                    D = np.array([norm(X_I - X) for X in X_ALL])
+                    SMILES = SMILES[np.argsort(D)]
+                    SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    D = D[np.argsort(D)]
 
 
 
@@ -1649,33 +1673,46 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
         shutil.rmtree(respath)
 
         return MOLS, D
+    
     else:
-        d_arr = np.linspace(norm(X-X_target), params['max_d'], params['Nparts'])
+        d_arr = np.linspace(tanimoto_distance(X,X_target), params['max_d'], params['Nparts'])
         # Generate exponential growth series
         series = [params['growth_factor']**i for i in range(params['Nparts'])]
 
         # Normalize series to make sum equals Nsteps
         N_budget = [int(round(s / sum(series) * params['Nsteps'])) for s in series]
-
+        
         # Correct possible rounding errors
         N_budget[-1] += params['Nsteps'] - sum(N_budget)
-        
+        N_budget = np.array(N_budget)[::-1]
+
+        egc_rep = [copy.deepcopy(egc) for _ in range(params['NPAR'])]
         for d, n in zip(d_arr, N_budget):
             params['max_d'] = d 
             params['Nsteps'] = n
 
             min_func = potential_inv_ECFP(X_target, params=params)
             respath = tempfile.mkdtemp()
-            Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+            Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_rep[i],min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
             ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
             _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
             MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
             shutil.rmtree(respath)
             if len(MOLS) > 0:
+                if len(MOLS) >= params['NPAR']:
+                    MOLS_CHOICE = MOLS[:params['NPAR']]
+                else:
+                    diff = params['NPAR'] - len(MOLS)
+                    MOLS_CHOICE = np.array(MOLS, dtype='<U11').tolist() + np.array(MOLS[:diff], dtype='<U11').tolist()
+
+                egc_rep = [initialize_from_smiles(mol, nBits=params['nBits'])[2] for mol in MOLS_CHOICE]
                 smiles_closest, clostest_distance = MOLS[0], D[0]
-                X, rdkit_init, egc = initialize_from_smiles(smiles_closest, nBits=params['nBits'])
                 print(clostest_distance, smiles_closest)
-        #pdb.set_trace()
+                if clostest_distance <= params['d_threshold']:
+                    print("Found molecule within threshold")
+                    return MOLS, D
+
+        return MOLS, D
 
 
 def chemspacesampler_MolDescriptors(smiles, params=None):
