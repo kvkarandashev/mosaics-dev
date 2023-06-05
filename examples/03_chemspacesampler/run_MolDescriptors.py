@@ -5,6 +5,8 @@ from mosaics.beta_choice import gen_exp_beta_array
 params = {
     'min_d': 10,
     'max_d': 11,
+    'V_0_pot': 0.05,
+    'V_0_synth': 0.05,
     'NPAR': 2,
     'Nsteps': 100,
     'bias_strength': "none",
@@ -15,7 +17,9 @@ params = {
     'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
     'make_restart_frequency': None,
     'rep_type': 'MolDescriptors',
-    'synth_cut': 2,
+    'synth_cut_soft': 3,
+    'synth_cut_hard': 5,
+    'rep_name': 'MolDescriptors',
     'mmff_check': True,
     "verbose": True
 }

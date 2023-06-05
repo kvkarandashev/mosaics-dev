@@ -5,6 +5,8 @@ def main():
     params = {
         'min_d': 0.0,
         'max_d': 4.0,
+        'V_0_pot': 0.05,
+        'V_0_synth': 0.05,
         'NPAR': 4,
         'Nsteps': 100,
         'bias_strength': "none",
@@ -16,6 +18,9 @@ def main():
         'make_restart_frequency': None,
         "rep_type": "2d",
         "nBits": 2048,
+        'synth_cut_soft':3,
+        'synth_cut_hard':5,
+        'rep_name': 'ECFP',
         'mmff_check': True,
         'synth_cut': 2,
         "verbose": False

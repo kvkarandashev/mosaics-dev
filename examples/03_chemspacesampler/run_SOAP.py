@@ -5,6 +5,8 @@ def main():
     params = {
         'min_d': 0.0,
         'max_d': 80.0,
+        'V_0_pot': 0.05,
+        'V_0_synth': 0.05,
         'NPAR': 3,
         'Nsteps': 20,
         'bias_strength': "none",
@@ -16,7 +18,9 @@ def main():
         'make_restart_frequency': None,
         'rep_type': '3d',
         'rep_name': 'SOAP',
-        'synth_cut': 2,
+        'synth_cut_soft': 3,
+        'synth_cut_hard': 5,
+        'rep_name': 'SOAP',
         'ensemble': True,
         "verbose": True,
     }

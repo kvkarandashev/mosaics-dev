@@ -12,6 +12,7 @@ from numpy.linalg import norm
 from rdkit import Chem
 from rdkit.Chem import DataStructs, rdMolDescriptors, Descriptors
 from rdkit.Chem import RDConfig
+import rdkit.Chem.Crippen as Crippen
 #from rdkit.Contrib.SA_Score import sascorer
 import sys
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
@@ -21,13 +22,10 @@ import pandas as pd
 from tqdm import tqdm
 from rdkit.Chem import AllChem
 from sklearn.model_selection import train_test_split
-
-try:
-    from qml.representations import generate_bob
-    from qml.utils.alchemy import ELEMENT_NAME
-except:
-    raise ImportError("Please install qml package to use this representation")
-
+from mosaics.misc_procedures import str_atom_corr
+from scipy.special import comb
+from mosaics.minimized_functions import chemspace_sampler_default_params
+import pdb
 try:
     from ase import Atoms
     from dscribe.descriptors import SOAP
@@ -49,8 +47,80 @@ from mosaics.minimized_functions.morfeus_quantity_estimates import (
     morfeus_coord_info_from_tp,
     morfeus_FF_xTB_code_quants,
 )
+from tqdm import tqdm
+from itertools import combinations, product
+from scipy.special import comb
 
-import pdb
+
+
+def generate_bob(elements,coords,n_jobs=-1,asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
+    """
+    generates the Bag of Bonds representation
+    :param elements: array of arrays of chemical element symbols for all molecules in the dataset
+    :type elements: numpy array NxM, where N is the number of molecules and M is the number of atoms (can be different for each molecule)
+    :param coords: array of arrays of input coordinates of the atoms
+    :type coords: numpy array NxMx3, where N is the number of molecules and M is the number of atoms (can be different for each molecule)
+    :param n_jobs: number of cores to parallelise the representation generation over. Default value is -1 which uses all cores in the system
+    :type n_jobs: integer
+    :param asize: The maximum number of atoms of each element type supported by the representation
+    :type asize: dictionary
+
+    :return: NxD array of D-dimensional BoB vectors for the N molecules
+    :rtype: numpy array
+    """
+    
+    elements, coords = [elements], [coords]
+    bob_arr = [bob(atoms, coords, asize) for atoms, coords in zip(elements, coords)]
+
+    return np.array(bob_arr)[0]
+
+def bob(atoms, coods, asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
+    keys = list(asize.keys())
+    elements = {'C': [[], 6], 'H': [[], 1], 'N': [[], 7], 'O': [[], 8], 'F': [[], 9], 'P': [[], 15], 'S': [[], 16],
+                'Cl': [[], 17], 'Br': [[], 35], 'I': [[], 53], 'Si': [[], 14], 'B': [[], 5]}
+    for i in range(len(atoms)):
+        elements[atoms[i]][0].append(coods[i])
+
+    bob = []
+    for i in range(len(keys)):
+        num = len(elements[keys[i]][0])
+        if num != 0:
+            bag = np.zeros((asize[keys[i]]))
+            bag[:num] = 0.5 * (elements[keys[i]][1] ** 2.4)
+            bag = -np.sort(-bag)
+            bob.extend(bag)
+            for j in range(i, len(keys)):
+                if i == j:
+                    z = elements[keys[i]][1]
+                    bag = np.zeros((int(comb(asize[keys[i]], 2))))
+                    vec = []
+                    for (r1, r2) in combinations(elements[keys[i]][0], 2):
+                        vec.append(z ** 2 / np.linalg.norm(r1 - r2))
+                    bag[:len(vec)] = vec
+                    bag = -np.sort(-bag)
+                    bob.extend(bag)
+                elif (i != j) and (len(elements[keys[j]][0]) != 0):
+                    z1, z2 = elements[keys[i]][1], elements[keys[j]][1]
+                    bag = np.zeros((asize[keys[i]] * asize[keys[j]]))
+                    vec = []
+                    for (r1, r2) in product(elements[keys[i]][0], elements[keys[j]][0]):
+                        vec.append(z1 * z2 / np.linalg.norm(r1 - r2))
+                    bag[:len(vec)] = vec
+                    bag = -np.sort(-bag)
+                    bob.extend(bag)
+                else:
+                    bob.extend(np.zeros((asize[keys[i]] * asize[keys[j]])))
+        else:
+            bob.extend(np.zeros((asize[keys[i]])))
+            for j in range(i, len(keys)):
+                if i == j:
+                    bob.extend(np.zeros((int(comb(asize[keys[i]], 2)))))
+                else:
+                    bob.extend(np.zeros((asize[keys[i]] * asize[keys[j]])))
+    return np.array(bob)
+
+
+
 
 
 def calc_all_descriptors(mol):
@@ -95,6 +165,19 @@ def max_element_counts(elements):
 
     return max_counts, max_n
 
+
+
+def tanimoto_similarity(vector1, vector2):
+    intersection = np.sum(np.logical_and(vector1, vector2))
+    union = np.sum(np.logical_or(vector1, vector2))
+    tanimoto_similarity = intersection / union
+    return tanimoto_similarity
+
+
+def tanimoto_distance(vector1, vector2):
+    similarity = tanimoto_similarity(vector1, vector2)
+    distance = 1 - similarity
+    return distance
 
 
 def gen_soap(crds, chgs, species):
@@ -176,11 +259,10 @@ def fml_rep_SOAP(COORDINATES, NUC_CHARGES, WEIGHTS, possible_elements=["C", "O",
     X = np.average(X, axis=0, weights=WEIGHTS)
     return X
 
-def fml_rep_BoB(coords, charges, WEIGHTS, params):
+def fml_rep_bob(coords, symbols, WEIGHTS, params):
     X = []
-    #x         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
     for i in range(len(coords)):
-        X.append(generate_bob(charges, coords[i], params['unique_elements'], size=params['max_n'], asize=params['asize']))
+        X.append(generate_bob(symbols, coords[i], asize=params['asize']))
     X = np.array(X)
     X = np.average(X, axis=0, weights=WEIGHTS)
     return X
@@ -304,6 +386,8 @@ class potential_SOAP:
         self.Q_init = Q_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
         self.possible_elements = params["possible_elements"]+["H"]
         self.verbose = params["verbose"]
         self.synth_cut_soft = params["synth_cut_soft"]
@@ -312,23 +396,9 @@ class potential_SOAP:
         self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
 
         if self.ensemble:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 100,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": True
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_confs
         else:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 2,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": False
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
             
         self.potential = self.flat_parabola_potential
 
@@ -363,17 +433,17 @@ class potential_SOAP:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
         
     def synth_potential(self, score):
         if score > self.synth_cut_hard:
             return None
         if score > self.synth_cut_soft:
-            return 0.05 * (score - self.synth_cut_soft) ** 2
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
         else:
             return 0
 
@@ -424,7 +494,7 @@ class potential_SOAP:
             return None
             
         
-        distance = np.linalg.norm(X_test - self.X_init)
+        distance = norm(X_test - self.X_init)
         V = self.potential(distance) + V_synth
 
         if self.verbose:
@@ -441,7 +511,9 @@ class potential_MolDescriptors:
 
         self.X_init = X_init
         self.gamma = params['min_d']
-        self.sigma = params['max_d']      
+        self.sigma = params['max_d']   
+        self.V_0_pot = params['V_0_pot']
+        self.V_0_synth = params['V_0_synth']   
         self.synth_cut_soft = params["synth_cut_soft"]
         self.synth_cut_hard = params["synth_cut_hard"]
         self.mmff_check = params["mmff_check"]
@@ -462,17 +534,17 @@ class potential_MolDescriptors:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
     
     def synth_potential(self, score):
         if score > self.synth_cut_hard:
             return None
         if score > self.synth_cut_soft:
-            return 0.05 * (score - self.synth_cut_soft) ** 2
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
         else:
             return 0
         
@@ -530,6 +602,8 @@ class potential_BoB:
         self.Q_init = Q_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
         self.possible_elements = params["possible_elements"]+["H"]
         self.verbose = params["verbose"]
         self.synth_cut_soft = params["synth_cut_soft"]
@@ -538,23 +612,9 @@ class potential_BoB:
         self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
         
         if self.ensemble:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 100,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": True
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_confs
         else:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 2,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": False
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
             
         self.potential = self.flat_parabola_potential  
 
@@ -587,17 +647,17 @@ class potential_BoB:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
         
     def synth_potential(self, score):
         if score > self.synth_cut_hard:
             return None
         if score > self.synth_cut_soft:
-            return 0.05 * (score - self.synth_cut_soft) ** 2
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
         else:
             return 0
 
@@ -622,6 +682,7 @@ class potential_BoB:
             
             coords = output["coordinates"]
             charges = output["nuclear_charges"]
+            symbols = [str_atom_corr(charge) for charge in charges]
             SMILES = output["canon_rdkit_SMILES"]
 
             rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
@@ -633,13 +694,14 @@ class potential_BoB:
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
-                    X_test =   fml_rep_BoB(coords, charges, output["rdkit_Boltzmann"], self.params)
+                    X_test =   fml_rep_bob(coords, symbols, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
                 
             else:
                 if coords.shape[0] == charges.shape[0]:
-                    X_test =  generate_bob(charges, coords, self.params['unique_elements'], size=self.params["max_n"], asize=self.params["asize"])
+                    X_test = generate_bob(symbols, coords, asize=self.params["asize"])
+                    
                 else:
                     return None
                 
@@ -684,33 +746,23 @@ class potential_BoB_cliffs:
         self.Q_init = Q_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
         self.possible_elements = params["possible_elements"]+["H"]
         self.verbose = params["verbose"]
-        self.synth_cut = params["synth_cut"]
+        self.synth_cut_soft = params["synth_cut_soft"]
+        self.synth_cut_hard = params["synth_cut_hard"]
         self.ensemble = params["ensemble"]
+        self.property = params["property"]
         self.jump = params["jump"]
-        self.gap_0 = params["gap_0"]
+        self.prop_0 = params["prop_0"]
         self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
         
         
         if self.ensemble:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 100,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": True
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_confs
         else:
-            self.morfeus_args = {
-                            "morfeus": {
-                                "num_attempts": 2,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": False
-                            }
-                        }
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
             
         self.potential = self.flat_parabola_potential  
 
@@ -743,11 +795,19 @@ class potential_BoB_cliffs:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
+
+    def synth_potential(self, score):
+        if score > self.synth_cut_hard:
+            return None
+        if score > self.synth_cut_soft:
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
+        else:
+            return 0
 
     def __call__(self, trajectory_point_in):
         """
@@ -769,33 +829,38 @@ class potential_BoB_cliffs:
             
             coords = output["coordinates"]
             charges = output["nuclear_charges"]
+            symbols = [str_atom_corr(charge) for charge in charges]
             SMILES = output["canon_rdkit_SMILES"]
 
             rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
             score  = sascorer.calculateScore( rdkit_mol_no_H)
-        
+            V_synth = self.synth_potential(score)
+            if V_synth == None:
+                return None
             
-            properties_trial = compute_values(SMILES)
-            gap_t = properties_trial[2]
+            if self.property == "gap":
+                prop_t = compute_values(SMILES)[2]
+            elif self.property == "MolLogP":
+                prop_t =  Crippen.MolLogP(rdkit_mol_no_H, True)
+            else:
+                print("Property not implemented")
 
-            if abs(gap_t - self.gap_0) > self.jump * abs(self.gap_0):
+
+            if abs(prop_t - self.prop_0) > self.jump * abs(self.prop_0):
                 pass
             else:
-                return 20000
+                return 200
 
-
-            if score > self.synth_cut:
-                return None
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
-                    X_test =   fml_rep_BoB(coords, charges, output["rdkit_Boltzmann"], self.params)
+                    X_test =   fml_rep_bob(coords, symbols, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
                 
             else:
                 if coords.shape[0] == charges.shape[0]:
-                    X_test =  generate_bob(charges, coords, self.params['unique_elements'], size=self.params["max_n"], asize=self.params["asize"])
+                    X_test =   generate_bob(symbols, coords, asize=self.params["asize"])
                 
 
 
@@ -806,11 +871,64 @@ class potential_BoB_cliffs:
             
         
         distance = np.linalg.norm(X_test - self.X_init)
+        V = self.potential(distance) + V_synth
+
+        if self.verbose:
+            print(SMILES, distance, V, self.prop_0, prop_t)
+        return V
+
+class potential_inv_ECFP:
+    def __init__(
+        self,
+        X_target,
+        params):
+
+        self.X_target = X_target
+        self.V_0_pot = params["V_0_pot"]
+        self.sigma = params["max_d"]
+        self.nBits = params["nBits"]
+        self.verbose = params["verbose"]
+
+        self.canonical_rdkit_output = {
+            "canonical_rdkit": trajectory_point_to_canonical_rdkit
+        }
+        
+        self.potential = self.flat_parabola_potential
+
+
+    def flat_parabola_potential(self, d):
+        """
+        A function to describe the potential as a flat parabola.
+        
+        Parameters:
+        d (float): Distance.
+        
+        Returns:
+        float: Potential value.
+        """
+
+        if d <= self.sigma:
+            return 0
+        if d > self.sigma:
+            return self.V_0_pot * (d - self.sigma) ** 2
+    
+    def __call__(self, trajectory_point_in):
+        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
+            self.canonical_rdkit_output
+        )["canonical_rdkit"]
+
+        if rdkit_mol is None:
+            raise RdKitFailure
+
+        X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits)
+        distance = tanimoto_distance(X_test , self.X_target)
         V = self.potential(distance)
 
         if self.verbose:
-            print(SMILES, distance, V, self.gap_0, gap_t)
+            print(canon_SMILES, distance, V)
+
         return V
+
 
 
 class potential_ECFP:
@@ -827,6 +945,8 @@ class potential_ECFP:
         self.X_init = X_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
         self.nBits = params["nBits"]
         self.mmff_check = params["mmff_check"]
         self.synth_cut_soft = params["synth_cut_soft"]
@@ -848,17 +968,17 @@ class potential_ECFP:
         """
 
         if d < self.gamma:
-            return 0.05 * (d - self.gamma) ** 2
+            return self.V_0_pot * (d - self.gamma) ** 2
         if self.gamma <= d <= self.sigma:
             return 0
         if d > self.sigma:
-            return 0.05 * (d - self.sigma) ** 2
+            return self.V_0_pot * (d - self.sigma) ** 2
 
     def synth_potential(self, score):
         if score > self.synth_cut_hard:
             return None
         if score > self.synth_cut_soft:
-            return 0.05 * (score - self.synth_cut_soft) ** 2
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
         else:
             return 0
 
@@ -888,8 +1008,6 @@ class potential_ECFP:
         X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits) 
         distance = norm(X_test - self.X_init)
         V = self.potential(distance) + V_synth
-
-
 
         if self.verbose:
             print(canon_SMILES, distance, V)
@@ -933,7 +1051,7 @@ def mc_run(init_egc,min_func,min_func_name, respath,label, params):
     num_replicas = len(params['betas'])
     init_egcs = [copy.deepcopy(init_egc) for _ in range(num_replicas)]
 
-    bias_coeffs = {"none": None, "weak": 0.2, "stronger": 0.4}
+    bias_coeffs = {"none": None, "weak": 0.2, "stronger": 2.0}
     bias_coeff = bias_coeffs[params['bias_strength']]
     vbeta_bias_coeff = bias_coeffs[params['bias_strength']]
 
@@ -974,8 +1092,9 @@ def mc_run(init_egc,min_func,min_func_name, respath,label, params):
         rw.global_random_change(**global_change_params)
 
     rw.ordered_trajectory()
-    time.sleep(0.5)
-    rw.make_restart(tarball=True)
+    time.sleep(0.1)
+    unique_filename = f"{label}_{os.getpid()}.pkl"
+    rw.make_restart(tarball=True, restart_file=respath + "/" + unique_filename)
 
 
 def mc_run_QM9(init_egc,Nsteps, min_func,min_func_name, respath,label):
@@ -1048,23 +1167,9 @@ def initialize_fml_from_smiles(smiles, ensemble=True):
     morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
     
     if ensemble:
-        morfeus_args = {
-                        "morfeus": {
-                            "num_attempts": 100,
-                            "ff_type": "MMFF94s",
-                            "return_rdkit_obj": False,
-                            "all_confs": True
-                        }
-                    }
+        morfeus_args = chemspace_sampler_default_params.morfeus_args_confs
     else:
-        morfeus_args =  {
-                            "morfeus": {
-                                "num_attempts": 2,
-                                "ff_type": "MMFF94",
-                                "return_rdkit_obj": False,
-                                "all_confs": False
-                            }
-                        }
+        morfeus_args =  chemspace_sampler_default_params.morfeus_args_single
 
     
     output = trajectory_point.calc_or_lookup(
@@ -1223,12 +1328,6 @@ class Analyze_Chemspace:
 
             return SMILES, VALUES
         if self.rep_type == "3d":
-            """
-            (Pdb) tp.calculated_data["morfeus"].keys()
-            dict_keys(['coordinates', 'nuclear_charges', 'canon_rdkit_SMILES', 'rdkit_energy', 'rdkit_degeneracy', 'rdkit_Boltzmann'])
-            """
-
-
 
             SMILES = []
             VALUES = []
@@ -1301,8 +1400,8 @@ class Analyze_Chemspace:
             X_rep_2d = []
             for label, cluster in enumerate(clusters):
                 
-                distances = [np.linalg.norm(x - kmeans.cluster_centers_[label]) for x in cluster_X_2d[label]]
-                #
+                distances = [norm(x - kmeans.cluster_centers_[label]) for x in cluster_X_2d[label]]
+                
                 representative_index = np.argmin(distances)
                 representatives.append(cluster[representative_index])
                 indices.append(representative_index)
@@ -1329,42 +1428,52 @@ class Analyze_Chemspace:
         df = df.reset_index(drop=True)
         return df
 
-    def process_smiles(self, smi, params):
+    def process_smiles_to_3d(self, smi, params):
         init_egc, output, curr_rdkit =  initialize_fml_from_smiles(smi, ensemble=params['ensemble'])
         return init_egc, output, curr_rdkit
+
+
+
+    def reevaluate_3d(self,TP_ALL, params):
+        
+        if params["rep_name"] == "BoB":
+            X = []
+            if params['ensemble'] == "ensemble":
+                
+                for TP in TP_ALL:
+                    try:
+                        X.append(fml_rep_bob(TP["coordinates"], [str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["rdkit_Boltzmann"], params))
+                    except:
+                        X.append(np.array([np.nan]))
+                
+                X = np.array(X)
+                return X
+        
+            else:
+
+                for TP in TP_ALL:
+                    try:
+                        X.append(generate_bob([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]))
+                    except:
+                        X.append(np.array([np.nan]))
+                
+                X = np.array(X)
+                return X
 
 
     def count_shell_value(self, curr_h,X_I, params):
         in_interval = curr_h["VALUES"] == 0.0
         SMILES = curr_h["SMILES"][in_interval].values
+        
         if len(SMILES) == 0:
             return [], []
-    
-        if params["rep_type"] == "MolDescriptors":
-            SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-            explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
-            X_ALL = np.array([calc_all_descriptors(rdkit_mol) for rdkit_mol in explored_rdkit])
-            D = np.array([norm(X_I - X) for X in X_ALL])/norm(X_I)
-            SMILES = SMILES[np.argsort(D)]
-            SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-            D = D[np.argsort(D)]
 
-
-        if params["rep_type"] == "2d":
-            SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-            explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
-            X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
-            D = np.array([norm(X_I - X) for X in X_ALL])
-            SMILES = SMILES[np.argsort(D)]
-            SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
-            D = D[np.argsort(D)]
 
         if params["rep_type"] == "3d":
           
-                results = Parallel(n_jobs=params['NPAR'])(delayed(self.process_smiles)(smi, params) for smi in SMILES)
+                results = Parallel(n_jobs=params['NPAR'])(delayed(self.process_smiles_to_3d)(smi, params) for smi in SMILES)
                 _, TP_ALL, _ = zip(*results)
 
-                
                 if params["rep_name"] == "SOAP":
                     if params['ensemble']:
                         X_ALL           = np.asarray([fml_rep_SOAP(TP["coordinates"], TP["nuclear_charges"], TP["rdkit_Boltzmann"], possible_elements=params['possible_elements']+['H']) for TP in TP_ALL])
@@ -1373,15 +1482,79 @@ class Analyze_Chemspace:
 
                 if params["rep_name"] == "BoB":
                     if params['ensemble']:
-                        X_ALL           = np.asarray([fml_rep_BoB(TP["coordinates"], TP["nuclear_charges"], TP["rdkit_Boltzmann"], params) for TP in TP_ALL])
+                        X_ALL           = self.reevaluate_3d(TP_ALL, params)
                     else:
-                        X_ALL           = np.asarray([generate_bob(TP["nuclear_charges"], TP["coordinates"], params['unique_elements'], size=params["max_n"], asize=params["asize"]) for TP in TP_ALL])
+                        X_ALL           = self.reevaluate_3d(TP_ALL, params)
+
+                if params["rep_name"] == "BoB_cliffs":
+                    if params['ensemble']:
+                        X_ALL           = np.asarray([fml_rep_bob(TP["coordinates"], [str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["rdkit_Boltzmann"], params) for TP in TP_ALL])
+                    else:
+                        X_ALL           = np.asarray([generate_bob([str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["coordinates"], asize=params["asize"]) for TP in TP_ALL])
+
+                    p_values = []
+                    for smi in SMILES:
+                        if params['property'] == "gap":
+                            prop = compute_values(smi)[2]
+                        elif params['property'] == "MolLogP":
+                            prop =  Crippen.MolLogP(Chem.MolFromSmiles(smi) , True)
+                        else:
+                            print("Property not implemented")
+                        p_values.append(prop)
+                    
+                    p_values = np.array(p_values)
 
                 D = np.array([norm(X_I - X) for X in X_ALL])
+                non_nan_indices = np.where(~np.isnan(D))
+                D_filtered = D[non_nan_indices]
+                SMILES_filtered = SMILES[non_nan_indices]
+  
+                SMILES_filtered = SMILES_filtered[np.argsort(D_filtered)]
+                D_filtered = D_filtered[np.argsort(D_filtered)]
+                
+                if params["rep_name"] == "BoB_cliffs":
+                    p_values = p_values[np.argsort(D_filtered)]
+
+                if params["rep_name"] != "BoB_cliffs":
+                    return SMILES_filtered, D_filtered
+                
+                else:
+                    return SMILES_filtered, D_filtered, p_values    
+                
+        else:
+            if params["rep_type"] == "MolDescriptors":
+                SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+                X_ALL = np.array([calc_all_descriptors(rdkit_mol) for rdkit_mol in explored_rdkit])
+                D = np.array([norm(X_I - X) for X in X_ALL])/norm(X_I)
                 SMILES = SMILES[np.argsort(D)]
+                SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                 D = D[np.argsort(D)]
 
-        return SMILES, D
+            
+            if params["rep_type"] == "2d":
+                if params["rep_name"] == "inv_ECFP":
+                    SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+                    X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
+                    D = np.array([tanimoto_distance(X_I, X) for X in X_ALL])
+                    SMILES = SMILES[np.argsort(D)]
+                    SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    D = D[np.argsort(D)]
+
+                else:
+
+                    SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+                    X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
+                    D = np.array([norm(X_I - X) for X in X_ALL])
+                    SMILES = SMILES[np.argsort(D)]
+                    SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    D = D[np.argsort(D)]
+
+
+
+            return SMILES, D
 
 
 
@@ -1394,7 +1567,7 @@ class Analyze_Chemspace:
         """
         darr = np.zeros(len(SMILES_sampled))
         for i, s in enumerate(SMILES_sampled):
-            darr[i] = np.linalg.norm(
+            darr[i] = norm(
                 X_init - self.compute_representations([s], nBits=nBits)
             )
 
@@ -1418,6 +1591,7 @@ class Analyze_Chemspace:
             CANON_SMILES.append(can)
 
         return CANON_SMILES
+
 
 
 
@@ -1464,6 +1638,88 @@ def chemspacesampler_ECFP(smiles, params=None):
     shutil.rmtree(respath)
 
     return MOLS, D
+
+
+
+def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
+    X, rdkit_init, egc_0 = initialize_from_smiles(smiles_init, nBits=params['nBits'])
+    if params is None:
+        params = {
+            'V_0_pot': 0.05,
+            'max_d': 6.0,
+            'NPAR': 4,
+            'Nsteps': 100,
+            'bias_strength': "none",
+            'possible_elements': ["C", "O", "N", "F"],
+            'not_protonated': None, 
+            'forbidden_bonds': None,
+            'nhatoms_range': [6, 6],
+            'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
+            'make_restart_frequency': None,
+            "rep_type": "2d",
+            'nBits': 2048,
+            'rep_name': 'ECFP',
+            'strategy': 'default',
+            "verbose": False
+        }
+    
+    if params['strategy'] == "default":
+        min_func = potential_inv_ECFP(X_target, params=params)
+        respath = tempfile.mkdtemp()
+        Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_0,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+        ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
+        _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+        MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+        shutil.rmtree(respath)
+
+        return MOLS, D
+    
+    else:
+        d_arr = np.linspace(tanimoto_distance(X,X_target), params['max_d'], params['Nparts'])
+        # Generate exponential growth series
+        series = [params['growth_factor']**i for i in range(params['Nparts'])]
+
+        # Normalize series to make sum equals Nsteps
+        N_budget = [int(round(s / sum(series) * params['Nsteps'])) for s in series]
+        
+        # Correct possible rounding errors
+        N_budget[-1] += params['Nsteps'] - sum(N_budget)
+        N_budget = np.array(N_budget)[::-1]
+
+        egc_rep = [copy.deepcopy(egc_0) for _ in range(params['NPAR'])]
+        for d, n in zip(d_arr, N_budget):
+            params['max_d'] = d 
+            params['Nsteps'] = n
+
+            min_func = potential_inv_ECFP(X_target, params=params)
+            respath = tempfile.mkdtemp()
+            Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_rep[i],min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+            ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
+            _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+            MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+            shutil.rmtree(respath)
+            if len(MOLS) > 0:
+                if len(MOLS) >= params['NPAR']:
+                    MOLS_CHOICE = MOLS[:params['NPAR']]
+                else:
+                    diff = params['NPAR'] - len(MOLS)
+                    MOLS_CHOICE = np.array(MOLS, dtype='<U11').tolist() + np.array(MOLS[:diff], dtype='<U11').tolist()
+
+                egc_rep = []
+                for mol in MOLS_CHOICE:
+                    try:
+                        egc_rep.append(SMILES_to_egc(mol))
+                    except:
+                        egc_rep.append(egc_0)
+                #[initialize_from_smiles(mol, nBits=params['nBits'])[2] for mol in MOLS_CHOICE]
+                smiles_closest, clostest_distance = MOLS[0], D[0]
+                print(clostest_distance, smiles_closest)
+                if clostest_distance <= params['d_threshold']:
+                    print("Found molecule within threshold")
+                    return MOLS, D
+
+        return MOLS, D
+
 
 def chemspacesampler_MolDescriptors(smiles, params=None):
     """
@@ -1528,6 +1784,8 @@ def chemspacesampler_SOAP(smiles, params=None):
         params = {
             'min_d': 0.0,
             'max_d': 150.0,
+            'V_0_pot': 0.05,
+            'V_0_synth': 0.05,
             'NPAR': 1,
             'Nsteps': 100,
             'bias_strength': "none",
@@ -1597,12 +1855,12 @@ def chemspacesampler_BoB(smiles, params=None):
         
     
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
-    symbols = [ELEMENT_NAME[charge] for charge in charges]*3
+    symbols = [str_atom_corr(charge) for charge in charges]
     
     
-    asize, max_n = max_element_counts([symbols])
+    asize, max_n = max_element_counts([symbols*3])
     asize_copy = asize.copy()
-    elements_to_exclude = ['C', 'H']
+    elements_to_exclude = ['H']
     elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
 
     if elements_not_excluded:  # checks if list is not empty
@@ -1612,20 +1870,22 @@ def chemspacesampler_BoB(smiles, params=None):
 
     for element in params['possible_elements']:
         if element not in asize:
-            asize[element] = 3*int(avg_value)
+            asize[element] = 2*int(avg_value)
 
     params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())
-    
     if params['ensemble']:
-        X         = fml_rep_BoB(coords, charges, tp["rdkit_Boltzmann"], params)
+        X         = fml_rep_bob(coords, symbols, tp["rdkit_Boltzmann"], params)
     else:
-        X         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
+        #
+        X         = generate_bob(symbols, coords, asize=params["asize"])
     
     min_func  = potential_BoB(X,tp["nuclear_charges"] , params)
     respath   = tempfile.mkdtemp()
+    
     if params['NPAR'] > 1:
         Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
     else:
+        
         mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
@@ -1646,6 +1906,8 @@ def chemspacesampler_find_cliffs(smiles, params=None):
         params = {
             'min_d': 0.0,
             'max_d': 150.0,
+            'V_0_pot': 0.05,
+            'V_0_synth': 0.05,
             'NPAR': 1,
             'Nsteps': 100,
             'bias_strength': "none",
@@ -1654,41 +1916,50 @@ def chemspacesampler_find_cliffs(smiles, params=None):
             'forbidden_bonds': [(8, 9), (8,8), (9,9), (7,7)],
             'nhatoms_range': [num_heavy_atoms, num_heavy_atoms],
             'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
-            'make_restart_frequency': None,
+            'make_restart_frequencV = self.potential(distance) + V_synthy': None,
             'rep_type': '3d',
             'rep_name':"BoB_cliffs",
-            'synth_cut':3,
+            'synth_cut_soft':3,
+            'synth_cut_hard':5,
             'ensemble': False,
-            'jump': 0.5,
-            "verbose": False,
+            'property': 'gap',
+            'jump': 0.2,
+            "verbose": True,
         }
 
-    properties = compute_values(smiles)
-    params['gap_0'] = properties[2]
+
+    if params['property'] == "gap":
+        prop_0 = compute_values(smiles)[2]
+    elif params['property'] == "MolLogP":
+        prop_0 =  Crippen.MolLogP(Chem.MolFromSmiles(smiles) , True)
+    else:
+        print("Property not implemented")
+
+
+    params['prop_0'] = prop_0
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
-    symbols = [ELEMENT_NAME[charge] for charge in charges]*3
+    symbols = [str_atom_corr(charge) for charge in charges]
 
-    asize, max_n = max_element_counts([symbols])
+    asize, max_n = max_element_counts([symbols*3])
     asize_copy = asize.copy()
-    elements_to_exclude = ['C', 'H']
+    elements_to_exclude = ['H']
     elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
-
-    if elements_not_excluded:  # checks if list is not empty
+    
+    if elements_not_excluded:
         avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(elements_not_excluded)
     else:
-        avg_value = 0  # or any other value you consider appropriate when there are no elements
+        avg_value = 0
 
     for element in params['possible_elements']:
         if element not in asize:
-            asize[element] = 3*int(avg_value)
-
+            asize[element] = 2*int(avg_value)
 
     params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())
 
     if params['ensemble']:
-        X         = fml_rep_BoB(coords, charges, tp["rdkit_Boltzmann"], params)
+        X         = fml_rep_bob(coords, symbols, tp["rdkit_Boltzmann"], params)
     else:
-        X         = generate_bob(charges, coords, params['unique_elements'], size=max_n, asize=asize)
+        X         = generate_bob(symbols, coords, asize=params["asize"])
     
     min_func  = potential_BoB_cliffs(X,tp["nuclear_charges"] , params)
 
@@ -1697,9 +1968,15 @@ def chemspacesampler_find_cliffs(smiles, params=None):
         Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
     else:
         mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
-    
-    #ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
 
+    # TODO missing implementation of the postprocessing    
+    ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
+    _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+    MOLS, D, P  = ana.count_shell_value(GLOBAL_HISTOGRAM,X, params)
+    shutil.rmtree(respath)
+    
+
+    return MOLS, D, P
 
 
 
@@ -1740,19 +2017,13 @@ class QM9Dataset():
 
 
     def generate_representations(self):
-        if self.params['rep_type'] == 'BoB':
-            try:
-                from qml.representations import generate_bob
-            except:
-                raise ImportError("Please install qml package to use this representation")
 
         self.X = []
 
 
         for i in range(len(self.coords)):
-            #self.X.append(gen_soap(self.coords[i], self.nuclear_charges[i],self.species))
             if self.params['rep_type'] == 'BoB':
-                self.X.append(generate_bob( self.nuclear_charges[i],self.coords[i],self.species,size=self.max_n,asize=self.asize))
+                self.X.append(generate_bob(self.nuclear_charges[i],self.coords[i],asize=self.asize))
         self.X = np.array(self.X)
 
 

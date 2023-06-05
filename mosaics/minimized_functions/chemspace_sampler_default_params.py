@@ -1,12 +1,34 @@
 from mosaics.beta_choice import gen_exp_beta_array
 
+
+morfeus_args_confs = {
+                            "morfeus": {
+                                "num_attempts": 100,
+                                "ff_type": "MMFF94",
+                                "return_rdkit_obj": False,
+                                "all_confs": True
+                            }
+                        }
+morfeus_args_single = {
+                            "morfeus": {
+                                "num_attempts": 2,
+                                "ff_type": "MMFF94",
+                                "return_rdkit_obj": False,
+                                "all_confs": False
+                            }
+                        }
+
+
+
 def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check):
     if selected_descriptor == 'RDKit':
 
         params = {
         'min_d': min_d,
         'max_d': max_d,
-        'NPAR': 2,
+        'V_0_pot': 0.05,
+        'V_0_synth': 0.05,
+        'NPAR': 1,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
@@ -18,6 +40,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         'rep_type': 'MolDescriptors',
         'synth_cut_soft': synth_cut_soft,
         'synth_cut_hard': synth_cut_hard,
+        'rep_name': 'MolDescriptors',
         'mmff_check': mmff_check,
         "verbose": True
         }
@@ -25,7 +48,9 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         params = {
         'min_d': min_d,
         'max_d': max_d,
-        'NPAR': 2,
+        'V_0_pot': 0.05,
+        'V_0_synth': 0.05,
+        'NPAR': 1,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
@@ -39,6 +64,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         "mmff_check": True,
         "synth_cut_soft": synth_cut_soft,
         "synth_cut_hard": synth_cut_hard,
+        "rep_name": "ECFP",
         "verbose": True
         }        
     
@@ -46,7 +72,9 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         params = {
             'min_d': min_d,
             'max_d': max_d,
-            'NPAR':2,
+            'V_0_pot': 0.05,
+            'V_0_synth': 0.05,
+            'NPAR':1,
             'Nsteps': Nsteps,
             'bias_strength': "none",
             'possible_elements': possible_elements,
@@ -66,7 +94,9 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         params = {
         'min_d': min_d,
         'max_d': max_d,
-        'NPAR': 2,
+        'V_0_pot': 0.05,
+        'V_0_synth': 0.05,
+        'NPAR': 1,
         'Nsteps': Nsteps,
         'bias_strength': "none",
         'possible_elements': possible_elements,
