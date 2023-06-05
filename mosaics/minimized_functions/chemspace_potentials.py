@@ -339,14 +339,14 @@ def get_single_FP(mol, nBits=2048, useFeatures=True):
     return fp_mol
 
 
-def get_all_FP(SMILES, **kwargs):
+def get_all_FP(RDKIT_MOLS, **kwargs):
     """
-    Return a list of fingerprints for all the molecules in the list of SMILES.
+    Return a list of fingerprints for all the molecules in the list of rdkit molecules.
 
     Parameters
     ----------
-    SMILES : list of str
-        List of SMILES strings.
+    SMILES : list of rdkit
+        List of rdkit molecules.
 
     Returns
     -------
@@ -354,8 +354,8 @@ def get_all_FP(SMILES, **kwargs):
         An array of fingerprints for all the molecules.
     """
     X = []
-    for smi in SMILES:
-        X.append(extended_get_single_FP(smi, **kwargs))
+    for mol in RDKIT_MOLS:
+        X.append(extended_get_single_FP(mol, **kwargs))
     return np.array(X)
 
 
@@ -1666,7 +1666,10 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
     if params['strategy'] == "default":
         min_func = potential_inv_ECFP(X_target, params=params)
         respath = tempfile.mkdtemp()
-        Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_0,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+        if params['NPAR'] == 1:
+            mc_run(egc_0,min_func,"chemspacesampler", respath, f"results_{0}", params)
+        else:
+            Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_0,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
         ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
         _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
         MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
@@ -1674,8 +1677,9 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
 
         return MOLS, D
     
-    else:
-        d_arr = np.linspace(tanimoto_distance(X,X_target), params['max_d'], params['Nparts'])
+    elif params['strategy'] == "contract":
+        d_init = tanimoto_distance(X,X_target)
+        d_arr = np.linspace(d_init, params['max_d'], params['Nparts'])
         # Generate exponential growth series
         series = [params['growth_factor']**i for i in range(params['Nparts'])]
 
@@ -1693,25 +1697,27 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
 
             min_func = potential_inv_ECFP(X_target, params=params)
             respath = tempfile.mkdtemp()
-            Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_rep[i],min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+            if params['NPAR'] == 1:
+                mc_run(egc_rep[0],min_func,"chemspacesampler", respath, f"results_{0}", params)
+            else:
+                Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_rep[i],min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
             ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
             _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
             MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
             shutil.rmtree(respath)
-            if len(MOLS) > 0:
-                if len(MOLS) >= params['NPAR']:
-                    MOLS_CHOICE = MOLS[:params['NPAR']]
+            if len(MOLS) > 0 and D[0] < d_init:
+                if len(MOLS) > params['NPAR']:
+                    MOLS_CHOICE = MOLS[:params['NPAR']].tolist()
                 else:
                     diff = params['NPAR'] - len(MOLS)
-                    MOLS_CHOICE = np.array(MOLS, dtype='<U11').tolist() + np.array(MOLS[:diff], dtype='<U11').tolist()
-
+                    MOLS_CHOICE = MOLS.tolist() + [MOLS[i % len(MOLS)].tolist() for i in range(diff)]
                 egc_rep = []
                 for mol in MOLS_CHOICE:
                     try:
                         egc_rep.append(SMILES_to_egc(mol))
                     except:
                         egc_rep.append(egc_0)
-                #[initialize_from_smiles(mol, nBits=params['nBits'])[2] for mol in MOLS_CHOICE]
+                        
                 smiles_closest, clostest_distance = MOLS[0], D[0]
                 print(clostest_distance, smiles_closest)
                 if clostest_distance <= params['d_threshold']:
@@ -1719,6 +1725,11 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                     return MOLS, D
 
         return MOLS, D
+
+    elif params['strategy'] == "modify_pot":
+        pass
+    else:
+        print("Strategy not implemented")
 
 
 def chemspacesampler_MolDescriptors(smiles, params=None):
@@ -1728,6 +1739,7 @@ def chemspacesampler_MolDescriptors(smiles, params=None):
 
     _, rdkit_init, egc = initialize_from_smiles(smiles)
     X = calc_all_descriptors(rdkit_init)
+
     if params is None:
         params = {
             'min_d': 0.0,
