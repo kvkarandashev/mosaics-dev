@@ -339,6 +339,7 @@ def get_single_FP(mol, nBits=2048, useFeatures=True):
     return fp_mol
 
 
+
 def get_all_FP(RDKIT_MOLS, **kwargs):
     """
     Return a list of fingerprints for all the molecules in the list of rdkit molecules.
