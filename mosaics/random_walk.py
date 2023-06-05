@@ -845,6 +845,7 @@ class RandomWalk:
         histogram_save_rejected: bool = True,
         betas: list or None = None,
         min_function: FunctionType or None = None,
+        no_min_function_lookup: bool = False,
         num_replicas: int or None = None,
         no_exploration: bool = False,
         no_exploration_smove_adjust: bool = False,
@@ -878,6 +879,7 @@ class RandomWalk:
         bound_enforcing_coeff : biasing coefficient for "soft constraints"; currently the only one functioning properly allows biasing simulation run in nhatoms_range towards nhatoms values in final_nhatoms_range (see randomized_change_params)
         min_function : minimized function
         min_function_name : name of minimized function (the label used for minimized function value in TrajectoryPoint object's calculated_data)
+        no_min_function_lookup : the code evaluates the minimized function without checking whether it had been calculated for the property of interest before
         keep_histogram : store information about all considered molecules; mandatory for using biasing potentials
         histogram_save_rejected : if True then both accepted and rejected chemical graphs are saved into the histogram
         num_saved_candidates : if not None determines how many best candidates are kept in the saved_candidates attributes
@@ -960,6 +962,7 @@ class RandomWalk:
         self.min_function_name = min_function_name
         if self.min_function is not None:
             self.min_function_dict = {self.min_function_name: self.min_function}
+        self.no_min_function_lookup = no_min_function_lookup
         self.num_saved_candidates = num_saved_candidates
         if self.num_saved_candidates is not None:
             self.saved_candidates = SortedList()
@@ -1546,9 +1549,14 @@ class RandomWalk:
         while self.global_MC_step_counter < num_global_MC_steps:
             self.global_random_change(**other_kwargs)
 
-    # Either evaluate minimized function or look it up.
     def eval_min_func(self, tp, replica_id):
-        output = tp.calc_or_lookup(self.min_function_dict)[self.min_function_name]
+        """
+        Either evaluate minimized function or look it up.
+        """
+        if self.no_min_function_lookup:
+            output = self.min_function(tp)
+        else:
+            output = tp.calc_or_lookup(self.min_function_dict)[self.min_function_name]
 
         # If we are keeping track of the histogram make sure all calculated data is saved there.
         # TODO combine things with update_histogram?
