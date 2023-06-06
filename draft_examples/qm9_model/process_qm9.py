@@ -1,0 +1,145 @@
+
+import numpy as np
+import rdkit
+import pandas as pd
+
+
+def atomization_en(EN, ATOMS, normalize=False):
+
+    """
+    Compute the atomization energy, if normalize is True,
+    the output is normalized by the number of atoms. This allows
+    predictions to be consistent when comparing molecules of different size
+    with respect to their bond energies i.e. set to True if the number of atoms
+    changes in during the optimization process
+
+    #ATOMIZATION = EN - (COMP['H']*en_H + COMP['C']*en_C + COMP['N']*en_N +  COMP['O']*en_O +  COMP['F']*en_F)
+    #N^tot = Number of H-atoms x 1 + Number of C-atoms x 4 + Number of N-atoms x 3 + Number of O-atoms x 2 + Number of F-atoms x1
+    #you divide atomization energy by N^tot and you're good
+
+    =========================================================================================================
+    Ele-    ZPVE         U (0 K)      U (298.15 K)    H (298.15 K)    G (298.15 K)     CV
+    ment   Hartree       Hartree        Hartree         Hartree         Hartree        Cal/(Mol Kelvin)
+    =========================================================================================================
+    H     0.000000     -0.500273      -0.498857       -0.497912       -0.510927       2.981
+    C     0.000000    -37.846772     -37.845355      -37.844411      -37.861317       2.981
+    N     0.000000    -54.583861     -54.582445      -54.581501      -54.598897       2.981
+    O     0.000000    -75.064579     -75.063163      -75.062219      -75.079532       2.981
+    F     0.000000    -99.718730     -99.717314      -99.716370      -99.733544       2.981
+    =========================================================================================================
+    """
+
+    en_H = -0.500273
+    en_C = -37.846772
+    en_N = -54.583861
+    en_O = -75.064579
+    en_F = -99.718730
+    COMP = collections.Counter(ATOMS)
+
+    if normalize:
+        Ntot = (
+            COMP["C"] * 4
+            + COMP["N"] * 3
+            + COMP["O"] * 2
+            + COMP["F"] * 1
+            + COMP["H"] * 1
+        )
+        ATOMIZATION = EN - (
+            COMP["H"] * en_H
+            + COMP["C"] * en_C
+            + COMP["N"] * en_N
+            + COMP["O"] * en_O
+            + COMP["F"] * en_F
+        )
+        return ATOMIZATION / Ntot
+
+    else:
+        ATOMIZATION = EN - (
+            COMP["H"] * en_H
+            + COMP["C"] * en_C
+            + COMP["N"] * en_N
+            + COMP["O"] * en_O
+            + COMP["F"] * en_F
+        )
+        return ATOMIZATION
+
+def process_qm9(directory, all=True):
+
+    """
+    Reads the xyz files in the directory on 'path' as well as the properties of
+    the molecules in the same directory.
+    """
+
+    file = os.listdir(directory)[0]
+    data = []
+    smiles = []
+    properties = []
+
+    if all:
+        nr_molecules = len(os.listdir(directory))
+    else:
+        nr_molecules = 10000
+
+    for file in os.listdir(directory)[:nr_molecules]:
+        path = os.path.join(directory, file)
+        mol_id, atoms, coordinates, smile, prop = read_xyz(path)
+        # A tuple with the atoms and its coordinates
+        data.append((atoms, coordinates))
+        smiles.append(smile)  # The SMILES representation
+
+        ATOMIZATION = atomization_en(float(prop[10]), atoms, normalize=False)
+        prop += [ATOMIZATION]
+        prop += [mol_id]
+        properties.append(prop)  # The molecules properties
+
+    properties_names = [
+        "A",
+        "B",
+        "C",
+        "mu",
+        "alfa",
+        "homo",
+        "lumo",
+        "gap",
+        "R_squared",
+        "zpve",
+        "U0",
+        "U",
+        "H",
+        "G",
+        "Cv",
+        "atomization",
+        "GDB17_ID",
+    ]
+    df = pd.DataFrame(properties, columns=properties_names)  # .astype('float32')
+    df["smiles"] = smiles
+    df.head()
+
+    df["mol"] = df["smiles"].apply(lambda x: Chem.MolFromSmiles(x))
+    df["mol"].isnull().sum()
+
+    canon_smile = []
+    for molecule in smiles:
+        canon_smile.append(canonize(molecule))
+
+    df["canon_smiles"] = canon_smile
+    df["canon_smiles"][df["canon_smiles"].duplicated()]
+
+    ind = df.index[df["canon_smiles"].duplicated()]
+    df = df.drop(ind)
+    df["mol"] = df["canon_smiles"].apply(lambda x: Chem.MolFromSmiles(x))
+    df.to_csv("qm9.csv", index=False)
+    return df
+
+
+
+if __name__ == "__main__":
+
+
+    process= False
+
+    if process:
+        df = process_qm9('/store/common/jan/qm9/')
+    else:
+        df = pd.read_csv('qm9.csv')
+    print(df)
