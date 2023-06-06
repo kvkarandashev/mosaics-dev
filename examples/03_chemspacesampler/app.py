@@ -151,11 +151,19 @@ if st.button('Run ChemSpace Sampler'):
         st.image([BytesIO(base64.b64decode(img_str)) for img_str in mol_df['img']])
 
         # Create a Streamlit table with SMILES strings and respective images.
-        table_data = pd.DataFrame(columns=["SMILES", "Distance"])
+
+        #commented code works sometimes ... it is weird
+        #table_data = pd.DataFrame(columns=["SMILES", "Distance"])
+        #for idx, row in mol_df.iterrows():
+        #    table_data = table_data.append(
+        #        {"SMILES": row["SMILES"], "Distance": row["Distance"]}, ignore_index=True
+        #    )
+        rows = []
         for idx, row in mol_df.iterrows():
-            table_data = table_data.append(
-                {"SMILES": row["SMILES"], "Distance": row["Distance"]}, ignore_index=True
-            )
+            rows.append({"SMILES": row["SMILES"], "Distance": row["Distance"]})
+
+        table_data = pd.DataFrame(rows)
+
         plt.figure(figsize=(10, 6))
         plt.hist(ALL_RESULTS['Distance'].values, bins=20, color='skyblue', edgecolor='black')
         plt.title('Histogram of Distances')
