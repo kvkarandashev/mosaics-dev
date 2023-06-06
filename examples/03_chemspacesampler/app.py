@@ -87,7 +87,7 @@ synth_cut_soft, synth_cut_hard = st.sidebar.slider('Select soft and hard cutoff 
                                            step=0.1,
                                            help='Move the slider to set the soft and hard synthesizability cut-off. A lower value means easier to synthesize. Left slider at 2 and right 5 means up to 2 is always accepted, above 5 is always rejected. ')
 
-
+strictly_in =  st.sidebar.checkbox('Only return molecules strictly in the interval?', value=True, help='During MC you also accept molecuels outside of the 0 interval if temperature allows, this just affects postprocessing')
 mmff_check = st.sidebar.checkbox('MMFF94 parameters exist? (another sanity check)', value=True, help='Check if the generated molecules should have MMFF94 parameters.')
 ensemble   = st.sidebar.checkbox('Ensemble representation (affects only geometry-based representations, BoB & SOAP)', value=False, help='Check if the ensemble representation should be used. It affects only geometry-based representations (BoB & SOAP).')
 default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
@@ -95,7 +95,7 @@ user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
 forbidden_bonds = str_to_tuple_list(user_input)
 
 
-params = chemspace_sampler_default_params.make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check)
+params = chemspace_sampler_default_params.make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check)
 if selected_descriptor == 'RDKit':
     chemspace_function = chemspace_potentials.chemspacesampler_MolDescriptors
 elif selected_descriptor == 'ECFP4':

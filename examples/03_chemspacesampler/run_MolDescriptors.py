@@ -5,6 +5,7 @@ from mosaics.beta_choice import gen_exp_beta_array
 params = {
     'min_d': 10,
     'max_d': 11,
+    'strictly_in': True,
     'V_0_pot': 0.05,
     'V_0_synth': 0.05,
     'NPAR': 2,

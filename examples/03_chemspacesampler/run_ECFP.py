@@ -5,9 +5,10 @@ def main():
     params = {
         'min_d': 0.0,
         'max_d': 4.0,
+        'strictly_in': True,
         'V_0_pot': 0.05,
         'V_0_synth': 0.05,
-        'NPAR': 4,
+        'NPAR': 1,
         'Nsteps': 100,
         'bias_strength': "none",
         'possible_elements': ["C", "O", "N", "F"],
@@ -22,7 +23,7 @@ def main():
         'synth_cut_hard':5,
         'rep_name': 'ECFP',
         'mmff_check': True,
-        'synth_cut': 2,
+        'synth_cut': 2,        
         "verbose": False
     }
 

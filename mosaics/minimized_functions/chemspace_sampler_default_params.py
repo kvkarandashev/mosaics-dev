@@ -20,12 +20,13 @@ morfeus_args_single = {
 
 
 
-def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check):
+def make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check):
     if selected_descriptor == 'RDKit':
 
         params = {
         'min_d': min_d,
         'max_d': max_d,
+        'strictly_in': strictly_in,
         'V_0_pot': 0.05,
         'V_0_synth': 0.05,
         'NPAR': 1,
@@ -48,6 +49,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         params = {
         'min_d': min_d,
         'max_d': max_d,
+        'strictly_in': strictly_in,
         'V_0_pot': 0.05,
         'V_0_synth': 0.05,
         'NPAR': 1,
@@ -72,6 +74,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         params = {
             'min_d': min_d,
             'max_d': max_d,
+            'strictly_in': strictly_in,
             'V_0_pot': 0.05,
             'V_0_synth': 0.05,
             'NPAR':1,
@@ -94,6 +97,7 @@ def make_params_dict(selected_descriptor, min_d, max_d, Nsteps, possible_element
         params = {
         'min_d': min_d,
         'max_d': max_d,
+        'strictly_in': strictly_in,
         'V_0_pot': 0.05,
         'V_0_synth': 0.05,
         'NPAR': 1,
