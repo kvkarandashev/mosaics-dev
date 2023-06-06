@@ -51,5 +51,3 @@ RUN echo 'machine-id' > /etc/machine-id
 EXPOSE 8501
 # command to run on container start
 CMD [ "streamlit", "run", "examples/03_chemspacesampler/app.py"] 
-#, "--server.fileWatcherType",  "none" ]
-#docker run -p 8501:8051 chemspace
