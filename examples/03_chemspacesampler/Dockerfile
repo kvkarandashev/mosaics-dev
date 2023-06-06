@@ -1,33 +1,44 @@
-# Pull the base image
-FROM continuumio/miniconda3:latest
-# Update conda
-RUN conda update -n base -c defaults conda
+# Use an official Miniconda image as a parent image
+#to install run docker build -f Dockerfile -t chemspace ../.. in examples/03_chemspacesampler
+#               docker build -f Dockerfile -t chemspace ../..
+FROM continuumio/miniconda3
 
-RUN apt-get update && apt-get install -y \
-    gcc \
-    gfortran \
-    libblas-dev \
-    liblapack-dev \
-    libopenblas-base
-
-
-
-# Install xyz2mol
-RUN conda install -c conda-forge xyz2mol
-# Set the working directory
+# Set the working directory to /app
 WORKDIR /app
 ADD . /app
 
-# Copy the dependencies file to the working directory
-COPY requirements.txt .
-RUN pip install protobuf==3.20.0
-RUN pip install rdkit-pypi
+
+
+#RUN apt-get update && apt-get install -y \
+#    gcc \
+#    gfortran \
+#    libblas-dev \
+#    liblapack-dev \
+#    libopenblas-dev
+
+# Install any needed packages specified in requirements.txt
+COPY examples/03_chemspacesampler/chemspace.yml /app
+RUN conda env create -f chemspace.yml
+# Make
+# Make RUN commands use the new environment
+SHELL ["conda", "run", "-n", "chemspace", "/bin/bash", "-c"]
+# Make RUN commands use the new environment
+
+# Make sure the environment is activated:
+RUN echo "Make sure chemspace is activated:" && echo $CONDA_DEFAULT_ENV
+
+# Activate the environment and install 'dscribe'
+RUN echo "source activate chemspace" > ~/.bashrc
+ENV PATH /opt/conda/envs/chemspace/bin:$PATH
+RUN /bin/bash -c "source activate chemspace && conda install -c conda-forge dscribe"
+
+
+# Define environment variable
+ENV NAME chemspace
+
 
 COPY mosaics /app
 ENV PYTHONPATH "${PYTHONPATH}:/app/mosaics"
-# Install any dependencies
-RUN conda install -c conda-forge numpy
-RUN pip install --no-cache-dir -r requirements.txt
 ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 ENV STREAMLIT_TELEMETRY_OPT_OUT=true
 # Copy the content of the local src directory to the working directory
@@ -47,5 +58,6 @@ port = 80\n\
 " > /root/.streamlit/config.toml'
 RUN echo 'machine-id' > /etc/machine-id
 # command to run on container start
-CMD [ "streamlit", "run", "examples/03_chemspacesampler/app.py", "--server.fileWatcherType",  "none" ]
+CMD [ "streamlit", "run", "examples/03_chemspacesampler/app.py"] 
+#, "--server.fileWatcherType",  "none" ]
 
