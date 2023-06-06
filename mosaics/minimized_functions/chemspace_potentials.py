@@ -564,8 +564,9 @@ class potential_MolDescriptors:
             return None
         
         if self.mmff_check:
-            if not AllChem.MMFFHasAllMoleculeParams(rdkit_mol_no_H):
+            if not AllChem.MMFFHasAllMoleculeParams(rdkit_mol):
                 return None
+
             
         X_test = calc_all_descriptors(rdkit_mol)
         d = norm(X_test - self.X_init)/self.norm_init
@@ -887,14 +888,22 @@ class potential_inv_ECFP:
         self.V_0_pot = params["V_0_pot"]
         self.sigma = params["max_d"]
         self.nBits = params["nBits"]
+        self.pot_type = params["pot_type"]
         self.verbose = params["verbose"]
+
 
         self.canonical_rdkit_output = {
             "canonical_rdkit": trajectory_point_to_canonical_rdkit
         }
         
-        self.potential = self.flat_parabola_potential
+        if self.pot_type == "flat_parabola":
+            self.potential = self.flat_parabola_potential
+        elif self.pot_type == "parabola":
+            self.potential = self.parabola_potential
 
+
+    def parabola_potential(self, d):
+        return self.V_0_pot * d  ** 2
 
     def flat_parabola_potential(self, d):
         """
@@ -920,7 +929,7 @@ class potential_inv_ECFP:
         if rdkit_mol is None:
             raise RdKitFailure
 
-        X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits)
+        X_test   = extended_get_single_FP(rdkit_mol, nBits=self.nBits)
         distance = tanimoto_distance(X_test , self.X_target)
         V = self.potential(distance)
 
@@ -1001,10 +1010,12 @@ class potential_ECFP:
             return None
         
         if self.mmff_check:
-            if not AllChem.MMFFHasAllMoleculeParams(rdkit_mol_no_H):
+            try:
+                if not AllChem.MMFFHasAllMoleculeParams(rdkit_mol):
+                    return None
+            except:
                 return None
 
-            
         X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits) 
         distance = norm(X_test - self.X_init)
         V = self.potential(distance) + V_synth
@@ -1290,7 +1301,6 @@ class Analyze_Chemspace:
 
 
 
-
     def convert_from_tps(self, mols):
         """
         Convert the list of trajectory points molecules to SMILES strings.
@@ -1350,67 +1360,7 @@ class Analyze_Chemspace:
         X = get_all_FP(MOLS, nBits=nBits)
         return X
 
-    def compute_projection(self, MOLS, nBits=2048, clustering=False, projector="PCA"):
-        
-
-
-        X = self.compute_representations(MOLS, nBits=nBits)
-        if projector == "UMAP":
-            import umap
-            reducer = umap.UMAP(random_state=42)
-        if projector == "PCA":
-            from sklearn.decomposition import PCA
-            reducer = PCA(n_components=2, random_state=42)
-
-        reducer.fit(X)
-        X_2d = reducer.transform(X)
-
-        if clustering == False:
-            return X_2d
-
-
-        else:
-            from sklearn.cluster import KMeans
-            from sklearn.metrics import silhouette_score
-
-            sil_scores = []
-            for n_clusters in range(2, 6):
-                kmeans = KMeans(n_clusters=n_clusters)
-                kmeans.fit(X_2d)
-                labels = kmeans.labels_
-                sil_scores.append(silhouette_score(X_2d, labels))
-
-            optimal_n_clusters = np.argmax(sil_scores) + 2 #5
-            print(optimal_n_clusters)
-            kmeans = KMeans(n_clusters=optimal_n_clusters,tol=1e-8,max_iter=500,random_state=0)
-            kmeans.fit(X_2d)
-            labels = kmeans.labels_
-            
-            # Assign each molecule to the closest cluster
-            clusters = [[] for _ in range(optimal_n_clusters)]
-            cluster_X_2d = [[] for _ in range(optimal_n_clusters)]
-            for i, label in enumerate(labels):
-                clusters[label].append(MOLS[i])
-                cluster_X_2d[label].append(X_2d[i])
-            
-            # Find most representative molecule for each cluster
-            representatives = []
-            indices = []
-
-            X_rep_2d = []
-            for label, cluster in enumerate(clusters):
-                
-                distances = [norm(x - kmeans.cluster_centers_[label]) for x in cluster_X_2d[label]]
-                
-                representative_index = np.argmin(distances)
-                representatives.append(cluster[representative_index])
-                indices.append(representative_index)
-                X_rep_2d.append(cluster_X_2d[label][representative_index])
-
-            print(kmeans.cluster_centers_)
-            SMILES_rep = [Chem.MolToSmiles(mol) for mol in representatives]
-            X_rep_2d = np.array(X_rep_2d)
-            return X_2d ,clusters,cluster_X_2d, X_rep_2d,SMILES_rep,reducer
+  
 
 
     def to_dataframe(self, obj):
@@ -1462,8 +1412,12 @@ class Analyze_Chemspace:
 
 
     def count_shell_value(self, curr_h,X_I, params):
-        in_interval = curr_h["VALUES"] == 0.0
-        SMILES = curr_h["SMILES"][in_interval].values
+
+        if params["strictly_in"]:
+            in_interval = curr_h["VALUES"] == 0.0
+            SMILES = curr_h["SMILES"][in_interval].values
+        else:
+            SMILES = curr_h["SMILES"].values
         
         if len(SMILES) == 0:
             return [], []
@@ -1533,6 +1487,7 @@ class Analyze_Chemspace:
 
             
             if params["rep_type"] == "2d":
+                
                 if params["rep_name"] == "inv_ECFP":
                     SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                     explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
@@ -1543,7 +1498,6 @@ class Analyze_Chemspace:
                     D = D[np.argsort(D)]
 
                 else:
-
                     SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                     explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
                     X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
@@ -1551,6 +1505,7 @@ class Analyze_Chemspace:
                     SMILES = SMILES[np.argsort(D)]
                     SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                     D = D[np.argsort(D)]
+                    
 
 
 
@@ -1602,7 +1557,7 @@ def chemspacesampler_ECFP(smiles, params=None):
     Run the chemspacesampler with ECFP fingerprints.
     """
     X, rdkit_init, egc = initialize_from_smiles(smiles)
-    
+
 
     if params is None:
         num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
@@ -1631,7 +1586,10 @@ def chemspacesampler_ECFP(smiles, params=None):
     min_func = potential_ECFP(X ,params=params)
 
     respath = tempfile.mkdtemp()
-    Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+    if params['NPAR'] == 1:
+        mc_run(egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
+    else:
+        Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
     MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X, params )
