@@ -8,6 +8,7 @@ import collections
 from mosaics.minimized_functions import chemspace_potentials
 import rdkit.Chem.Crippen as Crippen
 import matplotlib.pyplot as plt
+import pdb
 
 def read_xyz(path):
     """
@@ -198,11 +199,21 @@ if __name__ == "__main__":
         qm9_df = pd.read_csv('qm9.csv')
     print(qm9_df)
 
-    SMILES = qm9_df['canon_smiles'].values
+    SMILES = qm9_df['canon_smiles'].values[:1000]
     #add hydrogens because Crippen descriptors need them and also the representation vectors from rdkit in our convention
     SMILES_H = [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
-    X       =  np.array( [chemspace_potentials.initialize_from_smiles(smi)[0][0] for smi in SMILES_H]   )
-    #next command will take a while
-    Y        = [Crippen.MolLogP(Chem.MolFromSmiles(smi) , True) for smi in SMILES_H]
+    X, y       =  [], []
+    for smi in SMILES_H:
+        try:
+            X.append(chemspace_potentials.initialize_from_smiles(smi)[0][0])
+            y.append(Crippen.MolLogP(Chem.MolFromSmiles(smi) , True))
+        except Exception as e:
+            #some molecules from qm9 are not valid and fail to be processed by rdkit
+            print(e)
 
-    plt.hist(Y, bins=50)
+    X, y = np.array(X), np.array(y)
+    pdb.set_trace()
+
+    plt.hist(y, bins=50)
+
+    plt.show()
