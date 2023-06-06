@@ -1,20 +1,11 @@
 # Use an official Miniconda image as a parent image
-#to install run docker build -f Dockerfile -t chemspace ../.. in examples/03_chemspacesampler
-#               docker build -f Dockerfile -t chemspace ../..
+#to install run: docker build -f Dockerfile -t chemspace ../.. in examples/03_chemspacesampler
+
 FROM continuumio/miniconda3
 
 # Set the working directory to /app
 WORKDIR /app
 ADD . /app
-
-
-
-#RUN apt-get update && apt-get install -y \
-#    gcc \
-#    gfortran \
-#    libblas-dev \
-#    liblapack-dev \
-#    libopenblas-dev
 
 # Install any needed packages specified in requirements.txt
 COPY examples/03_chemspacesampler/chemspace.yml /app
@@ -54,10 +45,11 @@ RUN bash -c 'echo -e "\
 [server]\n\
 headless = true\n\
 enableCORS=false\n\
-port = 80\n\
+port = 8501\n\
 " > /root/.streamlit/config.toml'
 RUN echo 'machine-id' > /etc/machine-id
+EXPOSE 8501
 # command to run on container start
 CMD [ "streamlit", "run", "examples/03_chemspacesampler/app.py"] 
 #, "--server.fileWatcherType",  "none" ]
-
+#docker run -p 4000:80 -e STREAMLIT_TELEMETRY_OPT_OUT=true chemspace
