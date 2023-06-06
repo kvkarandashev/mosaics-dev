@@ -52,4 +52,4 @@ EXPOSE 8501
 # command to run on container start
 CMD [ "streamlit", "run", "examples/03_chemspacesampler/app.py"] 
 #, "--server.fileWatcherType",  "none" ]
-#docker run -p 4000:80 -e STREAMLIT_TELEMETRY_OPT_OUT=true chemspace
+#ddocker run -p 4000:8051 -e STREAMLIT_TELEMETRY_OPT_OUT=true chemspace
