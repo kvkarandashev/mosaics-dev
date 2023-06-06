@@ -24,7 +24,8 @@ def main():
         'ensemble': False,
         "verbose": True,
     }
-
+    print(params['betas'])
+    exit()
     MOLS, D= chemspace_potentials.chemspacesampler_BoB(smiles="CCCCCC1=CC2=C(C(O)=C1)C1C=C(C)CCC1C(C)(C)O2", params=params)
     print(MOLS)
     print(D)

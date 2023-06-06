@@ -187,7 +187,40 @@ def process_qm9(directory, all=True):
     return df
 
 
+def average_distance(X, distance_function):
+    """
+    Calculate the average distance between all non-identical points in X.
+    
+    Parameters:
+    X (ndarray): Input numpy array of shape (n_samples, n_features).
+    distance_function: Distance function that takes two vectors and returns the distance.
+    
+    Returns:
+    float: Average distance.
+    """
+    n_samples, n_features = X.shape
+    total_distance = 0
+    count = 0
 
+    for i in range(n_samples):
+        for j in range(i+1, n_samples):
+            if not np.array_equal(X[i], X[j]):
+                dist = distance_function(X[i], X[j])
+                total_distance += dist
+                count += 1
+
+    if count > 0:
+        average_dist = total_distance / count
+        return average_dist
+    else:
+        return 0
+
+def find_V_0_pot(lowest_beta, dbar):
+    return (2/lowest_beta)* (1/dbar)**2
+
+
+
+chemspace_potentials.tanimoto_distance
 if __name__ == "__main__":
 
 
@@ -212,7 +245,12 @@ if __name__ == "__main__":
             print(e)
 
     X, y = np.array(X), np.array(y)
-    pdb.set_trace()
+
+    average_dist = average_distance(X, chemspace_potentials.tanimoto_distance)
+    print("Average distance:", average_dist)
+    print("Suggested V_0_pot value:", find_V_0_pot(1, average_dist))
+
+
 
     plt.hist(y, bins=50)
 
