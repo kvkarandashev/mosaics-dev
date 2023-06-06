@@ -3,12 +3,13 @@ from mosaics.beta_choice import gen_exp_beta_array
 import pdb  
 def main():
     params = {
-        'V_0_pot': 0.05,
-        'NPAR': 48,
+        'V_0_pot': 0.1,
+        'NPAR': 24,
         'max_d': 0.1,
-        'strictly_in': True,
-        'Nsteps': 500,
+        'strictly_in': False,
+        'Nsteps': 1000,
         'bias_strength': "stronger",
+        'pot_type': 'parabola',
         'possible_elements': ["C", "O", "N", "F"],
         'not_protonated': None, 
         'forbidden_bonds': None,
@@ -18,14 +19,14 @@ def main():
         "rep_type": "2d",
         "nBits": 2048,
         'rep_name': 'inv_ECFP',
-        'strategy': 'contract',
+        'strategy': 'default',
         'd_threshold': 0.1,
         'Nparts': 9,
         'growth_factor': 1.5,
         "verbose": False
     }
 
-    smiles_init, smiles_target ="O=C(O)c1cc1=O", "CC(C)CC(N(C)C)C1(C2=CC=C(Cl)C=C2)CCC1"
+    smiles_init, smiles_target ="CCCCCCC", "CC(=O)OC1=CC=CC=C1C(=O)O"
     X_target, _, _ = chemspace_potentials.initialize_from_smiles(smiles_target,nBits=params['nBits'])
     MOLS, D = chemspace_potentials.chemspacesampler_inv_ECFP(smiles_init,X_target, params=params)    
     print("MOLS", MOLS)

@@ -1,8 +1,62 @@
 
 import numpy as np
 import rdkit
+from rdkit import Chem
 import pandas as pd
+import os
+import collections
+from mosaics.minimized_functions import chemspace_potentials
+import rdkit.Chem.Crippen as Crippen
+import matplotlib.pyplot as plt
 
+def read_xyz(path):
+    """
+    Reads the xyz files in the directory on 'path'
+    Input
+    path: the path to the folder to be read
+
+    Output
+    atoms: list with the characters representing the atoms of a molecule
+    coordinates: list with the cartesian coordinates of each atom
+    smile: list with the SMILE representation of a molecule
+    prop: list with the scalar properties
+    """
+    atoms = []
+    coordinates = []
+
+    with open(path, "r") as file:
+        lines = file.readlines()
+        n_atoms = int(lines[0])  # the number of atoms
+        smile = lines[n_atoms + 3].split()[0]  # smiles string
+        prop = lines[1].split()[2:]  # scalar properties
+        mol_id = lines[1].split()[1]
+
+        # to retrieve each atmos and its cartesian coordenates
+        for atom in lines[2 : n_atoms + 2]:
+            line = atom.split()
+            # atomic charge
+            atoms.append(line[0])
+            # cartesian coordinates
+            # Some properties have '*^' indicading exponentiation
+            try:
+                coordinates.append([float(line[1]), float(line[2]), float(line[3])])
+            except:
+                coordinates.append(
+                    [
+                        float(line[1].replace("*^", "e")),
+                        float(line[2].replace("*^", "e")),
+                        float(line[3].replace("*^", "e")),
+                    ]
+                )
+
+    # atoms  = np.array([NUCLEAR_CHARGE[ele] for ele in atoms])
+    return mol_id, atoms, coordinates, smile, prop
+
+
+def canonize(mol):
+    return Chem.MolToSmiles(
+        Chem.MolFromSmiles(mol), isomericSmiles=True, canonical=True
+    )
 
 def atomization_en(EN, ATOMS, normalize=False):
 
@@ -139,7 +193,16 @@ if __name__ == "__main__":
     process= False
 
     if process:
-        df = process_qm9('/store/common/jan/qm9/')
+        qm9_df = process_qm9('/store/common/jan/qm9/')
     else:
-        df = pd.read_csv('qm9.csv')
-    print(df)
+        qm9_df = pd.read_csv('qm9.csv')
+    print(qm9_df)
+
+    SMILES = qm9_df['canon_smiles'].values
+    #add hydrogens because Crippen descriptors need them and also the representation vectors from rdkit in our convention
+    SMILES_H = [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
+    X       =  np.array( [chemspace_potentials.initialize_from_smiles(smi)[0][0] for smi in SMILES_H]   )
+    #next command will take a while
+    Y        = [Crippen.MolLogP(Chem.MolFromSmiles(smi) , True) for smi in SMILES_H]
+
+    plt.hist(Y, bins=50)
