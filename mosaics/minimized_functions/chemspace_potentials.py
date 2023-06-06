@@ -1253,7 +1253,7 @@ class Analyze_Chemspace:
         self.results = glob.glob(path)
         self.verbose = verbose
         self.full_traj = full_traj
-        print(self.results)
+        #print(self.results)
 
     def parse_results(self):
         if self.verbose:
@@ -1600,7 +1600,7 @@ def chemspacesampler_ECFP(smiles, params=None):
 
 
 def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
-    X, rdkit_init, egc_0 = initialize_from_smiles(smiles_init, nBits=params['nBits'])
+    X, _, egc_0 = initialize_from_smiles(smiles_init, nBits=params['nBits'])
     if params is None:
         params = {
             'V_0_pot': 0.05,
@@ -1635,6 +1635,79 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
 
         return MOLS, D
     
+    elif params['strategy'] == "modify_pot":
+
+        d_init = tanimoto_distance(X,X_target)
+        egc_best, d_best, V_0_best = egc_0, d_init, params['V_0_pot']
+        series = [1 for i in range(params['Nparts'])]
+        N_budget = [int(round(s / sum(series) * params['Nsteps'])) for s in series]
+        N_budget = np.array(N_budget)
+        for n in N_budget:
+            params['V_0_pot'] = V_0_best
+            params['Nsteps'] = n
+            min_func = potential_inv_ECFP(X_target, params=params)
+            respath = tempfile.mkdtemp()
+            if params['NPAR'] == 1:
+                mc_run(egc_best,min_func,"chemspacesampler", respath, f"results_{0}", params)
+            else:
+                Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_best,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+            ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
+            _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+            MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+            shutil.rmtree(respath)
+            if D[0] < d_best:
+                d_best, mol_best, V_0_best = D[0], MOLS[0], params['V_0_pot']
+                print(mol_best, d_best, V_0_best)
+                egc_best = SMILES_to_egc(mol_best)
+                if d_best <= params['d_threshold']:
+                    print("Found molecule within threshold")
+                    return MOLS, D
+            else:
+                params['V_0_pot'] = 4*V_0_best
+                min_func = potential_inv_ECFP(X_target, params=params)
+                respath = tempfile.mkdtemp()
+                if params['NPAR'] == 1:
+                    mc_run(egc_best,min_func,"chemspacesampler", respath, f"results_{0}", params)
+                else:
+                    Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_best,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+                ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
+                _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+                MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+                shutil.rmtree(respath)
+
+                if D[0] < d_best:
+                    d_best, mol_best, V_0_best = D[0], MOLS[0], params['V_0_pot']
+                    print(mol_best, d_best, V_0_best)
+                    egc_best = SMILES_to_egc(mol_best)
+                    if d_best <= params['d_threshold']:
+                        print("Found molecule within threshold")
+                        return MOLS, D
+                else:
+                    params['V_0_pot'] = V_0_best/4
+                    min_func = potential_inv_ECFP(X_target, params=params)
+                    respath = tempfile.mkdtemp()
+                    if params['NPAR'] == 1:
+                        mc_run(egc_best,min_func,"chemspacesampler", respath, f"results_{0}", params)
+                    else:
+                        Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_best,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+                    ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
+                    _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+                    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+                    shutil.rmtree(respath)
+
+                    if D[0] < d_best:
+                        d_best, mol_best, V_0_best = D[0], MOLS[0], params['V_0_pot']
+                        print(mol_best, d_best, V_0_best)
+                        egc_best = SMILES_to_egc(mol_best)
+                        if d_best <= params['d_threshold']:
+                            print("Found molecule within threshold")
+                            return MOLS, D
+                        
+        return MOLS, D
+
+
+
+
     elif params['strategy'] == "contract":
         d_init = tanimoto_distance(X,X_target)
         d_arr = np.linspace(d_init, params['max_d'], params['Nparts'])

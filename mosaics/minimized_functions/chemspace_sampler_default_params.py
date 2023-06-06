@@ -43,7 +43,7 @@ def make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, poss
         'synth_cut_hard': synth_cut_hard,
         'rep_name': 'MolDescriptors',
         'mmff_check': mmff_check,
-        "verbose": True
+        "verbose": False
         }
     elif selected_descriptor == 'ECFP4':
         params = {
@@ -67,7 +67,7 @@ def make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, poss
         "synth_cut_soft": synth_cut_soft,
         "synth_cut_hard": synth_cut_hard,
         "rep_name": "ECFP",
-        "verbose": True
+        "verbose": False
         }        
     
     elif selected_descriptor == 'BoB':
@@ -91,7 +91,7 @@ def make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, poss
             'synth_cut_soft':synth_cut_soft,
             'synth_cut_hard':synth_cut_hard,
             'ensemble': ensemble,
-            "verbose": True}        
+            "verbose": False}        
 
     elif selected_descriptor == 'SOAP':
         params = {
@@ -114,7 +114,7 @@ def make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, poss
         'synth_cut_hard': synth_cut_hard,
         'rep_name': 'SOAP',
         'ensemble': ensemble,
-        "verbose": True}
+        "verbose": False}
     else:
         raise ValueError('Invalid descriptor')
     

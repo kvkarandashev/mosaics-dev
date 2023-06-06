@@ -3,11 +3,11 @@ from mosaics.beta_choice import gen_exp_beta_array
 import pdb  
 def main():
     params = {
-        'V_0_pot': 0.1,
+        'V_0_pot': 0.5,
         'NPAR': 24,
         'max_d': 0.1,
         'strictly_in': False,
-        'Nsteps': 1000,
+        'Nsteps': 10000, # 200
         'bias_strength': "stronger",
         'pot_type': 'parabola',
         'possible_elements': ["C", "O", "N", "F"],
@@ -19,9 +19,9 @@ def main():
         "rep_type": "2d",
         "nBits": 2048,
         'rep_name': 'inv_ECFP',
-        'strategy': 'default',
+        'strategy': 'modify_pot',
         'd_threshold': 0.1,
-        'Nparts': 9,
+        'Nparts': 1000, # 12
         'growth_factor': 1.5,
         "verbose": False
     }
