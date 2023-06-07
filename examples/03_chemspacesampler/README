@@ -1,0 +1,17 @@
+README
+
+When you are inside this subfolder
+`mosaics/examples/03_chemspacesampler`
+
+(this directory) run
+
+`docker build -f Dockerfile -t chemspace ../..`
+
+
+
+takes 5 min ... then
+
+`docker run -p 8501:8501 chemspace`
+
+open your browser at
+`http://0.0.0.0:8501/`
