@@ -3,6 +3,15 @@
 
 FROM continuumio/miniconda3
 
+#added
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    software-properties-common \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+
 # Set the working directory to /app
 WORKDIR /app
 ADD . /app
@@ -35,19 +44,10 @@ ENV STREAMLIT_TELEMETRY_OPT_OUT=true
 # Copy the content of the local src directory to the working directory
 COPY . .
 
-# streamlit-specific commands
-RUN mkdir -p /root/.streamlit
-RUN bash -c 'echo -e "\
-[general]\n\
-email = \"\"\n\
-" > /root/.streamlit/credentials.toml'
-RUN bash -c 'echo -e "\
-[server]\n\
-headless = true\n\
-enableCORS=false\n\
-port = 8501\n\
-" > /root/.streamlit/config.toml'
-RUN echo 'machine-id' > /etc/machine-id
+
+
 EXPOSE 8501
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
 # command to run on container start
-CMD [ "streamlit", "run", "examples/03_chemspacesampler/app.py"] 
+#CMD [ "streamlit", "run", "examples/03_chemspacesampler/app.py"] 
+ENTRYPOINT ["streamlit", "run", "examples/03_chemspacesampler/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
