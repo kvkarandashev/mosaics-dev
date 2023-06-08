@@ -1487,9 +1487,6 @@ class Analyze_Chemspace:
                     SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                     D = D[np.argsort(D)]
                     
-
-
-
             return SMILES, D
 
 
@@ -1603,7 +1600,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                     print("Found molecule within threshold")
                     return MOLS, D
             else:
-                params['V_0_pot'] = 4*V_0_best
+                params['V_0_pot'] = 2*V_0_best
                 min_func = potential_inv_ECFP(X_target, params=params)
                 respath = tempfile.mkdtemp()
                 if params['NPAR'] == 1:
@@ -1623,7 +1620,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                         print("Found molecule within threshold")
                         return MOLS, D
                 else:
-                    params['V_0_pot'] = V_0_best/4
+                    params['V_0_pot'] = V_0_best/2
                     min_func = potential_inv_ECFP(X_target, params=params)
                     respath = tempfile.mkdtemp()
                     if params['NPAR'] == 1:
