@@ -49,5 +49,5 @@ COPY . .
 EXPOSE 8501
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
 # command to run on container start
-#CMD [ "streamlit", "run", "examples/03_chemspacesampler/app.py"] 
 ENTRYPOINT ["streamlit", "run", "examples/03_chemspacesampler/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+#docker run -p 8501:8501 chemspace

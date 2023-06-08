@@ -65,8 +65,7 @@ def main():
         D_best.append(d_best)
         print("p = ", p, "d_best = ", d_best, d_orig, mol_best)
 
-    np.savez("noise_resilience_inv_ECFP.npz", LEVELS=LEVELS, D_orig=D_orig, D_best=D_best)
-
+    np.savez_compressed("noise_resilience_inv_ECFP.npz", LEVELS=LEVELS, D_orig=D_orig, D_best=D_best)
 
 if __name__ == "__main__":
     main()

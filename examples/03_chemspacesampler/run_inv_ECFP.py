@@ -26,8 +26,9 @@ def main():
         "verbose": False
     }
 
-    smiles_init, smiles_target ="C", "CC(=O)OC1=CC=CC=C1C(=O)O"
+    smiles_init, smiles_target ="C", "CCCC"
     X_target, _, _ = chemspace_potentials.initialize_from_smiles(smiles_target,nBits=params['nBits'])
+    #pdb.set_trace()
     MOLS, D = chemspace_potentials.chemspacesampler_inv_ECFP(smiles_init,X_target, params=params)    
     print("MOLS", MOLS)
     print("D", D)
