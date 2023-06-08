@@ -29,7 +29,7 @@ def main():
         'NPAR': 4,
         'max_d': 0.1,
         'strictly_in': False,
-        'Nsteps': 1000, # 200
+        'Nsteps': 2000,
         'bias_strength': "none",
         'pot_type': 'parabola',
         'possible_elements': ["C", "O", "N", "F"],

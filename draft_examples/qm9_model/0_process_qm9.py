@@ -8,7 +8,10 @@ import collections
 from mosaics.minimized_functions import chemspace_potentials
 import rdkit.Chem.Crippen as Crippen
 import matplotlib.pyplot as plt
-import pdb
+from tqdm import tqdm
+
+import random
+random.seed(42)
 
 def read_xyz(path):
     """
@@ -219,11 +222,9 @@ def find_V_0_pot(lowest_beta, dbar):
     return (2/lowest_beta)* (1/dbar)**2
 
 
-
-chemspace_potentials.tanimoto_distance
 if __name__ == "__main__":
 
-
+    COMPUTE_VALUE_PLOT = False
     process= False
 
     if process:
@@ -232,11 +233,14 @@ if __name__ == "__main__":
         qm9_df = pd.read_csv('qm9.csv')
     print(qm9_df)
 
+
+    #random suffle the data
+    qm9_df = qm9_df.sample(frac=1, random_state=42).reset_index(drop=True)
     SMILES = qm9_df['canon_smiles'].values[:1000]
     #add hydrogens because Crippen descriptors need them and also the representation vectors from rdkit in our convention
     SMILES_H = [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
     X, y       =  [], []
-    for smi in SMILES_H:
+    for smi in tqdm(SMILES_H):
         try:
             X.append(chemspace_potentials.initialize_from_smiles(smi)[0][0])
             y.append(Crippen.MolLogP(Chem.MolFromSmiles(smi) , True))
@@ -244,14 +248,17 @@ if __name__ == "__main__":
             #some molecules from qm9 are not valid and fail to be processed by rdkit
             print(e)
 
-    X, y = np.array(X), np.array(y)
+    X, y = np.array(X), np.array(y).reshape(-1,1)
 
-    average_dist = average_distance(X, chemspace_potentials.tanimoto_distance)
-    print("Average distance:", average_dist)
-    print("Suggested V_0_pot value:", find_V_0_pot(1, average_dist))
+    np.savez_compressed('/data/jan/calculations/BOSS/qm9_processed.npz', X=X, y=y)
+
+    if COMPUTE_VALUE_PLOT:
+        average_dist = average_distance(X, chemspace_potentials.tanimoto_distance)
+        print("Average distance:", average_dist)
+        print("Suggested V_0_pot value:", find_V_0_pot(1, average_dist))
 
 
 
-    plt.hist(y, bins=50)
+        plt.hist(y, bins=50)
 
-    plt.show()
+        plt.show()
