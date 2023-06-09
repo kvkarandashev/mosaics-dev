@@ -236,7 +236,7 @@ if __name__ == "__main__":
 
     #random suffle the data
     qm9_df = qm9_df.sample(frac=1, random_state=42).reset_index(drop=True)
-    SMILES = qm9_df['canon_smiles'].values[:1000]
+    SMILES = qm9_df['canon_smiles'].values
     #add hydrogens because Crippen descriptors need them and also the representation vectors from rdkit in our convention
     SMILES_H = [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
     X, y       =  [], []

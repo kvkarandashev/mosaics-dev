@@ -4,7 +4,6 @@ from skmatter.preprocessing import StandardFlexibleScaler as SFS
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error as MAE
-from skmatter.decomposition import PCovR
 import matplotlib.pyplot as plt
 from mosaics.minimized_functions.chemspace_potentials import QM9Dataset
 from sklearn.model_selection import KFold
@@ -86,37 +85,44 @@ def GridSearchCV_KernelPCovR(
     return best_model, best_score, {"mixing": best_params[0], "gamma": best_params[1]}
 
 if __name__ == "__main__":
-
-    data = np.load("/data/jan/calculations/BOSS/qm9_processed.npz", allow_pickle=True)
-    X_train, X_test, y_train, y_test = train_test_split(data["X"], data["y"], test_size=0.2, random_state=42)
+    SAVEPATH = "/data/jan/calculations/BOSS"
+    data = np.load(f"{SAVEPATH}/qm9_processed.npz", allow_pickle=True)
+    X, y = data["X"], data["y"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    DIMENSIONS  = 2
+    
     scalar_features = SFS()
     scalar_values   = SFS()
     
     X_train = scalar_features.fit_transform(X_train)
     y_train = scalar_values.fit_transform(y_train)
     X_test = scalar_features.transform(X_test)
-    
+    N_train = [2**i for i in range(7, 17)]
 
 
-    mixing_values = np.linspace(0.05, 0.9, 9)  # Adjust these as needed
-    gamma_values = np.logspace(-3, 1, 7)  # Adjust these as needed
-    pcovr, best_score, best_params = GridSearchCV_KernelPCovR(X_train, y_train, mixing_values, gamma_values, DIMENSIONS = DIMENSIONS)
-    print(f"Best parameters: {best_params}")
+    mixing_values = [0.05, 0.1, 0.15]
+    gamma_values  = np.logspace(-3, 1, 7)  # Adjust these as needed
 
+    ALL_DIMENSIONS = [2, 5, 10, 20, 100]
+    ALL_MODELS     = []
 
+    for DIMENSIONS in ALL_DIMENSIONS:
+        MAEs = []
+        for n in N_train:
+            pcovr, best_score, best_params = GridSearchCV_KernelPCovR(X_train[:n], y_train[:n], mixing_values, gamma_values, DIMENSIONS = DIMENSIONS)
+            
+            y_hat_cov = scalar_values.inverse_transform(pcovr.predict(X_test))
 
-    y_hat_cov = scalar_values.inverse_transform(pcovr.predict(X_test))
+            error_cov = MAE(y_test, y_hat_cov)
+            MAEs.append(error_cov)
+            ALL_MODELS.append(pcovr)
+            print(f"Best parameters: {best_params}")
+            print(f"{n, error_cov}")
 
-    error_cov = MAE(y_test, y_hat_cov)
-    print(f"MAE COV: {error_cov}")
-
-    
+    dump2pkl([ALL_MODELS,MAEs , [N_train,scalar_features,scalar_values]], f"{SAVEPATH}/pcovr.pkl")
 
     # Transform X_test using the fitted model
     X_transformed = pcovr.transform(X_test)
-
     # Create a scatter plot of the first two components
     # Color by y_test (assuming y_test is categorical; if it's continuous, this will be a color gradient)
     plt.figure(figsize=(10, 8))
