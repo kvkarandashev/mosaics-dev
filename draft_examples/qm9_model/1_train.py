@@ -97,11 +97,10 @@ if __name__ == "__main__":
     X_train = scalar_features.fit_transform(X_train)
     y_train = scalar_values.fit_transform(y_train)
     X_test = scalar_features.transform(X_test)
-    N_train = [2**i for i in range(7, 17)]
+    N_train = [2**i for i in range(7, 17)][:6]
 
-
-    mixing_values = [0.05, 0.1, 0.15]
-    gamma_values  = np.logspace(-3, 1, 7)  # Adjust these as needed
+    mixing_values = [0.05, 0.1]
+    gamma_values  = np.logspace(-2, 0, 3)  # Adjust these as needed
 
     ALL_DIMENSIONS = [2, 5, 10, 20, 100]
     ALL_MODELS     = []
@@ -110,9 +109,7 @@ if __name__ == "__main__":
         MAEs = []
         for n in N_train:
             pcovr, best_score, best_params = GridSearchCV_KernelPCovR(X_train[:n], y_train[:n], mixing_values, gamma_values, DIMENSIONS = DIMENSIONS)
-            
             y_hat_cov = scalar_values.inverse_transform(pcovr.predict(X_test))
-
             error_cov = MAE(y_test, y_hat_cov)
             MAEs.append(error_cov)
             ALL_MODELS.append(pcovr)

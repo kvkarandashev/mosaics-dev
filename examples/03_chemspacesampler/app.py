@@ -90,10 +90,21 @@ synth_cut_soft, synth_cut_hard = st.sidebar.slider('Select soft and hard cutoff 
 strictly_in =  st.sidebar.checkbox('Only return molecules strictly in the interval?', value=True, help='During MC you also accept molecuels outside of the 0 interval if temperature allows, this just affects postprocessing')
 mmff_check = st.sidebar.checkbox('MMFF94 parameters exist? (another sanity check)', value=True, help='Check if the generated molecules should have MMFF94 parameters.')
 ensemble   = st.sidebar.checkbox('Ensemble representation (affects only geometry-based representations, BoB & SOAP)', value=False, help='Check if the ensemble representation should be used. It affects only geometry-based representations (BoB & SOAP).')
-default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
-user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
-forbidden_bonds = str_to_tuple_list(user_input)
+#default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
+#user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
+#forbidden_bonds = str_to_tuple_list(user_input)
+# Default forbidden bonds
+default_bonds = "(8, 9), (8, 8), (9, 9), (7, 7)"
 
+# Input field for forbidden bonds
+bonds_input = st.text_input("Enter forbidden bonds as pairs (a, b), separated by commas:", value=default_bonds, help="Enter forbidden bonds as pairs (a, b), separated by commas where a anb b are the atomic numbers of the atoms forming the bond.")
+
+# Convert input string to list of tuples
+try:
+    forbidden_bonds = [tuple(map(int, bond.strip(" ()").split(","))) for bond in bonds_input.split("),")]
+    st.success("Forbidden bonds: {}".format(forbidden_bonds))
+except ValueError:
+    st.error("Invalid input. Please enter forbidden bonds as pairs (a, b), separated by commas.")
 
 params = chemspace_sampler_default_params.make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check)
 if selected_descriptor == 'RDKit':
@@ -164,7 +175,7 @@ if st.button('Run ChemSpace Sampler'):
 
         table_data = pd.DataFrame(rows)
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(4, 4))
         plt.hist(ALL_RESULTS['Distance'].values, bins=20, color='skyblue', edgecolor='black')
         plt.title('Histogram of Distances')
         plt.xlabel('D')
@@ -177,7 +188,7 @@ if st.button('Run ChemSpace Sampler'):
         if len(ALL_RESULTS) > 4:
             # Use a diverging color palette, increase point transparency and change marker style
             st.write('PCA plot of all molecules (alwatys using ECFP4 fingerprints for speed)')
-            plt.figure(figsize=(6, 6))
+            plt.figure(figsize=(4, 4))
             other_mols = ALL_RESULTS[ALL_RESULTS['SMILES'] != smiles]
             scatter_plot = sns.scatterplot(data=other_mols, x='PCA1', y='PCA2', s=100, palette='coolwarm', hue='Distance', alpha=0.7, legend=False, marker='o')
 
