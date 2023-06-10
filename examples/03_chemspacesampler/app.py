@@ -93,11 +93,27 @@ ensemble   = st.sidebar.checkbox('Ensemble representation (affects only geometry
 #default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
 #user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
 #forbidden_bonds = str_to_tuple_list(user_input)
-# Default forbidden bonds
 default_bonds = "(8, 9), (8, 8), (9, 9), (7, 7)"
 
 # Input field for forbidden bonds
-bonds_input = st.text_input("Enter forbidden bonds as pairs (a, b), separated by commas:", value=default_bonds, help="Enter forbidden bonds as pairs (a, b), separated by commas where a anb b are the atomic numbers of the atoms forming the bond.")
+bonds_input = st.sidebar.text_input("Enter forbidden bonds as pairs (a, b), separated by commas:", value=default_bonds, help="Enter forbidden bonds as pairs (a, b), separated by commas where a anb b are the atomic numbers of the atoms forming the bond.")
+
+# Convert input string to list of tuples
+try:
+    forbidden_bonds = [tuple(map(int, bond.strip(" ()").split(","))) for bond in bonds_input.split("),")]
+    st.success("Press 'Run ChemSpace Sampler' to start with these parameters.")
+    st.success("Start molecule: {}".format(smiles))
+    st.success("Minimal distance: {}".format(min_d))
+    st.success("Maximal distance: {}".format(max_d))
+    st.success("Number of MC iterations: {}".format(Nsteps))
+    st.success("Allowed elements: {}".format(possible_elements))
+    st.success("Number of heavy atoms: {}".format(nhatoms_range))
+    st.success("Synthesizability cutoff: {}".format((synth_cut_soft, synth_cut_hard)))
+    st.success("Ensemble representation: {}".format(ensemble))
+    st.success("MMFF94 parameters exist: {}".format(mmff_check))
+    st.success("Forbidden bonds: {}".format(forbidden_bonds))
+except ValueError:
+    st.error("Invalid input parameters. Please check your input and try again.")
 
 # Convert input string to list of tuples
 try:
@@ -175,9 +191,9 @@ if st.button('Run ChemSpace Sampler'):
 
         table_data = pd.DataFrame(rows)
 
-        plt.figure(figsize=(4, 4))
+        plt.figure(figsize=(3, 3))
         plt.hist(ALL_RESULTS['Distance'].values, bins=20, color='skyblue', edgecolor='black')
-        plt.title('Histogram of Distances')
+        plt.title('Histogram of Distances', fontsize=16, weight='bold')
         plt.xlabel('D')
         plt.ylabel('#')
         st.pyplot(plt)
@@ -186,9 +202,9 @@ if st.button('Run ChemSpace Sampler'):
 
 
         if len(ALL_RESULTS) > 4:
-            # Use a diverging color palette, increase point transparency and change marker style
-            st.write('PCA plot of all molecules (alwatys using ECFP4 fingerprints for speed)')
-            plt.figure(figsize=(4, 4))
+            # Use a diverging color palette, increase point transparency and change marker style, font size and weight
+            st.write('PCA plot of all molecules (using ECFP4 fingerprints for speed)')
+            plt.figure(figsize=(3, 3))
             other_mols = ALL_RESULTS[ALL_RESULTS['SMILES'] != smiles]
             scatter_plot = sns.scatterplot(data=other_mols, x='PCA1', y='PCA2', s=100, palette='coolwarm', hue='Distance', alpha=0.7, legend=False, marker='o')
 
@@ -197,7 +213,7 @@ if st.button('Run ChemSpace Sampler'):
             # Create a custom legend for the start molecule
 
 
-            plt.title('PCA of Molecular Fingerprints', fontsize=21, weight='bold', pad=20)
+            plt.title('PCA of Molecular Fingerprints', fontsize=16, weight='bold')
             plt.xlabel('PCA1', fontsize=18, labelpad=15)
             plt.ylabel('PCA2', fontsize=18, labelpad=15)
 
