@@ -13,6 +13,10 @@ import matplotlib.pyplot as plt
 from mosaics.utils import dump2pkl, loadpkl
 # import train test spliot from sklearn
 from sklearn.model_selection import train_test_split
+from mosaics.minimized_functions import chemspace_potentials
+import rdkit.Chem.Crippen as Crippen
+import rdkit
+from rdkit import Chem
 import pdb
 
 
@@ -85,81 +89,63 @@ def GridSearchCV_KernelPCovR(
     return best_model, best_score, {"mixing": best_params[0], "gamma": best_params[1]}
 
 if __name__ == "__main__":
+    
     SAVEPATH = "/data/jan/calculations/BOSS"
     data = np.load(f"{SAVEPATH}/qm9_processed.npz", allow_pickle=True)
     X, y = data["X"], data["y"]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    
-    scalar_features = SFS()
-    scalar_values   = SFS()
-    
-    X_train = scalar_features.fit_transform(X_train)
-    y_train = scalar_values.fit_transform(y_train)
-    X_test = scalar_features.transform(X_test)
-    N_train = [2**i for i in range(7, 17)][:6]
-
-    mixing_values = [0.05, 0.1]
-    gamma_values  = np.logspace(-2, 0, 3)  # Adjust these as needed
-
+    NEW_FIT, PLOT = False, False
     ALL_DIMENSIONS = [2, 5, 10, 20, 100]
-    ALL_MODELS     = []
-
-    for DIMENSIONS in ALL_DIMENSIONS:
-        MAEs = []
-        for n in N_train:
-            pcovr, best_score, best_params = GridSearchCV_KernelPCovR(X_train[:n], y_train[:n], mixing_values, gamma_values, DIMENSIONS = DIMENSIONS)
-            y_hat_cov = scalar_values.inverse_transform(pcovr.predict(X_test))
-            error_cov = MAE(y_test, y_hat_cov)
-            MAEs.append(error_cov)
-            ALL_MODELS.append(pcovr)
-            print(f"Best parameters: {best_params}")
-            print(f"{n, error_cov}")
-
-    dump2pkl([ALL_MODELS,MAEs , [N_train,scalar_features,scalar_values]], f"{SAVEPATH}/pcovr.pkl")
-
-    # Transform X_test using the fitted model
-    X_transformed = pcovr.transform(X_test)
-    # Create a scatter plot of the first two components
-    # Color by y_test (assuming y_test is categorical; if it's continuous, this will be a color gradient)
-    plt.figure(figsize=(10, 8))
-    sc = plt.scatter(X_transformed[:, 0], X_transformed[:, 1], c=y_test, cmap='viridis')
-
-
-    num_points = 100
-
-    # Get the min and max of X_transformed along both axes
-    x_min, y_min = X_transformed.min(axis=0)
-    x_max, y_max = X_transformed.max(axis=0)
-
-    # Generate a sequence of points along each axis
-    x_values = np.linspace(x_min, x_max, num_points)
-    y_values = np.linspace(y_min, y_max, num_points)
-
-    # Create a grid of points
-    x_grid, y_grid = np.meshgrid(x_values, y_values)
-
-    # If you need the grid points as a list of (x, y) pairs, you can reshape:
-    grid_points = np.vstack([x_grid.ravel(), y_grid.ravel()]).T
     
 
-    X_inverted_new = pcovr.inverse_transform( grid_points)
-    y_new = scalar_values.inverse_transform(pcovr.predict(X_inverted_new))
-    
-    sc2 = plt.scatter(grid_points[:, 0], grid_points[:, 1], marker="*", c=y_new, cmap='viridis', alpha=0.1)
-    plt.colorbar(sc)
-    plt.xlabel('First component')
-    plt.ylabel('Second component')
-    plt.title('First two components after KernelPCovR')
-    plt.savefig('test.png')
-    plt.show()
-    plt.close()
+    if NEW_FIT:
+        scalar_features = SFS()
+        scalar_values   = SFS()
+        
+        X_train = scalar_features.fit_transform(X_train)
+        y_train = scalar_values.fit_transform(y_train)
+        X_test = scalar_features.transform(X_test)
+        N_train = [2**i for i in range(7, 17)][:7]
 
-    pdb.set_trace()
-    exit()
+        mixing_values = [0.05, 0.1]
+        gamma_values  = np.logspace(-2, 0, 3)  # Adjust these as needed
+        ALL_MODELS, ALL_MAEs     = [], []
+        for DIMENSIONS in ALL_DIMENSIONS:
+            MAEs = []
+            for n in N_train:
+                pcovr, best_score, best_params = GridSearchCV_KernelPCovR(X_train[:n], y_train[:n], mixing_values, gamma_values, DIMENSIONS = DIMENSIONS)
+                y_hat_cov = scalar_values.inverse_transform(pcovr.predict(X_test))
+                error_cov = MAE(y_test, y_hat_cov)
+                MAEs.append(error_cov)
+                ALL_MODELS.append(pcovr)
+                print(f"Best parameters: {best_params}")
+                print(f"{n, error_cov}")
+            
+            ALL_MAEs.append(MAEs)
+
+        dump2pkl([ALL_MODELS,ALL_MAEs , [N_train,scalar_features,scalar_values]], f"{SAVEPATH}/pcovr.pkl")
+
+    if PLOT:
+        ALL_MODELS, ALL_MAEs, misc = loadpkl(f"{SAVEPATH}/pcovr.pkl")
+        N_train = misc[0]
+        # Plot learning curves
+        fig, ax = plt.subplots(figsize=(10, 8))
+        for i, DIMENSIONS in enumerate(ALL_DIMENSIONS):
+            plt.plot(N_train, ALL_MAEs[i], label=f'Dimensions = {DIMENSIONS}')
 
 
-    #where x smaller -1  and y largetr 0.225
-    interesting_points = np.argwhere( (grid_points[:,0] < -1.0)& (grid_points[:,1] > 0.225)) 
-    X_interesting_inverted = pcovr.inverse_transform( grid_points[interesting_points])
-    pdb.set_trace()
+        ax.set_xlabel('Number of training samples')
+        ax.set_ylabel('Mean Absolute Error')
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        plt.legend()
+        plt.title('Learning curves for different dimensions')
+        plt.grid(True)
+        plt.savefig('test2.png')
+        plt.close()
+        #only plot the final MAEs for each dimension
+        fig, ax = plt.subplots(figsize=(10, 8))
+        plt.plot(ALL_DIMENSIONS, [ALL_MAEs[i][-1] for i in range(len(ALL_MAEs))])
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        plt.savefig('test3.png')
