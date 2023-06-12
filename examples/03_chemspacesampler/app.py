@@ -137,6 +137,12 @@ else:
 
 if st.button('Run ChemSpace Sampler'):
     try:
+        mol = Chem.MolFromSmiles(smiles)
+        for atom in mol.GetAtoms():
+            symbol = atom.GetSymbol()
+            if symbol != 'H' and symbol not in possible_elements:
+                st.success(f'The starting molecule contains element {symbol} which is not in the allowed elements list. It was therefore added...')
+
         MOLS, D = chemspace_function(smiles=smiles, params=params)
         print(MOLS)
         if len(MOLS) == 0:
