@@ -56,12 +56,18 @@ def str_to_tuple_list(string):
 
 descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP']
 
+import streamlit as st
+
 st.title('ChemSpace Sampler App')
-st.write('README: \
-          This application generates new chemical structures starting from a given molecule. \
-          Just enter the parameters below and click "Run ChemSpace Sampler"! \
-          Ensemble representation will make distances less noisy. Without it you may get distances vastly outside of the defined target interval (min_d, max_d).\
-          But it will take longer to run...')
+
+st.write('📘 README:')
+st.write('🔬 This application generates new chemical structures starting from a given molecule. Just enter the parameters below and click "Run ChemSpace Sampler!"')
+
+st.write('🌈 Ensemble representation will make distances less noisy. Without it, you may get distances vastly outside of the defined target interval (min_d, max_d). However, it will take longer to run.')
+
+st.write('⚠️ Note: When the maximal distance is too small, you may get no molecules in the interval, but this also depends on the representation.')
+
+st.write('🔍 If you want to find the closest molecules, set both distances to 0 and uncheck "RETURN MOLECULES STRICTLY IN THE INTERVAL".')
 
 
 # Parameters input
@@ -73,7 +79,7 @@ smiles = st.sidebar.text_input('Start molecule', value="CC(=O)OC1=CC=CC=C1C(=O)O
 selected_descriptor = st.sidebar.selectbox('Select Descriptor', descriptor_options, help='Choose the descriptor used to calculate the distance between molecules.')
 min_d = st.sidebar.number_input('Minimal distance', value=0.0, help='Enter the minimal desired distance from the start molecule.')
 max_d = st.sidebar.number_input('Maximal distance', value=12.0, help='Enter the maximal desired distance from the start molecule.')
-Nsteps = st.sidebar.number_input('#MC iterations', value=15, help='Enter the number of Monte Carlo iterations to be performed.')
+Nsteps = st.sidebar.number_input('#MC iterations', value=10, help='Enter the number of Monte Carlo iterations to be performed.')
 #possible_elements = st.sidebar.text_input('possible_elements', value="C, O, N, F", help='Enter the elements that are allowed in the generated molecules.').split(', ')
 possible_elements = st.sidebar.multiselect(
     'Select allowed elements in the generated molecules',
@@ -90,10 +96,37 @@ synth_cut_soft, synth_cut_hard = st.sidebar.slider('Select soft and hard cutoff 
 strictly_in =  st.sidebar.checkbox('Only return molecules strictly in the interval?', value=True, help='During MC you also accept molecuels outside of the 0 interval if temperature allows, this just affects postprocessing')
 mmff_check = st.sidebar.checkbox('MMFF94 parameters exist? (another sanity check)', value=True, help='Check if the generated molecules should have MMFF94 parameters.')
 ensemble   = st.sidebar.checkbox('Ensemble representation (affects only geometry-based representations, BoB & SOAP)', value=False, help='Check if the ensemble representation should be used. It affects only geometry-based representations (BoB & SOAP).')
-default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
-user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
-forbidden_bonds = str_to_tuple_list(user_input)
+#default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
+#user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
+#forbidden_bonds = str_to_tuple_list(user_input)
+default_bonds = "(8, 9), (8, 8), (9, 9), (7, 7)"
 
+# Input field for forbidden bonds
+bonds_input = st.sidebar.text_input("Enter forbidden bonds as pairs (a, b), separated by commas:", value=default_bonds, help="Enter forbidden bonds as pairs (a, b), separated by commas where a anb b are the atomic numbers of the atoms forming the bond.")
+
+# Convert input string to list of tuples
+try:
+    forbidden_bonds = [tuple(map(int, bond.strip(" ()").split(","))) for bond in bonds_input.split("),")]
+    st.success("Press 'Run ChemSpace Sampler' to start with these parameters.")
+    st.success("Start molecule: {}".format(smiles))
+    st.success("Minimal distance: {}".format(min_d))
+    st.success("Maximal distance: {}".format(max_d))
+    st.success("Number of MC iterations: {}".format(Nsteps))
+    st.success("Allowed elements: {}".format(possible_elements))
+    st.success("Number of heavy atoms: {}".format(nhatoms_range))
+    st.success("Synthesizability cutoff: {}".format((synth_cut_soft, synth_cut_hard)))
+    st.success("Ensemble representation: {}".format(ensemble))
+    st.success("MMFF94 parameters exist: {}".format(mmff_check))
+    st.success("Forbidden bonds: {}".format(forbidden_bonds))
+except ValueError:
+    st.error("Invalid input parameters. Please check your input and try again.")
+
+# Convert input string to list of tuples
+try:
+    forbidden_bonds = [tuple(map(int, bond.strip(" ()").split(","))) for bond in bonds_input.split("),")]
+    st.success("Forbidden bonds: {}".format(forbidden_bonds))
+except ValueError:
+    st.error("Invalid input. Please enter forbidden bonds as pairs (a, b), separated by commas.")
 
 params = chemspace_sampler_default_params.make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check)
 if selected_descriptor == 'RDKit':
@@ -110,6 +143,14 @@ else:
 
 if st.button('Run ChemSpace Sampler'):
     try:
+        mol = Chem.MolFromSmiles(smiles)
+        for atom in mol.GetAtoms():
+            symbol = atom.GetSymbol()
+            if symbol != 'H' and symbol not in possible_elements:
+                possible_elements.append(symbol)
+                st.success(f'The starting molecule contains element {symbol} which is not in the allowed elements list. It was therefore added...')
+                st.write("Updated possible elements:", possible_elements)
+
         MOLS, D = chemspace_function(smiles=smiles, params=params)
         print(MOLS)
         if len(MOLS) == 0:
@@ -164,9 +205,9 @@ if st.button('Run ChemSpace Sampler'):
 
         table_data = pd.DataFrame(rows)
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(3, 3))
         plt.hist(ALL_RESULTS['Distance'].values, bins=20, color='skyblue', edgecolor='black')
-        plt.title('Histogram of Distances')
+        plt.title('Histogram of Distances', fontsize=16, weight='bold')
         plt.xlabel('D')
         plt.ylabel('#')
         st.pyplot(plt)
@@ -175,9 +216,9 @@ if st.button('Run ChemSpace Sampler'):
 
 
         if len(ALL_RESULTS) > 4:
-            # Use a diverging color palette, increase point transparency and change marker style
-            st.write('PCA plot of all molecules (alwatys using ECFP4 fingerprints for speed)')
-            plt.figure(figsize=(6, 6))
+            # Use a diverging color palette, increase point transparency and change marker style, font size and weight
+            st.write('PCA plot of all molecules (using ECFP4 fingerprints for speed)')
+            plt.figure(figsize=(3, 3))
             other_mols = ALL_RESULTS[ALL_RESULTS['SMILES'] != smiles]
             scatter_plot = sns.scatterplot(data=other_mols, x='PCA1', y='PCA2', s=100, palette='coolwarm', hue='Distance', alpha=0.7, legend=False, marker='o')
 
@@ -186,7 +227,7 @@ if st.button('Run ChemSpace Sampler'):
             # Create a custom legend for the start molecule
 
 
-            plt.title('PCA of Molecular Fingerprints', fontsize=21, weight='bold', pad=20)
+            plt.title('PCA of Molecular Fingerprints', fontsize=16, weight='bold')
             plt.xlabel('PCA1', fontsize=18, labelpad=15)
             plt.ylabel('PCA2', fontsize=18, labelpad=15)
 

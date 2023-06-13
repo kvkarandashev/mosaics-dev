@@ -13,7 +13,7 @@ def main():
         'possible_elements': ["C", "O", "N", "F"],
         'not_protonated': None, 
         'forbidden_bonds': None,
-        'nhatoms_range': [6, 20],
+        'nhatoms_range': [1, 20],
         'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
         'make_restart_frequency': None,
         "rep_type": "2d",
@@ -21,13 +21,14 @@ def main():
         'rep_name': 'inv_ECFP',
         'strategy': 'modify_pot',
         'd_threshold': 0.1,
-        'Nparts': 1000, # 12
+        'Nparts': 100, # 12
         'growth_factor': 1.5,
         "verbose": False
     }
 
-    smiles_init, smiles_target ="CCCCCCC", "CC(=O)OC1=CC=CC=C1C(=O)O"
+    smiles_init, smiles_target ="C", "CCCC"
     X_target, _, _ = chemspace_potentials.initialize_from_smiles(smiles_target,nBits=params['nBits'])
+    #pdb.set_trace()
     MOLS, D = chemspace_potentials.chemspacesampler_inv_ECFP(smiles_init,X_target, params=params)    
     print("MOLS", MOLS)
     print("D", D)

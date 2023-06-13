@@ -1001,7 +1001,6 @@ class potential_ECFP:
         if rdkit_mol is None:
             raise RdKitFailure
         
-
         rdkit_mol_no_H = Chem.RemoveHs(rdkit_mol)
         score  = sascorer.calculateScore( rdkit_mol_no_H)
 
@@ -1188,8 +1187,6 @@ def initialize_fml_from_smiles(smiles, ensemble=True):
                     kwargs_dict=morfeus_args,
                 )["morfeus"]
  
-
-
     return init_egc, output,rdkit_H
 
 def compute_values(smi,**kwargs):
@@ -1198,7 +1195,6 @@ def compute_values(smi,**kwargs):
         "solvation_energy",
         "HOMO_LUMO_gap",
     ]
-
 
     kwargs = {
         "ff_type": "MMFF94",
@@ -1237,9 +1233,6 @@ def initialize_from_smiles(SMILES, nBits=2048):
     return X_init,rdkit_init, output
 
 
-
-
-
 class Analyze_Chemspace:
     def __init__(self, path,rep_type="2d" ,full_traj=False, verbose=False):
 
@@ -1253,7 +1246,6 @@ class Analyze_Chemspace:
         self.results = glob.glob(path)
         self.verbose = verbose
         self.full_traj = full_traj
-        #print(self.results)
 
     def parse_results(self):
         if self.verbose:
@@ -1352,17 +1344,6 @@ class Analyze_Chemspace:
             return SMILES, VALUES
 
 
-    def compute_representations(self, MOLS, nBits):
-        """
-        Compute the representations of all unique smiles in the random walk.
-        """
-
-        X = get_all_FP(MOLS, nBits=nBits)
-        return X
-
-  
-
-
     def to_dataframe(self, obj):
         """
         Convert the trajectory point object to a dataframe
@@ -1411,7 +1392,7 @@ class Analyze_Chemspace:
                 return X
 
 
-    def count_shell_value(self, curr_h,X_I, params):
+    def post_process(self, curr_h,X_I, params):
 
         if params["strictly_in"]:
             in_interval = curr_h["VALUES"] == 0.0
@@ -1506,49 +1487,7 @@ class Analyze_Chemspace:
                     SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                     D = D[np.argsort(D)]
                     
-
-
-
             return SMILES, D
-
-
-
-    def count_shell(
-        self, X_init, SMILES_sampled, dl, dh, nBits=2048, return_mols=False
-    ):
-        """
-        Count the number of molecules in
-        the shell of radius dl and dh.
-        """
-        darr = np.zeros(len(SMILES_sampled))
-        for i, s in enumerate(SMILES_sampled):
-            darr[i] = norm(
-                X_init - self.compute_representations([s], nBits=nBits)
-            )
-
-        in_interval = (darr >= dl) & (darr <= dh)
-        N = len(darr[in_interval])
-
-        if return_mols == False:
-            return N
-        else:
-            return N, SMILES_sampled[in_interval][:1000]
-
-    def make_canon(self, SMILES):
-        """
-        Convert to canonical smiles form.
-        """
-
-        CANON_SMILES = []
-        for smi in SMILES:
-
-            can = Chem.MolToSmiles(Chem.MolFromSmiles(smi), canonical=True)
-            CANON_SMILES.append(can)
-
-        return CANON_SMILES
-
-
-
 
 
 
@@ -1592,12 +1531,10 @@ def chemspacesampler_ECFP(smiles, params=None):
         Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X, params )
+    MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X, params )
     shutil.rmtree(respath)
 
     return MOLS, D
-
-
 
 def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
     X, _, egc_0 = initialize_from_smiles(smiles_init, nBits=params['nBits'])
@@ -1630,7 +1567,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
             Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_0,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
         ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
         _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-        MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+        MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
         shutil.rmtree(respath)
 
         return MOLS, D
@@ -1653,7 +1590,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                 Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_best,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
             ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
             _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-            MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+            MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
             shutil.rmtree(respath)
             if D[0] < d_best:
                 d_best, mol_best, V_0_best = D[0], MOLS[0], params['V_0_pot']
@@ -1663,7 +1600,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                     print("Found molecule within threshold")
                     return MOLS, D
             else:
-                params['V_0_pot'] = 4*V_0_best
+                params['V_0_pot'] = 2*V_0_best
                 min_func = potential_inv_ECFP(X_target, params=params)
                 respath = tempfile.mkdtemp()
                 if params['NPAR'] == 1:
@@ -1672,7 +1609,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                     Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_best,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
                 ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
                 _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-                MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+                MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
                 shutil.rmtree(respath)
 
                 if D[0] < d_best:
@@ -1683,7 +1620,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                         print("Found molecule within threshold")
                         return MOLS, D
                 else:
-                    params['V_0_pot'] = V_0_best/4
+                    params['V_0_pot'] = V_0_best/2
                     min_func = potential_inv_ECFP(X_target, params=params)
                     respath = tempfile.mkdtemp()
                     if params['NPAR'] == 1:
@@ -1692,7 +1629,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                         Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_best,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
                     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
                     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-                    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+                    MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
                     shutil.rmtree(respath)
 
                     if D[0] < d_best:
@@ -1704,8 +1641,6 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                             return MOLS, D
                         
         return MOLS, D
-
-
 
 
     elif params['strategy'] == "contract":
@@ -1734,7 +1669,7 @@ def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
                 Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_rep[i],min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
             ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
             _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-            MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X_target, params )
+            MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
             shutil.rmtree(respath)
             if len(MOLS) > 0 and D[0] < d_init:
                 if len(MOLS) > params['NPAR']:
@@ -1797,7 +1732,7 @@ def chemspacesampler_MolDescriptors(smiles, params=None):
     Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="MolDescriptors" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM, X, params )
+    MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X, params )
     shutil.rmtree(respath)
 
     return MOLS, D
@@ -1863,7 +1798,7 @@ def chemspacesampler_SOAP(smiles, params=None):
         mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM,X, params)
+    MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM,X, params)
     shutil.rmtree(respath)
 
     return MOLS, D
@@ -1932,7 +1867,7 @@ def chemspacesampler_BoB(smiles, params=None):
         mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-    MOLS, D  = ana.count_shell_value(GLOBAL_HISTOGRAM,X, params)
+    MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM,X, params)
     shutil.rmtree(respath)
 
 
@@ -2015,7 +1950,7 @@ def chemspacesampler_find_cliffs(smiles, params=None):
     # TODO missing implementation of the postprocessing    
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-    MOLS, D, P  = ana.count_shell_value(GLOBAL_HISTOGRAM,X, params)
+    MOLS, D, P  = ana.post_process(GLOBAL_HISTOGRAM,X, params)
     shutil.rmtree(respath)
     
 
