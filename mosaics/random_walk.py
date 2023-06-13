@@ -852,6 +852,7 @@ class RandomWalk:
         restricted_tps: list or None = None,
         min_function_name: str = default_minfunc_name,
         num_saved_candidates: int or None = None,
+        saved_candidates_max_difference: float or None = None,
         keep_full_trajectory: bool = False,
         keep_detailed_global_steps: bool = False,
         restart_file: str or None = None,
@@ -883,6 +884,7 @@ class RandomWalk:
         keep_histogram : store information about all considered molecules; mandatory for using biasing potentials
         histogram_save_rejected : if True then both accepted and rejected chemical graphs are saved into the histogram
         num_saved_candidates : if not None determines how many best candidates are kept in the saved_candidates attributes
+        saved_candidates_max_difference : if not None determines maximum difference of minimized function values for the best and worst of saved best candidates
         keep_full_trajectory : save not just number of times a trajectory point was visited, but also all steps ids when the step was made
         keep_detailed_global_steps : save information of trajectory movement up to non-global steps
         restart_file : name of restart file to which the object is dumped at make_restart
@@ -964,7 +966,10 @@ class RandomWalk:
             self.min_function_dict = {self.min_function_name: self.min_function}
         self.no_min_function_lookup = no_min_function_lookup
         self.num_saved_candidates = num_saved_candidates
-        if self.num_saved_candidates is not None:
+        self.saved_candidates_max_difference = saved_candidates_max_difference
+        if (self.num_saved_candidates is not None) or (
+            self.saved_candidates_max_difference is not None
+        ):
             self.saved_candidates = SortedList()
 
         # For storing statistics on move success.
@@ -1739,13 +1744,23 @@ class RandomWalk:
                 tp.visit_step_ids = None
 
     def update_saved_candidates(self, tp_in):
-        if self.num_saved_candidates is None:
+        if (self.num_saved_candidates is None) and (
+            self.saved_candidates_max_difference is None
+        ):
             return
         min_func_val = tp_in.calculated_data[self.min_function_name]
         if min_func_val is None:
             return
-        if len(self.saved_candidates) >= self.num_saved_candidates:
+        if (self.num_saved_candidates is not None) and (
+            len(self.saved_candidates) >= self.num_saved_candidates
+        ):
             if min_func_val > self.saved_candidates[-1].func_val:
+                return
+        if self.saved_candidates_max_difference is not None:
+            if (
+                min_func_val - self.saved_candidates[0].func_val
+                > self.saved_candidates_max_difference
+            ):
                 return
 
         new_cand_compound = CandidateCompound(tp=deepcopy(tp_in), func_val=min_func_val)
@@ -1755,7 +1770,9 @@ class RandomWalk:
 
         self.saved_candidates.add(new_cand_compound)
 
-        if len(self.saved_candidates) > self.num_saved_candidates:
+        if (self.num_saved_candidates is not None) and (
+            len(self.saved_candidates) > self.num_saved_candidates
+        ):
             del self.saved_candidates[self.num_saved_candidates :]
 
     # Some properties for more convenient trajectory analysis.
