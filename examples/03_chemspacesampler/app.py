@@ -96,9 +96,6 @@ synth_cut_soft, synth_cut_hard = st.sidebar.slider('Select soft and hard cutoff 
 strictly_in =  st.sidebar.checkbox('Only return molecules strictly in the interval?', value=True, help='During MC you also accept molecuels outside of the 0 interval if temperature allows, this just affects postprocessing')
 mmff_check = st.sidebar.checkbox('MMFF94 parameters exist? (another sanity check)', value=True, help='Check if the generated molecules should have MMFF94 parameters.')
 ensemble   = st.sidebar.checkbox('Ensemble representation (affects only geometry-based representations, BoB & SOAP)', value=False, help='Check if the ensemble representation should be used. It affects only geometry-based representations (BoB & SOAP).')
-#default_value_bonds = "[(8, 9), (8, 8), (9, 9), (7, 7)]"
-#user_input = st.sidebar.text_input("Enter forbidden bonds", default_value_bonds)
-#forbidden_bonds = str_to_tuple_list(user_input)
 default_bonds = "(8, 9), (8, 8), (9, 9), (7, 7)"
 
 # Input field for forbidden bonds
@@ -128,7 +125,7 @@ try:
 except ValueError:
     st.error("Invalid input. Please enter forbidden bonds as pairs (a, b), separated by commas.")
 
-params = chemspace_sampler_default_params.make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check)
+
 if selected_descriptor == 'RDKit':
     chemspace_function = chemspace_potentials.chemspacesampler_MolDescriptors
 elif selected_descriptor == 'ECFP4':
@@ -150,6 +147,15 @@ if st.button('Run ChemSpace Sampler'):
                 possible_elements.append(symbol)
                 st.success(f'The starting molecule contains element {symbol} which is not in the allowed elements list. It was therefore added...')
                 st.write("Updated possible elements:", possible_elements)
+
+        atom_symbols = [s.GetSymbol() for s in mol.GetAtoms()]
+        atom_symbols_no_H = [symbol for symbol in atom_symbols if symbol != 'H']
+        if int(nhatoms_range[1]) <  len(atom_symbols_no_H):
+            nhatoms_range[1] = str(len(atom_symbols_no_H))
+            st.success(f'The starting molecule contains more heavy atoms than the upper bound of the permitted range. It was therefore updated to {nhatoms_range[1]}...')
+            st.write("Updated number of heavy atoms:", nhatoms_range)
+
+        params = chemspace_sampler_default_params.make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check)
 
         MOLS, D = chemspace_function(smiles=smiles, params=params)
         print(MOLS)
@@ -207,9 +213,9 @@ if st.button('Run ChemSpace Sampler'):
 
         plt.figure(figsize=(3, 3))
         plt.hist(ALL_RESULTS['Distance'].values, bins=20, color='skyblue', edgecolor='black')
-        plt.title('Histogram of Distances', fontsize=16, weight='bold')
-        plt.xlabel('D')
-        plt.ylabel('#')
+        plt.title('Histogram of Distances', fontsize=12, weight='bold')
+        plt.xlabel('$D$', fontsize=10)
+        plt.ylabel('#', fontsize=10)
         st.pyplot(plt)
         st.write('Table of the 10 closest molecules, see above to download all results.')
         st.table(table_data)
@@ -227,9 +233,9 @@ if st.button('Run ChemSpace Sampler'):
             # Create a custom legend for the start molecule
 
 
-            plt.title('PCA of Molecular Fingerprints', fontsize=16, weight='bold')
-            plt.xlabel('PCA1', fontsize=18, labelpad=15)
-            plt.ylabel('PCA2', fontsize=18, labelpad=15)
+            plt.title('PCA of Molecular Fingerprints', fontsize=12, weight='bold')
+            plt.xlabel('PCA1', fontsize=10)
+            plt.ylabel('PCA2', fontsize=10)
 
             # Create a custom legend for the start molecule
             legend_marker = plt.Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markersize=15, markeredgecolor='black')
