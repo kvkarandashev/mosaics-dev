@@ -56,12 +56,18 @@ def str_to_tuple_list(string):
 
 descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP']
 
+import streamlit as st
+
 st.title('ChemSpace Sampler App')
-st.write('README: \
-          This application generates new chemical structures starting from a given molecule. \
-          Just enter the parameters below and click "Run ChemSpace Sampler"! \
-          Ensemble representation will make distances less noisy. Without it you may get distances vastly outside of the defined target interval (min_d, max_d).\
-          But it will take longer to run...')
+
+st.write('📘 README:')
+st.write('🔬 This application generates new chemical structures starting from a given molecule. Just enter the parameters below and click "Run ChemSpace Sampler!"')
+
+st.write('🌈 Ensemble representation will make distances less noisy. Without it, you may get distances vastly outside of the defined target interval (min_d, max_d). However, it will take longer to run.')
+
+st.write('⚠️ Note: When the maximal distance is too small, you may get no molecules in the interval, but this also depends on the representation.')
+
+st.write('🔍 If you want to find the closest molecules, set both distances to 0 and uncheck "RETURN MOLECULES STRICTLY IN THE INTERVAL".')
 
 
 # Parameters input
@@ -73,7 +79,7 @@ smiles = st.sidebar.text_input('Start molecule', value="CC(=O)OC1=CC=CC=C1C(=O)O
 selected_descriptor = st.sidebar.selectbox('Select Descriptor', descriptor_options, help='Choose the descriptor used to calculate the distance between molecules.')
 min_d = st.sidebar.number_input('Minimal distance', value=0.0, help='Enter the minimal desired distance from the start molecule.')
 max_d = st.sidebar.number_input('Maximal distance', value=12.0, help='Enter the maximal desired distance from the start molecule.')
-Nsteps = st.sidebar.number_input('#MC iterations', value=15, help='Enter the number of Monte Carlo iterations to be performed.')
+Nsteps = st.sidebar.number_input('#MC iterations', value=10, help='Enter the number of Monte Carlo iterations to be performed.')
 #possible_elements = st.sidebar.text_input('possible_elements', value="C, O, N, F", help='Enter the elements that are allowed in the generated molecules.').split(', ')
 possible_elements = st.sidebar.multiselect(
     'Select allowed elements in the generated molecules',
@@ -137,6 +143,14 @@ else:
 
 if st.button('Run ChemSpace Sampler'):
     try:
+        mol = Chem.MolFromSmiles(smiles)
+        for atom in mol.GetAtoms():
+            symbol = atom.GetSymbol()
+            if symbol != 'H' and symbol not in possible_elements:
+                possible_elements.append(symbol)
+                st.success(f'The starting molecule contains element {symbol} which is not in the allowed elements list. It was therefore added...')
+                st.write("Updated possible elements:", possible_elements)
+
         MOLS, D = chemspace_function(smiles=smiles, params=params)
         print(MOLS)
         if len(MOLS) == 0:

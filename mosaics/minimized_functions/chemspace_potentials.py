@@ -524,7 +524,7 @@ class potential_MolDescriptors:
         }
 
         self.potential = self.flat_parabola_potential
-        self.norm_init = norm(X_init)
+        #self.norm_init = norm(X_init)
 
 
     def flat_parabola_potential(self, d):
@@ -569,7 +569,7 @@ class potential_MolDescriptors:
 
             
         X_test = calc_all_descriptors(rdkit_mol)
-        d = norm(X_test - self.X_init)/self.norm_init
+        d = norm(X_test - self.X_init) #/self.norm_init
         V = self.potential(d) + V_synth
 
         if self.verbose:
@@ -1729,7 +1729,10 @@ def chemspacesampler_MolDescriptors(smiles, params=None):
     min_func = potential_MolDescriptors(X, params)
 
     respath = tempfile.mkdtemp()
-    Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
+    if params['NPAR'] == 1:
+        mc_run(egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
+    else:
+        Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
     ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="MolDescriptors" , full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
     MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X, params )
