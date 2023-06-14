@@ -46,10 +46,12 @@ def gradient_descent(model, T_init, y_target, gamma, N_steps, delta=1e-6):
 
         # Compute the prediction for current T_n
         y_pred = latent_pred(model, T_n)
-        print(f"{n} {y_pred}")
+        #print(f"{n} {y_pred}")
 
         # Compute the error
         error = y_pred - y_target
+        if n % 1000 == 0:
+            print(f"error: {error}")
 
         # Adjust the gradient by the error
         gradient *= error
@@ -77,8 +79,8 @@ if __name__ == "__main__":
         y_pred = scalar_values.inverse_transform(selected_model.predict(X))
         print(f"y_pred: {y_pred}")
         #TODO only do a few steps with gradient descent then find the closest graph
-        y_target = scalar_values.transform(np.array([-0.3]).reshape(1,-1))
-        T_opt = gradient_descent(selected_model, X_transformed,y_target=y_target, gamma=1e-7, N_steps=15000)
+        y_target = scalar_values.transform(np.array([-4.9]).reshape(1,-1))
+        T_opt = gradient_descent(selected_model, X_transformed,y_target=y_target, gamma=1e-4, N_steps=40000)
         print(f"T_opt: {T_opt}")
         X_opt = scalar_features.inverse_transform( selected_model.inverse_transform(T_opt))
         y_opt = scalar_values.inverse_transform(selected_model.predict( selected_model.inverse_transform(T_opt)))
