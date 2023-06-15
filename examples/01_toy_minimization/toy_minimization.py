@@ -53,19 +53,14 @@ global_change_params = {
 init_ncharges = [6]
 init_adj_matrix = [[0]]
 
-negcs = len(betas)
-
 init_egcs = [
     ExtGraphCompound(
         nuclear_charges=init_ncharges,
         adjacency_matrix=init_adj_matrix,
         hydrogen_autofill=True,
     )
-    for _ in range(negcs)
+    for _ in betas
 ]
-
-histogram = [[] for _ in range(negcs)]
-histogram_labels = [[] for _ in range(negcs)]
 
 min_func = OrderSlide(possible_elements=possible_elements)
 
