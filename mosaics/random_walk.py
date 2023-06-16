@@ -834,6 +834,7 @@ class RandomWalk:
     def __init__(
         self,
         init_egcs: list or None = None,
+        init_tps: list or None = None,
         bias_coeff: float or None = None,
         vbeta_bias_coeff: float or None = None,
         bias_pot_all_replicas: bool = True,
@@ -873,6 +874,7 @@ class RandomWalk:
         """
         Class that generates a trajectory over chemical space.
         init_egcs : initial positions of the simulation, in ExtGraphCompound format.
+        init_tps : initial positions of the simulation, in TrajectoryPoint format.
         betas : values of beta used in the extended tempering ensemble; "None" corresponds to a virtual beta (greedily minimized replica).
         bias_coeff : biasing potential applied to push real beta replicas out of local minima
         vbeta_bias_coeff : biasing potential applied to push virtual beta replicas out of local minima
@@ -1013,7 +1015,7 @@ class RandomWalk:
         self.debug = debug
         self.canonize_trajectory_points = canonize_trajectory_points
 
-        self.init_cur_tps(init_egcs)
+        self.init_cur_tps(init_egcs=init_egcs, init_tps=init_tps)
 
     def init_randomized_change_params(self, randomized_change_params=None):
         """
@@ -1146,18 +1148,18 @@ class RandomWalk:
             if kw not in self.used_randomized_change_params:
                 self.used_randomized_change_params[kw] = def_val
 
-    def init_cur_tps(self, init_egcs=None):
+    def init_cur_tps(self, init_egcs=None, init_tps=None):
         """
         Set current positions of self's trajectory from init_egcs while checking that the resulting trajectory points are valid.
         init_egcs : a list of ExtGraphCompound objects to be set as positions; if None the procedure terminates without doing anything.
         """
-        if init_egcs is None:
-            return
+        if init_tps is None:
+            if init_egcs is None:
+                return
+            init_tps = [TrajectoryPoint(egc=egc) for egc in init_egcs]
         self.cur_tps = []
-        for replica_id, egc in enumerate(init_egcs):
-            if self.egc_valid_wrt_change_params(egc):
-                added_tp = TrajectoryPoint(egc=egc)
-            else:
+        for replica_id, added_tp in enumerate(init_tps):
+            if not self.egc_valid_wrt_change_params(added_tp.egc):
                 raise InvalidStartingMolecules
             if self.canonize_trajectory_points:
                 added_tp.canonize_chemgraph()
