@@ -53,15 +53,38 @@ from scipy.special import comb
 
 
 
-def generate_bob(elements,coords,n_jobs=-1,asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
+def generate_CM(cood,charges,pad):
+    size=len(charges)
+    cm=np.zeros((pad,pad))
+    for i in range(size):
+        for j in range(size):
+            if i==j:
+                cm[i,j]=0.5*(charges[i]**(2.4))
+            else:
+                dist=np.linalg.norm(cood[i,:]-cood[j,:])
+                
+                cm[i,j]=(charges[i]*charges[j])/dist
+
+    # calculate the norms of the rows
+    row_norms = np.linalg.norm(cm, axis=1)
+    
+    # get the indices that would sort the row norms
+    sorted_indices = np.argsort(row_norms)[::-1]
+    
+    # use these indices to sort the cm matrix
+    sorted_cm = cm[sorted_indices]
+    
+    return sorted_cm
+
+
+
+def generate_bob(elements,coords,asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
     """
     generates the Bag of Bonds representation
     :param elements: array of arrays of chemical element symbols for all molecules in the dataset
     :type elements: numpy array NxM, where N is the number of molecules and M is the number of atoms (can be different for each molecule)
     :param coords: array of arrays of input coordinates of the atoms
     :type coords: numpy array NxMx3, where N is the number of molecules and M is the number of atoms (can be different for each molecule)
-    :param n_jobs: number of cores to parallelise the representation generation over. Default value is -1 which uses all cores in the system
-    :type n_jobs: integer
     :param asize: The maximum number of atoms of each element type supported by the representation
     :type asize: dictionary
 
@@ -267,6 +290,13 @@ def fml_rep_bob(coords, symbols, WEIGHTS, params):
     X = np.average(X, axis=0, weights=WEIGHTS)
     return X
 
+def fml_rep_CM(coords, charges, WEIGHTS, pad):
+    X = []
+    for i in range(len(coords)):
+        X.append(generate_CM(coords[i], charges, pad))
+    X = np.array(X)
+    X = np.average(X, axis=0, weights=WEIGHTS)
+    return X
     
 
 def ExplicitBitVect_to_NumpyArray(fp_vec):
@@ -367,15 +397,13 @@ class potential_SOAP:
     def __init__(
         self,
         X_init,
-        Q_init,
         params
     ):
         """
         Initializes the potential_SOAP class.
         
         Parameters:
-        X_init (np.array): Initial positions of particles.
-        Q_init (np.array): Initial charges.
+        X_init (np.array): Initial representation.
         gamma (float): A parameter for flat_parabola_potential function.
         sigma (float): A parameter for flat_parabola_potential function.
         possible_elements (list): List of possible atomic elements.
@@ -383,7 +411,6 @@ class potential_SOAP:
         """
         self.params = params
         self.X_init = X_init
-        self.Q_init = Q_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
         self.V_0_pot = params["V_0_pot"]
@@ -402,23 +429,6 @@ class potential_SOAP:
             
         self.potential = self.flat_parabola_potential
 
-
-
-    def fml_distance(self,coords,charges,energies):
-        """
-        Calculates the FML distance.
-        
-        Parameters:
-        coords (np.array): Positions of particles.
-        charges (np.array): Charges.
-        energies (np.array): Energies.
-        
-        Returns:
-        float: FML distance.
-        """
-        
-        X_test = self.repfct(coords, charges,energies)
-        return norm(X_test - self.X_init)
 
 
     def flat_parabola_potential(self, d):
@@ -584,7 +594,6 @@ class potential_BoB:
     def __init__(
         self,
         X_init,
-        Q_init,
         params
     ):
         """
@@ -592,7 +601,6 @@ class potential_BoB:
         
         Parameters:
         X_init (np.array): Initial positions of particles.
-        Q_init (np.array): Initial charges.
         gamma (float): A parameter for flat_parabola_potential function.
         sigma (float): A parameter for flat_parabola_potential function.
         possible_elements (list): List of possible atomic elements.
@@ -600,7 +608,6 @@ class potential_BoB:
         """
         self.params = params
         self.X_init = X_init
-        self.Q_init = Q_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
         self.V_0_pot = params["V_0_pot"]
@@ -618,22 +625,6 @@ class potential_BoB:
             self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
             
         self.potential = self.flat_parabola_potential  
-
-    def fml_distance(self,coords,charges,energies):
-        """
-        Calculates the FML distance.
-        
-        Parameters:
-        coords (np.array): Positions of particles.
-        charges (np.array): Charges.
-        energies (np.array): Energies.
-        
-        Returns:
-        float: FML distance.
-        """
-        
-        X_test = self.repfct(coords, charges,energies)
-        return norm(X_test - self.X_init)
 
 
     def flat_parabola_potential(self, d):
@@ -719,6 +710,121 @@ class potential_BoB:
         if self.verbose:
             print(SMILES, distance, V)
         return V
+    
+
+class potential_CM:
+    """
+    Class to represent a potential using Coulomb Matrix (CM).
+    """
+    def __init__(
+        self,
+        X_init,
+        params
+    ):
+        """
+        Initializes the potential_CM class.
+
+        Parameters:
+        X_init (np.array): Initial representation vector
+        gamma (float): A parameter for flat_parabola_potential function.
+        sigma (float): A parameter for flat_parabola_potential function.
+        possible_elements (list): List of possible atomic elements.
+        verbose (bool): Verbosity flag.
+        """
+        self.params = params
+        self.X_init = X_init
+        self.gamma = params["min_d"]
+        self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
+        self.verbose = params["verbose"]
+        self.synth_cut_soft = params["synth_cut_soft"]
+        self.synth_cut_hard = params["synth_cut_hard"]
+        self.ensemble = params["ensemble"]
+        self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
+        
+        if self.ensemble:
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_confs
+        else:
+            self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
+            
+        self.potential = self.flat_parabola_potential
+    
+    
+    def flat_parabola_potential(self, d):
+        """
+        A function to describe the potential as a flat parabola.
+        
+        Parameters:
+        d (float): Distance.
+        
+        Returns:
+        float: Potential value.
+        """
+
+        if d < self.gamma:
+            return self.V_0_pot * (d - self.gamma) ** 2
+        if self.gamma <= d <= self.sigma:
+            return 0
+        if d > self.sigma:
+            return self.V_0_pot * (d - self.sigma) ** 2
+        
+    def synth_potential(self, score):
+        if score > self.synth_cut_hard:
+            return None
+        if score > self.synth_cut_soft:
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
+        else:
+            return 0
+        
+    
+    def __call__(self, trajectory_point_in):
+
+        try:
+            output = trajectory_point_in.calc_or_lookup(
+                self.morfeus_output,
+                kwargs_dict=self.morfeus_args,
+            )["morfeus"]
+            
+
+            coords = output["coordinates"]
+            charges = output["nuclear_charges"]
+            SMILES = output["canon_rdkit_SMILES"]
+
+            rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
+            score  = sascorer.calculateScore(rdkit_mol_no_H)
+            
+            V_synth = self.synth_potential(score)
+            if V_synth == None:
+                return None
+            
+            if self.ensemble:
+                
+                if coords.shape[1] == charges.shape[0]:
+                    X_test =   fml_rep_CM(coords, charges, output["rdkit_Boltzmann"], pad=self.params["max_n"])
+                    
+                else:
+                    return None
+            else:
+                if coords.shape[0] == charges.shape[0]:
+                    X_test = generate_CM(coords, charges, pad=self.params["max_n"])
+                else:
+                    return None
+                
+        except Exception as e:
+            print(e)
+            print("Error in 3d conformer sampling")
+            return None
+        
+        distance = norm(X_test - self.X_init)
+        V = self.potential(distance) + V_synth
+
+        if self.verbose:
+            print(SMILES, distance, V)
+        
+        return V
+
+
 
 
 class potential_BoB_cliffs:
@@ -728,15 +834,13 @@ class potential_BoB_cliffs:
     def __init__(
         self,
         X_init,
-        Q_init,
         params
     ):
         """
         Initializes the potential_BoB class.
         
         Parameters:
-        X_init (np.array): Initial positions of particles.
-        Q_init (np.array): Initial charges.
+        X_init (np.array): Initial representations
         gamma (float): A parameter for flat_parabola_potential function.
         sigma (float): A parameter for flat_parabola_potential function.
         possible_elements (list): List of possible atomic elements.
@@ -744,7 +848,6 @@ class potential_BoB_cliffs:
         """
         self.params = params
         self.X_init = X_init
-        self.Q_init = Q_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
         self.V_0_pot = params["V_0_pot"]
@@ -766,23 +869,6 @@ class potential_BoB_cliffs:
             self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
             
         self.potential = self.flat_parabola_potential  
-
-    def fml_distance(self,coords,charges,energies):
-        """
-        Calculates the FML distance.
-        
-        Parameters:
-        coords (np.array): Positions of particles.
-        charges (np.array): Charges.
-        energies (np.array): Energies.
-        
-        Returns:
-        float: FML distance.
-        """
-        
-        X_test = self.repfct(coords, charges,energies)
-        return norm(X_test - self.X_init)
-
 
     def flat_parabola_potential(self, d):
         """
@@ -1369,8 +1455,7 @@ class Analyze_Chemspace:
         
         if params["rep_name"] == "BoB":
             X = []
-            if params['ensemble'] == "ensemble":
-                
+            if params['ensemble']:
                 for TP in TP_ALL:
                     try:
                         X.append(fml_rep_bob(TP["coordinates"], [str_atom_corr(charge) for charge in TP["nuclear_charges"]], TP["rdkit_Boltzmann"], params))
@@ -1390,6 +1475,30 @@ class Analyze_Chemspace:
                 
                 X = np.array(X)
                 return X
+            
+        elif params["rep_name"] == "CM":
+            X = []
+            if params['ensemble']:
+                
+                for TP in TP_ALL:
+                    try:
+                        X.append(fml_rep_CM(TP["coordinates"], TP["nuclear_charges"], TP["rdkit_Boltzmann"], pad=params["max_n"]))
+                    except:
+                        X.append(np.array([np.nan]))
+                
+                X = np.array(X)
+                return X
+        
+            else:
+                for TP in TP_ALL:
+                    try:
+                        X.append(generate_CM(TP["coordinates"], TP["nuclear_charges"], pad=params["max_n"]))
+                    except:
+                        X.append(np.array([np.nan]))
+                
+                X = np.array(X)
+                return X
+        
 
 
     def post_process(self, curr_h,X_I, params):
@@ -1416,6 +1525,12 @@ class Analyze_Chemspace:
                         X_ALL           = np.asarray([gen_soap(TP["coordinates"], TP["nuclear_charges"], species= params['possible_elements']+['H']) for TP in TP_ALL])
 
                 if params["rep_name"] == "BoB":
+                    if params['ensemble']:
+                        X_ALL           = self.reevaluate_3d(TP_ALL, params)
+                    else:
+                        X_ALL           = self.reevaluate_3d(TP_ALL, params)
+
+                if params["rep_name"] == "CM":
                     if params['ensemble']:
                         X_ALL           = self.reevaluate_3d(TP_ALL, params)
                     else:
@@ -1793,7 +1908,7 @@ def chemspacesampler_SOAP(smiles, params=None):
     else:
         X         = gen_soap(coords, charges,species= params['possible_elements']+["H"])
 
-    min_func  = potential_SOAP(X,tp["nuclear_charges"] , params)
+    min_func  = potential_SOAP(X, params)
     respath   = tempfile.mkdtemp()
     if params['NPAR'] > 1:
         Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
@@ -1833,7 +1948,6 @@ def chemspacesampler_BoB(smiles, params=None):
             'ensemble': True,
             "verbose": False,
         }
-        
     
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
     symbols = [str_atom_corr(charge) for charge in charges]
@@ -1857,10 +1971,9 @@ def chemspacesampler_BoB(smiles, params=None):
     if params['ensemble']:
         X         = fml_rep_bob(coords, symbols, tp["rdkit_Boltzmann"], params)
     else:
-        #
         X         = generate_bob(symbols, coords, asize=params["asize"])
     
-    min_func  = potential_BoB(X,tp["nuclear_charges"] , params)
+    min_func  = potential_BoB(X, params)
     respath   = tempfile.mkdtemp()
     
     if params['NPAR'] > 1:
@@ -1873,6 +1986,61 @@ def chemspacesampler_BoB(smiles, params=None):
     MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM,X, params)
     shutil.rmtree(respath)
 
+
+    return MOLS, D
+
+
+def chemspacesampler_CM(smiles, params=None):
+    init_egc, tp,rdkit_init =  initialize_fml_from_smiles(smiles, ensemble=params['ensemble'])
+
+    if params is None:
+        num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
+        elements = list({atom.GetSymbol() for atom in rdkit_init.GetAtoms()})
+
+        params = {
+            'min_d': 0.0,
+            'max_d': 150.0,
+            'NPAR': 1,
+            'Nsteps': 100,
+            'bias_strength': "none",
+            'possible_elements': elements,
+            'not_protonated': None, 
+            'forbidden_bonds': [(8, 9), (8,8), (9,9), (7,7)],
+            'nhatoms_range': [num_heavy_atoms, num_heavy_atoms],
+            'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
+            'make_restart_frequency': None,
+            'rep_type': '3d',
+            'rep_name':"CM",
+            'synth_cut_soft':3,
+            'synth_cut_hard':5,
+            'ensemble': True,
+            "verbose": False,
+        }
+    
+    coords, charges    = tp["coordinates"], tp["nuclear_charges"]
+    symbols = [str_atom_corr(charge) for charge in charges]
+
+    _, max_n = max_element_counts([symbols*3])
+    params["max_n"] = 5*max_n
+
+    if params['ensemble']:
+        X         = fml_rep_CM(coords, charges, tp["rdkit_Boltzmann"], pad=params["max_n"])
+    else:
+        X         = generate_CM(coords,charges, pad=params["max_n"])
+
+
+    min_func  = potential_CM(X, params)
+    respath   = tempfile.mkdtemp()
+
+    if params['NPAR'] > 1:
+        Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
+    else:
+        mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
+    
+    ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
+    _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+    MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM,X, params)
+    shutil.rmtree(respath)
 
     return MOLS, D
 
@@ -1942,7 +2110,7 @@ def chemspacesampler_find_cliffs(smiles, params=None):
     else:
         X         = generate_bob(symbols, coords, asize=params["asize"])
     
-    min_func  = potential_BoB_cliffs(X,tp["nuclear_charges"] , params)
+    min_func  = potential_BoB_cliffs(X, params)
 
     respath   = tempfile.mkdtemp()
     if params['NPAR'] > 1:

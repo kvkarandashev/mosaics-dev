@@ -23,6 +23,34 @@ from mosaics.minimized_functions import chemspace_sampler_default_params
 
 
 import pdb
+
+
+fs = 12
+plt.rc("font", size=fs)
+plt.rc("axes", titlesize=fs)
+plt.rc("axes", labelsize=fs)
+plt.rc("xtick", labelsize=fs)
+plt.rc("ytick", labelsize=fs)
+plt.rc("legend", fontsize=fs)
+plt.rc("figure", titlesize=fs)
+
+
+def make_pretty(axi):
+    """
+    Method to make the axes look pretty
+    """
+    axi.spines["right"].set_color("none")
+    axi.spines["top"].set_color("none")
+    axi.spines["bottom"].set_position(("axes", -0.05))
+    axi.spines["bottom"].set_color("black")
+    axi.spines["left"].set_color("black")
+    axi.yaxis.set_ticks_position("left")
+    axi.xaxis.set_ticks_position("bottom")
+    axi.spines["left"].set_position(("axes", -0.05))
+    return axi
+
+
+
 sns.set_style("whitegrid")  # Set style to whitegrid for better readability
 sns.set_context("notebook")  # Set context to "notebook"
 
@@ -54,7 +82,7 @@ def str_to_tuple_list(string):
     return tuples
 
 
-descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP']
+descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP','CM']
 
 import streamlit as st
 
@@ -76,11 +104,10 @@ st.sidebar.subheader('Input Parameters')
 
 
 smiles = st.sidebar.text_input('Start molecule', value="CC(=O)OC1=CC=CC=C1C(=O)O", help='Enter the SMILES string of your starting molecule.')
-selected_descriptor = st.sidebar.selectbox('Select Descriptor', descriptor_options, help='Choose the descriptor used to calculate the distance between molecules.')
+selected_descriptor = st.sidebar.selectbox('Select Descriptor', descriptor_options, help='Choose the descriptor used to calculate the distance between molecules. The descriptors are: RDKit (check rdkit.Chem.Descriptors), ECFP4 (hashed group based), BoB (Bag of Bonds), SOAP (Smooth Overlap of Atomic Positions), CM (Coulomb Matrix).')
 min_d = st.sidebar.number_input('Minimal distance', value=0.0, help='Enter the minimal desired distance from the start molecule.')
 max_d = st.sidebar.number_input('Maximal distance', value=12.0, help='Enter the maximal desired distance from the start molecule.')
 Nsteps = st.sidebar.number_input('#MC iterations', value=10, help='Enter the number of Monte Carlo iterations to be performed.')
-#possible_elements = st.sidebar.text_input('possible_elements', value="C, O, N, F", help='Enter the elements that are allowed in the generated molecules.').split(', ')
 possible_elements = st.sidebar.multiselect(
     'Select allowed elements in the generated molecules',
     options=['C', 'O', 'N', 'F', 'P', 'S', 'Si', 'Br', 'Cl', 'B'],
@@ -134,6 +161,8 @@ elif selected_descriptor == 'BoB':
     chemspace_function = chemspace_potentials.chemspacesampler_BoB
 elif selected_descriptor == 'SOAP':
     chemspace_function = chemspace_potentials.chemspacesampler_SOAP
+elif selected_descriptor == 'CM':
+    chemspace_function = chemspace_potentials.chemspacesampler_CM
 
 else:
     st.error('Unknown Descriptor selected')
@@ -196,15 +225,6 @@ if st.button('Run ChemSpace Sampler'):
         mol_df['img'] = mol_df['SMILES'].apply(lambda x: mol_to_img(mol_to_3d(Chem.MolFromSmiles(x))))
         mol_df['img'] = mol_df['img'].apply(lambda x: base64.b64encode(x).decode())
         st.image([BytesIO(base64.b64decode(img_str)) for img_str in mol_df['img']])
-
-        # Create a Streamlit table with SMILES strings and respective images.
-
-        #commented code works sometimes ... it is weird
-        #table_data = pd.DataFrame(columns=["SMILES", "Distance"])
-        #for idx, row in mol_df.iterrows():
-        #    table_data = table_data.append(
-        #        {"SMILES": row["SMILES"], "Distance": row["Distance"]}, ignore_index=True
-        #    )
         rows = []
         for idx, row in mol_df.iterrows():
             rows.append({"SMILES": row["SMILES"], "Distance": row["Distance"]})
@@ -229,7 +249,7 @@ if st.button('Run ChemSpace Sampler'):
             scatter_plot = sns.scatterplot(data=other_mols, x='PCA1', y='PCA2', s=100, palette='coolwarm', hue='Distance', alpha=0.7, legend=False, marker='o')
 
             # Increase size of start molecule marker and its edge color for emphasis
-            plt.scatter(pca_start[:,0], pca_start[:,1], color='red', edgecolor='black', marker='*', s=500, label='Start Molecule')
+            plt.scatter(pca_start[:,0], pca_start[:,1], color='red', edgecolor='black', marker='*', s=300, label='Start Molecule')
             # Create a custom legend for the start molecule
 
 
@@ -238,7 +258,7 @@ if st.button('Run ChemSpace Sampler'):
             plt.ylabel('PCA2', fontsize=10)
 
             # Create a custom legend for the start molecule
-            legend_marker = plt.Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markersize=15, markeredgecolor='black')
+            legend_marker = plt.Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markersize=10, markeredgecolor='black')
             plt.legend(handles=[legend_marker], labels=['Start Molecule'], loc='upper right')
             # Create colorbar
             norm = Normalize(other_mols['Distance'].min(), other_mols['Distance'].max())
