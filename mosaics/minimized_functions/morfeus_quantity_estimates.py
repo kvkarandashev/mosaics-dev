@@ -101,7 +101,7 @@ verbosity_dict = {
 }
 
 
-def xTB_singlepoint_res(
+def xTB_singlepoint_res_no_error_check(
     coordinates,
     nuclear_charges,
     accuracy=None,
@@ -126,8 +126,12 @@ def xTB_singlepoint_res(
         calc_obj.set_solvent(get_solvent(solvent))
     calc_obj.set_verbosity(verbosity_dict[verbosity])
 
+    return calc_obj.singlepoint()
+
+
+def xTB_singlepoint_res(*args, **kwargs):
     try:
-        return calc_obj.singlepoint()
+        return xTB_singlepoint_res_no_error_check(*args, **kwargs)
     except:
         return None
 

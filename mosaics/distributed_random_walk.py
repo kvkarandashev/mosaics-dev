@@ -1,5 +1,5 @@
 # Implementation of distributed version of MOSAiCS.
-# Inspiration: https://doi.org/10.1016/j.csda.2008.10.025 (frankly could only read freely available parts due to lack of access and would appreciate a PDF)
+# Inspiration: https://doi.org/10.1016/j.csda.2008.10.025
 # TODO: For now only implemented loky parallelization which is confined to one machine. If someone needs many-machine parallelization
 # it should be possible to implement mpi4py-based object treating several RandomWalkEnsemble objects the same way RandomWalkEnsemble treats RandomWalk objects.
 import numpy as np
@@ -73,13 +73,14 @@ def gen_subpopulation_propagation_result(
     return rw, intermediate_results, random.getstate(), np.random.get_state()
 
 
-class RandomWalkEnsemble:
+class DistributedRandomWalk:
     def __init__(
         self,
         num_processes=1,
         num_subpopulations=1,
         num_internal_global_steps=1,
         betas=None,
+        init_egc=None,
         init_egcs=None,
         init_tps=None,
         min_function=None,
@@ -95,12 +96,16 @@ class RandomWalkEnsemble:
         subpopulation_propagation_seed=None,
         subpopulation_random_rng_states=None,
         subpopulation_numpy_rng_states=None,
+        cloned_betas=True,
+        num_beta_subpopulation_clones=2,
         debug=False,
     ):
-        # Simulation parameters.
+        # Subpopulation parameters
         self.num_subpopulations = num_subpopulations
-        self.betas = betas
-        self.num_replicas = len(self.betas)
+        self.cloned_betas=cloned_betas
+        self.num_beta_subpopulation_clones=num_beta_subpopulation_clones
+        # Simulation parameters.
+        self.init_betas(betas)
         self.num_internal_global_steps = num_internal_global_steps
         self.min_function = min_function
         self.min_function_name = min_function_name
@@ -128,7 +133,9 @@ class RandomWalkEnsemble:
         self.num_processes = num_processes
         # Initial conditions.
         if init_tps is None:
-            assert init_egcs is not None
+            if init_egcs is None:
+                assert init_egc is not None
+                init_egcs=[deepcopy(init_egc) for _ in self.betas]
             init_tps = [TrajectoryPoint(egc=egc) for egc in init_egcs]
         self.current_trajectory_points = init_tps
         # Logs of relevant information.
@@ -159,6 +166,62 @@ class RandomWalkEnsemble:
         for del_key in ["betas", "init_tps", "init_egcs"]:
             if del_key in self.random_walk_kwargs:
                 del self.random_walk_kwargs[del_key]
+        # For storing statistics on move success.
+        self.num_attempted_cross_couplings = 0
+        self.num_valid_cross_couplings = 0
+        self.num_accepted_cross_couplings = 0
+
+        self.num_attempted_simple_moves = 0
+        self.num_valid_simple_moves = 0
+        self.num_accepted_simple_moves = 0
+
+        self.num_attempted_tempering_swaps = 0
+        self.num_accepted_tempering_swaps = 0
+
+    def init_cloned_betas(self, beta_input):
+        self.tot_num_clones=self.num_subpopulations*self.num_beta_subpopulation_clones
+        self.original_betas=np.array(beta_input)
+        betas=[]
+        for beta in beta_input:
+            betas+=[beta for _ in range(self.tot_num_clones)]
+        self.betas=np.array(betas)
+    def init_betas(self, beta_input):
+        if self.cloned_betas:
+            self.init_cloned_betas(beta_input)
+        else:
+            self.betas=beta_input
+        self.num_replicas=len(self.betas)
+
+    def largest_beta_ids(self):
+        if self.cloned_betas:
+            true_betas=self.original_betas
+        else:
+            true_betas=self.betas
+        max_beta=None
+        max_beta_id=None
+        for beta_id, beta in enumerate(true_betas):
+            if beta is None:
+                continue
+            if (max_beta is None) or (max_beta < beta):
+                max_beta=beta
+                max_beta_id=beta_id
+        if self.cloned_betas:
+            return np.array(range(self.tot_num_clones*max_beta_id, self.tot_num_clones*(max_beta_id+1)))
+        else:
+            return np.array([max_beta_id])
+
+    def add_to_move_statistics(self, random_walk_instance):
+        self.num_attempted_cross_couplings += random_walk_instance.num_attempted_cross_couplings
+        self.num_valid_cross_couplings += random_walk_instance.num_valid_cross_couplings
+        self.num_accepted_cross_couplings += random_walk_instance.num_accepted_cross_couplings
+
+        self.num_attempted_simple_moves += random_walk_instance.num_attempted_simple_moves
+        self.num_valid_simple_moves += random_walk_instance.num_valid_simple_moves
+        self.num_accepted_simple_moves += random_walk_instance.num_accepted_simple_moves
+
+        self.num_attempted_tempering_swaps += random_walk_instance.num_attempted_tempering_swaps
+        self.num_accepted_tempering_swaps += random_walk_instance.num_accepted_tempering_swaps
+
 
     def default_init_rng_states(self):
         if self.subpopulation_propagation_seed is None:
@@ -168,6 +231,19 @@ class RandomWalkEnsemble:
                 i + int(self.subpopulation_propagation_seed)
                 for i in range(self.num_subpopulations)
             ]
+
+    def generate_cloned_subpopulation_indices(self):
+        shuffled_indices=[]
+        for _ in self.original_betas:
+            clone_indices=[]
+            for subpop_id in range(self.num_subpopulations):
+                clone_indices+=[subpop_id for _ in range(self.num_beta_subpopulation_clones)]
+            random.shuffle(clone_indices)
+            shuffled_indices+=clone_indices
+        self.subpopulation_indices_list=[[] for _ in range(self.num_subpopulations)]
+        for replica_id, subpopulation_id in enumerate(shuffled_indices):
+            self.subpopulation_indices_list[subpopulation_id].append(replica_id)
+        self.subpopulation_indices_list=[np.array(subpopulation_indices) for subpopulation_indices in self.subpopulation_indices_list]
 
     def divide_into_subpopulations(self, indices_list):
         shuffled_indices_list = deepcopy(indices_list)
@@ -182,6 +258,9 @@ class RandomWalkEnsemble:
         Randomly generate indices of replicas in different subpopulations.
         Both greedy and exploratin replicas are divided equally among replicas.
         """
+        if self.cloned_betas:
+            self.generate_cloned_subpopulation_indices()
+            return
         all_greedy_indices = []
         all_exploration_indices = []
         for replica_id, beta in enumerate(self.betas):
@@ -247,7 +326,7 @@ class RandomWalkEnsemble:
                 cur_intermediate_results.sum_minfunc2[internal_replica_id]
                 / cur_intermediate_results.nsteps
             )
-            self.minfunc_stddev[true_replica_id] = (
+            self.minfunc_stddev[true_replica_id] = np.sqrt(
                 self.av_minfunc2[true_replica_id]
                 - self.av_minfunc[true_replica_id] ** 2
             )
@@ -308,6 +387,7 @@ class RandomWalkEnsemble:
             self.update_temporary_data(
                 subpopulation_indices, random_walk, intermediate_results
             )
+            self.add_to_move_statistics(random_walk)
             self.subpopulation_random_rng_states[
                 subpopulation_index
             ] = propagation_results[2]

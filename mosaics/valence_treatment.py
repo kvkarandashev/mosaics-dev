@@ -21,7 +21,6 @@ from .misc_procedures import (
     int_atom_checked,
     sorted_by_membership,
     sorted_tuple,
-    sorted_tuples,
 )
 
 
