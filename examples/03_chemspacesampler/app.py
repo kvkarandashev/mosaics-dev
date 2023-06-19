@@ -82,7 +82,7 @@ def str_to_tuple_list(string):
     return tuples
 
 
-descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP','CM']
+descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP','CM', 'MBDF']
 
 import streamlit as st
 
@@ -112,7 +112,7 @@ possible_elements = st.sidebar.multiselect(
     'Select allowed elements in the generated molecules',
     options=['C', 'O', 'N', 'F', 'P', 'S', 'Si', 'Br', 'Cl', 'B'],
     default=['C', 'O', 'N', 'F'],  help='Enter the elements that are allowed in the generated molecules.')
-nhatoms_range = st.sidebar.text_input('Number of heavy atoms (non-hydrogen)', value="13, 16", help='Enter the range of the number of heavy atoms that should be in the generated molecules.').split(', ')
+nhatoms_range = st.sidebar.text_input('Number of heavy atoms (non-hydrogen)', value="2, 16", help='Enter the range of the number of heavy atoms that should be in the generated molecules.').split(', ')
 synth_cut_soft, synth_cut_hard = st.sidebar.slider('Select soft and hard cutoff for Synthesizability (1 easy to 10 impossible to make) read the (?) for more info',
                                            min_value=1.0,
                                            max_value=10.0,
@@ -163,6 +163,8 @@ elif selected_descriptor == 'SOAP':
     chemspace_function = chemspace_potentials.chemspacesampler_SOAP
 elif selected_descriptor == 'CM':
     chemspace_function = chemspace_potentials.chemspacesampler_CM
+elif selected_descriptor == 'MBDF':
+    chemspace_function = chemspace_potentials.chemspacesampler_MBDF
 
 else:
     st.error('Unknown Descriptor selected')
