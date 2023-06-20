@@ -13,9 +13,9 @@ try:
     from dscribe.descriptors import SOAP
 except:
     print("local_space_sampling: ase or dscribe not installed")
-
-
-
+import pdb
+from mosaics.data import *
+import numba
 
 def ExplicitBitVect_to_NumpyArray(fp_vec):
     """
@@ -262,7 +262,7 @@ c4=-1j*(np.pi**0.5)*np.exp(-1/8)/(4*root2)
 a2b = 1.88973
 
 
-
+@numba.jit(nopython=True)
 def erfunc(z):
     t = 1.0 / (1.0 + 0.5 * np.abs(z))
     ans = 1 - t * np.exp( -z*z -  1.26551223 +
@@ -278,7 +278,7 @@ def erfunc(z):
     return ans
 
 
-
+@numba.jit(nopython=True)
 def hermite_polynomial(x, degree, a=1):
     if degree == 0:
         return 1
@@ -296,7 +296,7 @@ def hermite_polynomial(x, degree, a=1):
         return 16*x1 - 48*x2 + 12*a**2
 
 
-
+@numba.jit(nopython=False)
 def generate_data(size,z,atom,charges,coods,cutoff_r=12):
     """
     returns 2 and 3-body internal coordinates
@@ -338,7 +338,7 @@ def generate_data(size,z,atom,charges,coods,cutoff_r=12):
 
     return twob, threeb                        
 
-
+@numba.jit(nopython=True)
 def angular_integrals(size,threeb,alength=158,a=2,grid1=None,grid2=None,angular_scaling=2.4):
     """
     evaluates the 3-body functionals using the trapezoidal rule
@@ -375,7 +375,7 @@ def angular_integrals(size,threeb,alength=158,a=2,grid1=None,grid2=None,angular_
     return trapz
 
 
-
+@numba.jit(nopython=True)
 def radial_integrals(size,rlength,twob,step_r,a=1,normalized=False):
     """
     evaluates the 2-body functionals using the trapezoidal rule
@@ -418,7 +418,7 @@ def radial_integrals(size,rlength,twob,step_r,a=1,normalized=False):
     return trapz
 
 
-
+@numba.jit(nopython=True)
 def mbdf_local(charges,coods,grid1,grid2,rlength,alength,pad=29,step_r=0.1,cutoff_r=12,angular_scaling=2.4):
     """
     returns the local MBDF representation for a molecule
@@ -451,11 +451,18 @@ def mbdf_local(charges,coods,grid1,grid2,rlength,alength,pad=29,step_r=0.1,cutof
     return mat
 
 
-def mbdf_global(charges,coods,asize,rep_size,keys,grid1,grid2,rlength,alength,step_r=0.1,cutoff_r=12,angular_scaling=2.4):
+def mbdf_global(charges,coods,asize,rep_size,keys,grid1,grid2,step_r=0.1,step_a=0.02,cutoff_r=8.0,angular_scaling=4):
     """
     returns the flattened, bagged MBDF feature vector for a molecule
     """
     elements = {k:[[],k] for k in keys}
+
+    a2b = 1.88973
+
+    rlength = int(cutoff_r/step_r) + 1
+    alength = int(np.pi/step_a) + 1
+
+    coods, cutoff_r = a2b*coods, a2b*cutoff_r
 
     size = len(charges)
 
@@ -508,10 +515,9 @@ def mbdf_global(charges,coods,asize,rep_size,keys,grid1,grid2,rlength,alength,st
                 
             ind += asize[key]
 
-    return mat
-                        
+    return mat.ravel(order='F')  
 
-
+@numba.jit(nopython=True)
 def fourier_grid():
     
     angles = np.arange(0,np.pi,0.02)
@@ -523,7 +529,7 @@ def fourier_grid():
     return (3+(100*grid1)+(-200*grid2)+(-164*grid3),grid1)
 
 
-
+@numba.jit(nopython=True)
 def normalize(A,normal='mean'):
     """
     normalizes the functionals based on the given method
@@ -663,7 +669,7 @@ def generate_mbdf(nuclear_charges,coords,local=True,n_jobs=-1,pad=None,step_r=0.
             return mbdf
 
 
-
+@numba.jit(nopython=True)
 def wKDE(rep,bin,bandwidth,kernel,scaling=False):
     """
     returns the weighted kernel density estimate for a given array and bins
@@ -761,7 +767,7 @@ def generate_df(mbdf,nuclear_charges,bw=0.07,binsize=0.2,kernel='gaussian'):
     
     return kde
 
-
+@numba.jit(nopython=True)
 def generate_CM(cood,charges,pad):
     size=len(charges)
     cm=np.zeros((pad,pad))
@@ -795,8 +801,15 @@ def pad_vector(vec, N=10000):
         return vec
     
 
-def global_MBDG_wrapper(charges,coords):
-    
-    mbdf  = generate_mbdf(np.array([charges]),np.array([coords]))
+def global_MBDF_bagged_wrapper(charges,coords, params):
+    """
+    Wrapper function for generating the global MBDF representation for a molecule.
+    """
+    rep_size =  params['max_n']
+    cutoff_r =  a2b*8.0
+    grid1,grid2 = params['grid1'],params['grid2']
+    coords = a2b*coords
+    asize2 = params['asize2']
 
-    return pad_vector( generate_df(mbdf, np.array([charges])) )
+    
+    return mbdf_global(charges,coords,asize2,rep_size,asize2.keys(),grid1,grid2,cutoff_r=cutoff_r)

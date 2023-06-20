@@ -21,7 +21,7 @@ morfeus_args_single = {
 
 
 def make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, possible_elements, forbidden_bonds, nhatoms_range, synth_cut_soft,synth_cut_hard, ensemble, mmff_check):
-    NPAR = 4
+    NPAR = 1
     if selected_descriptor == 'RDKit':
 
         params = {

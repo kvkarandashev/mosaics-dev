@@ -669,7 +669,7 @@ class potential_MBDF:
             else:
                 
                 if coords.shape[0] == charges.shape[0]:
-                    X_test = global_MBDG_wrapper(charges, coords)
+                    X_test = global_MBDF_bagged_wrapper(charges, coords,self.params)
                 else:
                     return None
                 
@@ -677,7 +677,7 @@ class potential_MBDF:
             print(e)
             print("Error in 3d conformer sampling")
             return None
-        #pdb.set_trace()
+        
         distance = norm(X_test - self.X_init)
         V = self.potential(distance) + V_synth
 
@@ -1398,7 +1398,7 @@ class Analyze_Chemspace:
             else:
                 for TP in TP_ALL:
                     try:
-                        X.append(global_MBDG_wrapper(TP["nuclear_charges"],TP["coordinates"]))
+                        X.append(global_MBDF_bagged_wrapper(TP["nuclear_charges"],TP["coordinates"], params))
                     except:
                         X.append(np.array([np.nan]))
                 
@@ -1826,7 +1826,7 @@ def chemspacesampler_SOAP(smiles, params=None):
 
 def chemspacesampler_BoB(smiles, params=None):
 
-    init_egc, tp,rdkit_init =  initialize_fml_from_smiles(smiles, ensemble=params['ensemble'])
+    
 
     if params is None:
         num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
@@ -1851,7 +1851,7 @@ def chemspacesampler_BoB(smiles, params=None):
             'ensemble': True,
             "verbose": False,
         }
-    
+    init_egc, tp,rdkit_init =  initialize_fml_from_smiles(smiles, ensemble=params['ensemble'])
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
     symbols = [str_atom_corr(charge) for charge in charges]
     
@@ -1975,19 +1975,35 @@ def chemspacesampler_MBDF(smiles, params=None):
             'ensemble': True,
             "verbose": True,
         }
-    
     init_egc, tp,rdkit_init =  initialize_fml_from_smiles(smiles, ensemble=params['ensemble'])
     coords, charges    = tp["coordinates"], tp["nuclear_charges"]
     symbols = [str_atom_corr(charge) for charge in charges]
+    
+    
+    asize, max_n = max_element_counts([symbols*3])
+    asize_copy = asize.copy()
+    elements_to_exclude = ['H']
+    elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
 
+    if elements_not_excluded:  # checks if list is not empty
+        avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(elements_not_excluded)
+    else:
+        avg_value = 0  # or any other value you consider appropriate when there are no elements
+
+    for element in params['possible_elements']:
+        if element not in asize:
+            asize[element] = 2*int(avg_value)
+
+    params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())    
+    params["asize2"] = {NUCLEAR_CHARGE[k]:v for k,v in zip(asize.keys(),asize.values())}
+    params['grid1'], params['grid2'] = fourier_grid()
 
     
     if params['ensemble']:
         pass
         #X         = fml_rep_MBDF(coords, charges, tp["rdkit_Boltzmann"], params)
     else:
-        X     = global_MBDG_wrapper(charges, coords)
-    
+        X     = global_MBDF_bagged_wrapper(charges, coords, params)
     min_func  = potential_MBDF(X, params)
     respath   = tempfile.mkdtemp()
     if params['NPAR'] > 1:
