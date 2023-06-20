@@ -147,7 +147,13 @@ def fml_rep_CM(coords, charges, WEIGHTS, pad):
     X = np.average(X, axis=0, weights=WEIGHTS)
     return X
     
-
+def fml_rep_MBDF(coords, charges, WEIGHTS, params):
+    X = []
+    for i in range(len(coords)):
+        X.append(global_MBDF_bagged_wrapper(charges, coords[i], params))
+    X = np.array(X)
+    X = np.average(X, axis=0, weights=WEIGHTS)
+    return X
 
 class potential_SOAP:
     """
@@ -659,11 +665,9 @@ class potential_MBDF:
                 return None
             
             if self.ensemble:
-                    #        mbdf = generate_mbdf(np.array([charges]), np.array([coords]))
-                    #X_test = generate_df(mbdf, np.array([charges]))
+
                 if coords.shape[1] == charges.shape[0]:
-                    pass
-                    #X_test =   fml_rep_CM(coords, charges, output["rdkit_Boltzmann"], pad=self.params["max_n"])
+                    X_test =   fml_rep_MBDF(coords, charges, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
             else:
@@ -1392,8 +1396,15 @@ class Analyze_Chemspace:
         elif params["rep_name"] == "MBDF":
             X = []
             if params['ensemble']:
-                #TODO
-                pass
+
+                for TP in TP_ALL:
+                    try:
+                        X.append(fml_rep_MBDF(TP["coordinates"], TP["nuclear_charges"], TP["rdkit_Boltzmann"], params))
+                    except:
+                        X.append(np.array([np.nan]))
+                
+                X = np.array(X)
+                return X
             
             else:
                 for TP in TP_ALL:
@@ -2000,10 +2011,10 @@ def chemspacesampler_MBDF(smiles, params=None):
 
     
     if params['ensemble']:
-        pass
-        #X         = fml_rep_MBDF(coords, charges, tp["rdkit_Boltzmann"], params)
+        X         = fml_rep_MBDF(coords, charges, tp["rdkit_Boltzmann"], params)
     else:
-        X     = global_MBDF_bagged_wrapper(charges, coords, params)
+        X         = global_MBDF_bagged_wrapper(charges, coords, params)
+    
     min_func  = potential_MBDF(X, params)
     respath   = tempfile.mkdtemp()
     if params['NPAR'] > 1:
