@@ -40,7 +40,9 @@ from mosaics.minimized_functions.morfeus_quantity_estimates import (
     morfeus_FF_xTB_code_quants,
 )
 from tqdm import tqdm
-from representations import *
+from mosaics.minimized_functions.representations import *
+
+#/home/jan/executables/mosaics/examples/03_chemspacesampler/representations.py
 
 def trajectory_point_to_canonical_rdkit(tp_in, SMILES_only=False):
     """
