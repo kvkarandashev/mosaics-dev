@@ -25,30 +25,32 @@ forbidden_bonds = [
 ]
 
 NCPUs = 20
-num_subpopulations=NCPUs
+num_subpopulations = NCPUs
 
 # Whether we are using cloned betas.
 if len(sys.argv) == 1:
-    cloned_betas=True
+    cloned_betas = True
 else:
-    cloned_betas=(sys.argv[1] == "True")
+    cloned_betas = sys.argv[1] == "True"
 
 if cloned_betas:
-    num_exploration_betas=16
-    num_greedy_betas=1
+    num_exploration_betas = 16
+    num_greedy_betas = 1
 else:
-    num_exploration_betas=256
-    num_greedy_betas=16
-betas = gen_exp_beta_array(num_greedy_betas, 8.0, num_exploration_betas, max_real_beta=0.125)
+    num_exploration_betas = 256
+    num_greedy_betas = 16
+betas = gen_exp_beta_array(
+    num_greedy_betas, 8.0, num_exploration_betas, max_real_beta=0.125
+)
 
-nbetas=len(betas)
-num_beta_subpopulation_clones=2
+nbetas = len(betas)
+num_beta_subpopulation_clones = 2
 if cloned_betas:
-    num_replicas=nbetas*num_subpopulations*num_beta_subpopulation_clones
+    num_replicas = nbetas * num_subpopulations * num_beta_subpopulation_clones
 else:
-    num_replicas=nbetas
+    num_replicas = nbetas
 
-num_propagations = 20
+num_propagations = 10
 
 
 randomized_change_params = {
@@ -89,11 +91,12 @@ drw = DistributedRandomWalk(
     num_internal_global_steps=200,
     global_step_params=global_step_params,
     num_saved_candidates=num_saved_candidates,
+    greedy_delete_checked_paths=True,
     debug=True,
     randomized_change_params=randomized_change_params,
     subpopulation_propagation_seed=1,
     cloned_betas=cloned_betas,
-    num_beta_subpopulation_clones=num_beta_subpopulation_clones
+    num_beta_subpopulation_clones=num_beta_subpopulation_clones,
 )
 
 
