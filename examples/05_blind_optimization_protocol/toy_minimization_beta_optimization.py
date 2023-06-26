@@ -54,7 +54,7 @@ global_step_params = {
     "prob_dict": {"simple": 0.5, "genetic": 0.25, "tempering": 0.25},
 }
 
-num_processes = 8  # 32
+num_processes = 32
 num_subpopulations = 32
 num_exploration_replicas = 16
 num_greedy_replicas = 1

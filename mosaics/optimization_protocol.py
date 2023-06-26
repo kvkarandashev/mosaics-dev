@@ -33,6 +33,8 @@ class OptimizationProtocol:
         save_random_walk_logs=False,
         beta_change_multiplier_bounds=(1.0, 2.0),
         init_beta_guess=1.0,
+        init_lower_beta_guess=None,
+        init_upper_beta_guess=None,
         target_largest_beta_minfunc_eff_std=None,
         target_tempering_acceptance_probability_interval=None,
         target_extrema_high_T_log_prob_interval=None,
@@ -54,8 +56,12 @@ class OptimizationProtocol:
         # Beta parameters.
         self.num_exploration_replicas = num_exploration_replicas
         self.num_greedy_replicas = num_greedy_replicas
-        self.lower_beta_value = init_beta_guess
-        self.upper_beta_value = init_beta_guess
+        if init_lower_beta_guess is None:
+            init_lower_beta_guess = init_beta_guess
+        if init_upper_beta_guess is None:
+            init_upper_beta_guess = init_beta_guess
+        self.lower_beta_value = init_lower_beta_guess
+        self.upper_beta_value = init_upper_beta_guess
         # Replica propagation parameters.
         self.randomized_change_params = randomized_change_params
         self.global_step_params = global_step_params
