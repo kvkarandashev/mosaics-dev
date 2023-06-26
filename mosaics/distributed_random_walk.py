@@ -12,6 +12,7 @@ from .random_walk import (
 )
 from sortedcontainers import SortedList
 from loky import get_reusable_executor
+from loky.process_executor import TerminatedWorkerError
 from itertools import repeat
 from sortedcontainers import SortedList
 import random, os
@@ -128,6 +129,7 @@ def gen_subpopulation_propagation_result(
     synchronization_signal_file=None,
     synchronization_check_frequency=None,
     extra_intermediate_results_kwargs={},
+    num_extra_rng_calls=0,
 ):
     # Create the random walk for propagation.
     rw = RandomWalk(init_tps=init_tps, betas=betas, **misc_random_walk_kwargs)
@@ -139,6 +141,12 @@ def gen_subpopulation_propagation_result(
         else:
             random.setstate(random_rng_state)
             np.random.set_state(numpy_rng_state)
+    # Do some extra RNG calls if we need to prevent the trajectory from re-encountering a problematic chemical graph.
+    if num_extra_rng_calls != 0:
+        for _ in range(num_extra_rng_calls):
+            _ = random.random()
+            _ = np.random.random()
+
     intermediate_results = SubpopulationPropagationIntermediateResults(
         rw, **extra_intermediate_results_kwargs
     )
@@ -186,6 +194,8 @@ class DistributedRandomWalk:
         cloned_betas=True,
         num_beta_subpopulation_clones=2,
         extra_intermediate_results_kwargs={},
+        terminated_worker_max_restart_number=0,
+        terminated_worker_num_extra_rng_calls=1,
         debug=False,
     ):
         # Subpopulation parameters
@@ -221,6 +231,7 @@ class DistributedRandomWalk:
             self.subpopulation_numpy_rng_states = self.default_init_rng_states()
         # Parallelization.
         self.num_processes = num_processes
+        self.executor = get_reusable_executor(max_workers=self.num_processes)
         # Logs of relevant information.
         self.save_logs = save_logs
         if self.save_logs:
@@ -264,6 +275,23 @@ class DistributedRandomWalk:
         self.initialize_current_trajectory_points(
             init_tps=init_tps, init_egcs=init_egcs, init_egc=init_egc
         )
+
+        self.terminated_worker_max_restart_number = terminated_worker_max_restart_number
+        self.terminated_worker_num_extra_rng_calls = (
+            terminated_worker_num_extra_rng_calls
+        )
+        self.subpopulation_num_extra_rng_calls = np.zeros(
+            (self.num_subpopulations,), dtype=int
+        )
+        self.subpopulation_num_attempted_restarts = np.zeros(
+            (self.num_subpopulations,), dtype=int
+        )
+        self.subpopulation_propagation_completed = np.zeros(
+            (self.num_subpopulations,), dtype=int
+        )
+        self.subpopulation_propagation_results_list = [
+            None for _ in range(self.num_subpopulations)
+        ]
 
     def init_saved_temp_data(self):
         self.worst_accepted_candidates = None
@@ -516,13 +544,29 @@ class DistributedRandomWalk:
             ):
                 self.worst_accepted_candidates[true_id] = worst_cand
 
+    def completed_subpopulation_sublist(self, full_list):
+        sublist = []
+        for completed, element in zip(
+            self.subpopulation_propagation_completed, full_list
+        ):
+            if not completed:
+                sublist.append(element)
+        return sublist
+
+    def num_incomplete_calculations(self):
+        return sum(np.logical_not(self.subpopulation_propagation_completed))
+
     def subpopulation_propagation_inputs(self):
         """
         Arguments used in loky's map.
         """
         all_init_tps = []
         all_betas = []
-        for subpopulation_indices in self.subpopulation_indices_list:
+        for subpopulation_id, subpopulation_indices in enumerate(
+            self.subpopulation_indices_list
+        ):
+            if self.subpopulation_propagation_completed[subpopulation_id]:
+                continue
             # The initial trajectory points and the beta values.
             cur_init_tps = []
             cur_betas = []
@@ -535,8 +579,8 @@ class DistributedRandomWalk:
         input_list = [
             all_init_tps,
             all_betas,
-            self.subpopulation_random_rng_states,
-            self.subpopulation_numpy_rng_states,
+            self.completed_subpopulation_sublist(self.subpopulation_random_rng_states),
+            self.completed_subpopulation_sublist(self.subpopulation_numpy_rng_states),
         ]
         for other_arg in [
             self.num_internal_global_steps,
@@ -546,7 +590,10 @@ class DistributedRandomWalk:
             self.synchronization_signal_file,
             self.extra_intermediate_results_kwargs,
         ]:
-            input_list.append(repeat(other_arg, self.num_subpopulations))
+            input_list.append(repeat(other_arg, self.num_incomplete_calculations()))
+        input_list.append(
+            self.completed_subpopulation_sublist(self.subpopulation_num_extra_rng_calls)
+        )
         return input_list
 
     def update_current_trajectory_points(self, subpopulation_indices, random_walk):
@@ -555,21 +602,58 @@ class DistributedRandomWalk:
                 random_walk.cur_tps[internal_replica_id]
             )
 
-    def propagate_subpopulations(self):
-        executor = get_reusable_executor(max_workers=self.num_processes)
-        if self.synchronization_signal_file is not None:
-            terminal_run(["rm", "-f", self.synchronization_signal_file])
-        propagation_results_iterator = executor.map(
+    def attempt_subpopulation_propagation(
+        self,
+    ):
+        all_propagated_subpopulation_ids = np.where(
+            np.logical_not(self.subpopulation_propagation_completed)
+        )[0]
+        results_iterator = self.executor.map(
             gen_subpopulation_propagation_result,
             *self.subpopulation_propagation_inputs()
         )
+        if self.synchronization_signal_file is not None:
+            terminal_run(["rm", "-f", self.synchronization_signal_file])
+        propagated_subpopulation_id = 0
+        while True:
+            if propagated_subpopulation_id == len(all_propagated_subpopulation_ids):
+                break
+            subpopulation_id = all_propagated_subpopulation_ids[
+                propagated_subpopulation_id
+            ]
+            try:
+                cur_res = results_iterator.__next__()
+                self.subpopulation_propagation_completed[subpopulation_id] = True
+                self.subpopulation_propagation_results_list[subpopulation_id] = cur_res
+            except StopIteration:
+                break
+            except TerminatedWorkerError:
+                self.subpopulation_num_attempted_restarts[subpopulation_id] += 1
+                if (
+                    self.subpopulation_num_attempted_restarts[subpopulation_id]
+                    > self.terminated_worker_max_restart_number
+                ):
+                    raise TerminatedWorkerError
+                self.subpopulation_num_extra_rng_calls[subpopulation_id] += 1
+            propagated_subpopulation_id += 1
+
+    def generate_all_subpopulation_propagation_results(self):
+        self.subpopulation_propagation_completed[:] = False
+        self.subpopulation_num_extra_rng_calls[:] = 0
+        self.subpopulation_num_attempted_restarts[:] = 0
+        while False in self.subpopulation_propagation_completed:
+            self.attempt_subpopulation_propagation()
+
+    def propagate_subpopulations(self):
         if self.save_logs:
             subpopulation_propagation_latest_logs = []
         if self.track_av_tempering_neighbors_acceptance_probability:
             self.av_tempering_neighbors_acceptance_probability[:] = 0.0
 
+        self.generate_all_subpopulation_propagation_results()
+
         for subpopulation_index, propagation_results in enumerate(
-            propagation_results_iterator
+            self.subpopulation_propagation_results_list
         ):
             random_walk = propagation_results[0]
             intermediate_results = propagation_results[1]

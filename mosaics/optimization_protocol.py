@@ -37,18 +37,27 @@ class OptimizationProtocol:
         init_upper_beta_guess=None,
         target_largest_beta_minfunc_eff_std=None,
         target_tempering_acceptance_probability_interval=None,
-        target_extrema_high_T_log_prob_interval=None,
+        target_extrema_lowest_beta_log_prob_interval=None,
         significant_average_minfunc_change_rel_stddev=None,
         init_egcs=None,
         init_egc=None,
         saved_candidates_max_difference=None,
         num_saved_candidates=1,
+        terminated_worker_max_restart_number=0,
+        terminated_worker_num_extra_rng_calls=1,
     ):
         """
         A very basic protocol for optimizing beta parameters during the simulation.
         Lowest temperature is adjusted for the standard deviation of minimized function in the corresponding ensemble to match a user-defined interval
         around a value of the order of the optimized model's error.
         Highest temperature is adjusted to match a user-defined interval in acceptance probability efficiency across the temperature ladder.
+        target_largest_beta_minfunc_eff_std - target range for effective standard derivation of minimized function over largest beta in trajectory.
+            Should approximately correspond to how accurately we would care to adjust the minimized function.
+        target_extrema_lowest_beta_log_prob_interval - target range for logarithm of ratio of Boltzmann probability of the largest minimized function value accepted
+            by the code and minimized function average over the lowest beta replica.
+        significant_average_minfunc_change_rel_stddev - if normalized largest deviation of minimized function average over largest beta replicas
+            deviates from the iteration mean by more than significant_average_minfunc_change_rel_stddev*(effective standard deviation) then
+            iteration is considered non-equilibrated and unfit to judge whether beta values should be changed.
         """
         # What is minimized.
         self.minimized_function = minimized_function
@@ -81,6 +90,10 @@ class OptimizationProtocol:
         self.saved_candidates_max_difference = saved_candidates_max_difference
         self.num_saved_candidates = num_saved_candidates
         self.save_random_walk_logs = save_random_walk_logs
+        self.terminated_worker_max_restart_number = terminated_worker_max_restart_number
+        self.terminated_worker_num_extra_rng_calls = (
+            terminated_worker_num_extra_rng_calls
+        )
         self.init_random_walk(
             init_egc=init_egc,
             init_egcs=init_egcs,
@@ -93,8 +106,8 @@ class OptimizationProtocol:
         self.target_tempering_acceptance_probability_interval = (
             target_tempering_acceptance_probability_interval
         )
-        self.target_extrema_high_T_log_prob_interval = (
-            target_extrema_high_T_log_prob_interval
+        self.target_extrema_lowest_beta_log_prob_interval = (
+            target_extrema_lowest_beta_log_prob_interval
         )
         assert (
             self.target_largest_beta_minfunc_eff_std[1]
@@ -172,6 +185,8 @@ class OptimizationProtocol:
                 greedy_delete_checked_paths=self.greedy_delete_checked_paths,
                 extra_intermediate_results_kwargs=extra_intermediate_results_kwargs,
                 save_logs=self.save_random_walk_logs,
+                terminated_worker_max_restart_number=self.terminated_worker_max_restart_number,
+                terminated_worker_num_extra_rng_calls=self.terminated_worker_num_extra_rng_calls,
             )
         else:
             raise Exception("Using non-distributed random walks not implemented yet.")
@@ -262,7 +277,7 @@ class OptimizationProtocol:
             self.lower_beta_value *= beta_change_multiplier
         return beta_changed
 
-    def high_T_extrema_rel_prob_log(self):
+    def lowest_beta_extrema_rel_prob_log(self):
         drw = self.distributed_random_walk
         largest_extremum = max(cand.func_val for cand in drw.worst_accepted_candidates)
         smallest_beta_av_minfunc = np.mean(
@@ -278,15 +293,15 @@ class OptimizationProtocol:
 
     def check_extrema_availability(self):
         """
-        Check that the smallest beta replica can access the extrema of chemical space with ease regulated by user via target_extrema_high_T_log_prob_interval
+        Check that the smallest beta replica can access the extrema of chemical space with ease regulated by user via target_extrema_lowest_beta_log_prob_interval
         attribute.
         """
-        log_prob = self.high_T_extrema_rel_prob_log()
+        log_prob = self.lowest_beta_extrema_rel_prob_log()
         smallest_beta_too_small = (
-            log_prob < self.target_extrema_high_T_log_prob_interval[0]
+            log_prob < self.target_extrema_lowest_beta_log_prob_interval[0]
         )
         smallest_beta_too_large = (
-            log_prob > self.target_extrema_high_T_log_prob_interval[1]
+            log_prob > self.target_extrema_lowest_beta_log_prob_interval[1]
         )
         beta_changed = smallest_beta_too_small or smallest_beta_too_large
         if beta_changed:
@@ -301,10 +316,10 @@ class OptimizationProtocol:
         return beta_changed
 
     def check_smallest_beta(self):
-        if self.target_extrema_high_T_log_prob_interval is not None:
+        if self.target_extrema_lowest_beta_log_prob_interval is not None:
             return self.check_extrema_availability()
         raise Exception(
-            "For now smallest beta is only adjusted based on target_extrema_high_T_log_prob_interval."
+            "For now smallest beta is only adjusted based on target_extrema_lowest_beta_log_prob_interval."
         )
 
     def clear_random_walk_temp_data(self):
