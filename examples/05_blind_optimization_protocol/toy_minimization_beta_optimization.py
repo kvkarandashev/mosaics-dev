@@ -78,7 +78,7 @@ opt_protocol = OptimizationProtocol(
     beta_change_multiplier_bounds=(1.0, 4.0),
     init_beta_guess=1.0,
     target_largest_beta_minfunc_eff_std=target_largest_beta_minfunc_eff_std,
-    target_extrema_lowest_beta_log_prob_interval=(
+    target_extrema_smallest_beta_log_prob_interval=(
         0.5,
         2.0,
     ),  # target_tempering_acceptance_probability_interval=(0.25, 0.5),
@@ -109,7 +109,7 @@ for iteration_id in opt_protocol:
     print("___Iteration equilibrated:", opt_protocol.equilibrated)
     print(
         "___Extrema/average probability density log:",
-        opt_protocol.lowest_beta_extrema_rel_prob_log(),
+        opt_protocol.smallest_beta_extrema_rel_prob_log(),
     )
 
 print("Final best candidates:")
