@@ -351,11 +351,12 @@ class OptimizationProtocol:
             * largest_real_beta_eff_std
         )
 
-        beta_changed = False
         if self.equilibrated:
-            beta_changed = self.check_largest_real_beta()
-            if not beta_changed:
-                beta_changed = self.check_smallest_beta()
+            largest_beta_changed = self.check_largest_real_beta()
+            smallest_beta_changed = self.check_smallest_beta()
+            beta_changed = largest_beta_changed or smallest_beta_changed
+        else:
+            beta_changed = False
         self.best_candidate_log.append(deepcopy(self.current_best_candidate()))
         self.new_best_candidate_obtained = (
             self.best_candidate_log[-1] != self.best_candidate_log[-2]
