@@ -359,11 +359,25 @@ class DistributedRandomWalk:
         else:
             return np.array([true_beta_id])
 
+    def true_beta_val_ids2beta_ids(self, true_beta_val, true_beta_id):
+        all_true_beta_ids = self.complete_with_equal_betas(true_beta_val, true_beta_id)
+        output = self.true_beta_id2beta_ids(all_true_beta_ids[0])
+        for other_beta_id in all_true_beta_ids[1:]:
+            output = np.append(output, self.true_beta_id2beta_ids(other_beta_id))
+        return output
+
     def true_betas(self):
         if self.cloned_betas:
             return self.original_betas
         else:
             return self.betas
+
+    def complete_with_equal_betas(self, beta_val, beta_id):
+        output = [beta_id]
+        for other_beta_id, other_beta in enumerate(self.true_betas()):
+            if (other_beta_id != beta_id) and (other_beta == beta_val):
+                output.append(other_beta_id)
+        return output
 
     def largest_beta_ids(self):
         max_beta = None
@@ -374,7 +388,8 @@ class DistributedRandomWalk:
             if (max_beta is None) or (max_beta < beta):
                 max_beta = beta
                 max_beta_id = beta_id
-        return self.true_beta_id2beta_ids(max_beta_id)
+
+        return self.true_beta_val_ids2beta_ids(max_beta, max_beta_id)
 
     def smallest_beta_ids(self):
         min_beta = None
@@ -382,10 +397,10 @@ class DistributedRandomWalk:
         for beta_id, beta in enumerate(self.true_betas()):
             if beta is None:
                 continue
-            if (min_beta is None) or (min_beta < beta):
+            if (min_beta is None) or (min_beta > beta):
                 min_beta = beta
                 min_beta_id = beta_id
-        return self.true_beta_id2beta_ids(min_beta_id)
+        return self.true_beta_val_ids2beta_ids(min_beta, min_beta_id)
 
     def add_to_move_statistics(self, random_walk_instance):
         self.num_attempted_cross_couplings += (

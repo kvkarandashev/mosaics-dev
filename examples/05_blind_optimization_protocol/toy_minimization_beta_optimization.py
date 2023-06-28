@@ -98,19 +98,29 @@ for iteration_id in opt_protocol:
         "___Beta bounds:", opt_protocol.lower_beta_value, opt_protocol.upper_beta_value
     )
     print(
-        "___Largest real beta minimized function mean and effective std:",
+        "___Largest real beta minimized function mean, effective std, and equilibration:",
         opt_protocol.largest_beta_iteration_av_minfunc(),
         opt_protocol.largest_real_beta_eff_std(),
+        opt_protocol.largest_beta_equilibrated,
+    )
+    print(
+        "___Smallest real beta minimized function mean, effective std, and equilibration:",
+        opt_protocol.smallest_beta_iteration_av_minfunc(),
+        opt_protocol.smallest_real_beta_eff_std(),
+        opt_protocol.smallest_beta_equilibrated,
     )
     print(
         "___Average tempering neighbor acceptance probability:",
         opt_protocol.average_tempering_neighbor_acceptance_probability(),
     )
-    print("___Iteration equilibrated:", opt_protocol.equilibrated)
     print(
         "___Extrema/average probability density log:",
         opt_protocol.smallest_beta_extrema_rel_prob_log(),
     )
+    print("___Sanity check:")
+    drw = opt_protocol.distributed_random_walk
+    print("___Largest beta ids:", drw.largest_beta_ids())
+    print("___Smallest beta ids:", drw.smallest_beta_ids())
 
 print("Final best candidates:")
 for cand_id, candidate in enumerate(opt_protocol.saved_candidates()):

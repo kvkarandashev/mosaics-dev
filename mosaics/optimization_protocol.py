@@ -39,6 +39,8 @@ class OptimizationProtocol:
         target_tempering_acceptance_probability_interval=None,
         target_extrema_smallest_beta_log_prob_interval=None,
         significant_average_minfunc_change_rel_stddev=None,
+        signif_av_minfunc_change_rel_stddev_largest_beta=None,
+        signif_av_minfunc_change_rel_stddev_smallest_beta=None,
         init_egcs=None,
         init_egc=None,
         saved_candidates_max_difference=None,
@@ -117,12 +119,41 @@ class OptimizationProtocol:
         self.significant_average_minfunc_change_rel_stddev = (
             significant_average_minfunc_change_rel_stddev
         )
+        if signif_av_minfunc_change_rel_stddev_largest_beta is None:
+            self.signif_av_minfunc_change_rel_stddev_largest_beta = (
+                significant_average_minfunc_change_rel_stddev
+            )
+        else:
+            self.signif_av_minfunc_change_rel_stddev_largest_beta = (
+                signif_av_minfunc_change_rel_stddev_largest_beta
+            )
+        if signif_av_minfunc_change_rel_stddev_smallest_beta is None:
+            self.signif_av_minfunc_change_rel_stddev_smallest_beta = (
+                significant_average_minfunc_change_rel_stddev
+            )
+        else:
+            self.signif_av_minfunc_change_rel_stddev_smallest_beta = (
+                signif_av_minfunc_change_rel_stddev_smallest_beta
+            )
         # Current status.
-        self.equilibrated = False
+        self.largest_beta_equilibrated = False
+        self.smallest_beta_equilibrated = False
         self.new_best_candidate_obtained = False
 
         # Attributes used to track optimization progress and update beta values.
         self.init_iteration_logs()
+
+    def get_initial_average(self, beta_ids):
+        init_av_minfunc = 0.0
+        for beta_id in beta_ids:
+            considered_tp = self.distributed_random_walk.current_trajectory_points[
+                beta_id
+            ]
+            init_av_minfunc += considered_tp.calculated_data[
+                self.minimized_function_name
+            ]
+        init_av_minfunc /= len(beta_ids)
+        return init_av_minfunc
 
     def init_iteration_logs(self):
         """
@@ -131,17 +162,15 @@ class OptimizationProtocol:
         self.best_candidate_log = [deepcopy(self.current_best_candidate())]
         self.num_stagnating_iterations = 0
         self.iteration_counter = 0
-        largest_beta_ids = self.distributed_random_walk.largest_beta_ids()
-        init_largest_beta_av_minfunc = 0.0
-        for largest_beta_id in largest_beta_ids:
-            considered_tp = self.distributed_random_walk.current_trajectory_points[
-                largest_beta_id
-            ]
-            init_largest_beta_av_minfunc += considered_tp.calculated_data[
-                self.minimized_function_name
-            ] / len(largest_beta_ids)
+        drw = self.distributed_random_walk
         # Average of minimized function over largest real beta replicas over an interation with the same beta.
-        self.largest_beta_iteration_av_minfunc_log = [init_largest_beta_av_minfunc]
+        # TODO if I implement restart make sure this is overridden.
+        self.largest_beta_iteration_av_minfunc_log = [
+            self.get_initial_average(drw.largest_beta_ids())
+        ]
+        self.smallest_beta_iteration_av_minfunc_log = [
+            self.get_initial_average(drw.smallest_beta_ids())
+        ]
         # Saves averages of minimized function over largest and smallest real beta replicas for a given Monte Carlo step.
         self.iter_tot_num_global_steps = (
             self.num_internal_global_steps * self.num_intermediate_propagations
@@ -244,14 +273,21 @@ class OptimizationProtocol:
             self.distributed_random_walk.av_tempering_neighbors_acceptance_probability
         )
 
+    def replica_eff_std(self, running_av_minfunc, beta_ids):
+        # Calculate effective std of average over a beta value, then readjust to std of individual beta values.
+        std_average_multiplier = np.sqrt(float(len(beta_ids)))
+        return np.std(running_av_minfunc) * std_average_multiplier
+
     def largest_real_beta_eff_std(self):
-        # Calculate effective std of average over largest beta values, then readjust to std of individual beta values.
-        std_average_multiplier = np.sqrt(
-            float(len(self.distributed_random_walk.largest_beta_ids()))
+        return self.replica_eff_std(
+            self.largest_beta_iteration_running_av_minfunc,
+            self.distributed_random_walk.largest_beta_ids(),
         )
-        return (
-            np.std(self.largest_beta_iteration_running_av_minfunc)
-            * std_average_multiplier
+
+    def smallest_real_beta_eff_std(self):
+        return self.replica_eff_std(
+            self.smallest_beta_iteration_running_av_minfunc,
+            self.distributed_random_walk.smallest_beta_ids(),
         )
 
     def randomized_beta_change_multiplier(self):
@@ -272,15 +308,12 @@ class OptimizationProtocol:
                 beta_change_multiplier **= -1
             # Move the entire temperature ladder to adjust the largest beta stddev.
             self.upper_beta_value *= beta_change_multiplier
-            self.lower_beta_value *= beta_change_multiplier
         return beta_changed
 
     def smallest_beta_extrema_rel_prob_log(self):
         drw = self.distributed_random_walk
         largest_extremum = max(cand.func_val for cand in drw.worst_accepted_candidates)
-        smallest_beta_av_minfunc = np.mean(
-            self.smallest_beta_iteration_running_av_minfunc
-        )
+        smallest_beta_av_minfunc = self.smallest_beta_iteration_av_minfunc_log[-1]
         log_prob = drw.true_betas()[-1] * (
             largest_extremum - smallest_beta_av_minfunc
         )  # Should be positive.
@@ -288,6 +321,9 @@ class OptimizationProtocol:
 
     def largest_beta_iteration_av_minfunc(self):
         return np.mean(self.largest_beta_iteration_running_av_minfunc)
+
+    def smallest_beta_iteration_av_minfunc(self):
+        return np.mean(self.smallest_beta_iteration_running_av_minfunc)
 
     def check_extrema_availability(self):
         """
@@ -307,10 +343,14 @@ class OptimizationProtocol:
             if smallest_beta_too_large:
                 self.lower_beta_value /= beta_change_multiplier
             else:
-                self.lower_beta_value = min(
-                    self.upper_beta_value,
-                    self.lower_beta_value * beta_change_multiplier,
-                )
+                if self.lower_beta_value == self.upper_beta_value:
+                    return False
+                self.lower_beta_value *= beta_change_multiplier
+        if self.lower_beta_value > self.upper_beta_value:
+            # Note that we are counting on check_extrema_availability to be
+            # called after check_largest_real_beta
+            self.lower_beta_value = self.upper_beta_value
+            beta_changed = True
         return beta_changed
 
     def check_smallest_beta(self):
@@ -325,38 +365,66 @@ class OptimizationProtocol:
         drw.worst_accepted_candidates = None
         drw.minfunc_val_log = None
 
+    def replicas_equilibrated(
+        self, av_minfunc_log, std_minfunc, signif_prop_coeff, beta_ids
+    ):
+        latest_av_minfunc = av_minfunc_log[-1]
+        previous_av_minfunc = av_minfunc_log[-2]
+        step_num_clones_normalization = np.sqrt(
+            float(self.iter_tot_num_global_steps * len(beta_ids))
+        )
+        return (
+            np.abs(previous_av_minfunc - latest_av_minfunc)
+            * step_num_clones_normalization
+            < signif_prop_coeff * std_minfunc
+        )
+
+    def check_largest_beta_equilibrated(self):
+        return self.replicas_equilibrated(
+            self.largest_beta_iteration_av_minfunc_log,
+            self.largest_real_beta_eff_std(),
+            self.signif_av_minfunc_change_rel_stddev_largest_beta,
+            self.distributed_random_walk.largest_beta_ids(),
+        )
+
+    def check_smallest_beta_equilibrated(self):
+        return self.replicas_equilibrated(
+            self.smallest_beta_iteration_av_minfunc_log,
+            self.smallest_real_beta_eff_std(),
+            self.signif_av_minfunc_change_rel_stddev_smallest_beta,
+            self.distributed_random_walk.smallest_beta_ids(),
+        )
+
+    def update_logs(self):
+        self.largest_beta_iteration_av_minfunc_log.append(
+            self.largest_beta_iteration_av_minfunc()
+        )
+        self.smallest_beta_iteration_av_minfunc_log.append(
+            self.smallest_beta_iteration_av_minfunc()
+        )
+
     def optimization_iteration(self):
         """
         Run an MC simulation and then re-adjust the upper and lower bounds of the beta ladder based on the simulation's results.
         """
         self.clear_random_walk_temp_data()
         self.reequilibration()
+        self.update_logs()
         self.iteration_counter += 1
-        largest_real_beta_eff_std = self.largest_real_beta_eff_std()
-        largest_real_beta_av_minfunc = self.largest_beta_iteration_av_minfunc()
-        previous_largest_beta_av_minfunc = self.largest_beta_iteration_av_minfunc_log[
-            -1
-        ]
-        self.largest_beta_iteration_av_minfunc_log.append(largest_real_beta_av_minfunc)
-        step_num_clones_normalization = np.sqrt(
-            float(
-                self.iter_tot_num_global_steps
-                * len(self.distributed_random_walk.largest_beta_ids())
-            )
-        )
-        self.equilibrated = (
-            np.abs(previous_largest_beta_av_minfunc - largest_real_beta_av_minfunc)
-            * step_num_clones_normalization
-            < self.significant_average_minfunc_change_rel_stddev
-            * largest_real_beta_eff_std
-        )
-
-        if self.equilibrated:
+        self.largest_beta_equilibrated = self.check_largest_beta_equilibrated()
+        if self.largest_beta_equilibrated:
             largest_beta_changed = self.check_largest_real_beta()
-            smallest_beta_changed = self.check_smallest_beta()
-            beta_changed = largest_beta_changed or smallest_beta_changed
         else:
-            beta_changed = False
+            largest_beta_changed = False
+        self.smallest_beta_equilibrated = self.check_smallest_beta_equilibrated()
+        if self.smallest_beta_equilibrated:
+            smallest_beta_changed = self.check_smallest_beta()
+        else:
+            smallest_beta_changed = False
+        beta_changed = largest_beta_changed or smallest_beta_changed
+        self.equilibrated = (
+            self.largest_beta_equilibrated and self.smallest_beta_equilibrated
+        )
         self.best_candidate_log.append(deepcopy(self.current_best_candidate()))
         self.new_best_candidate_obtained = (
             self.best_candidate_log[-1] != self.best_candidate_log[-2]

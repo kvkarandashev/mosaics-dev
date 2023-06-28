@@ -139,6 +139,10 @@ class weighted_array(list):
                 )  # max was introduced in case there is some weird numerical noise.
             self.normalize_rhos()
 
+    def sort_cutoff_minor_weights(self, remaining_rho=None):
+        self.sort_rhos()
+        self.cutoff_minor_weights(remaining_rho=remaining_rho)
+
 
 # Misc procedures for list and dictionnary handling.
 def any_element_in_list(list_in, *els):
