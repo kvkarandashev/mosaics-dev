@@ -18,7 +18,9 @@ import rdkit.Chem.Crippen as Crippen
 import rdkit
 from rdkit import Chem
 import pdb
+import random
 
+random.seed(42)
 
 
 def GridSearchCV_KernelPCovR(
@@ -92,8 +94,8 @@ if __name__ == "__main__":
     
     SAVEPATH = "/data/jan/calculations/BOSS"
     data = np.load(f"{SAVEPATH}/qm9_processed.npz", allow_pickle=True)
-    X, y = data["X"], data["y"]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X, y, SMILES = data["X"], data["y"], data["SMILES"]
+    X_train, X_test, y_train, y_test, SMILES_train, SMILES_test = train_test_split(X, y,SMILES, test_size=0.2, random_state=42)
     NEW_FIT, PLOT, NEW_FIT_ALL = False, False, True
     ALL_DIMENSIONS = [2, 5, 10, 20, 100]
     
@@ -127,7 +129,7 @@ if __name__ == "__main__":
 
 
     if NEW_FIT_ALL:
-        n = 32768
+        n = 40000 #32768
         scalar_features = SFS()
         scalar_values   = SFS()
         
@@ -142,6 +144,9 @@ if __name__ == "__main__":
         pcovr, best_score, best_params = GridSearchCV_KernelPCovR(X_train[:n], y_train[:n], mixing_values, gamma_values, DIMENSIONS = 1000)
         y_hat_cov = scalar_values.inverse_transform(pcovr.predict(X_test))
         error_cov = MAE(y_test, y_hat_cov)
+        print(f"Best parameters: {best_params}")
+        print(f"{n, error_cov}")
+        ALL_MAEs.append(error_cov)
         MAEs.append(error_cov)
         ALL_MODELS.append(pcovr)
         print(f"Best parameters: {best_params}")
@@ -149,7 +154,7 @@ if __name__ == "__main__":
     
         ALL_MAEs.append(MAEs)
 
-        dump2pkl([ALL_MODELS,ALL_MAEs , [N_train,scalar_features,scalar_values]], f"{SAVEPATH}/pcovr_max.pkl")
+        dump2pkl([ALL_MODELS,ALL_MAEs ,X_train, X_test, y_train, y_test, SMILES_train, SMILES_test, [N_train,scalar_features,scalar_values]], f"{SAVEPATH}/pcovr_max.pkl")
 
     if PLOT:
         ALL_MODELS, ALL_MAEs, misc = loadpkl(f"{SAVEPATH}/pcovr.pkl")

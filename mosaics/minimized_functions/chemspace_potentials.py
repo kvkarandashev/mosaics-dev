@@ -693,8 +693,100 @@ class potential_MBDF:
         return V       
         
 
+class potential_atomic_energy:
+
+    def __init__(
+        self,
+        X_init,
+        params
+    ):
+        
+        self.params = params
+        self.X_init = X_init
+        self.gamma = params["min_d"]
+        self.sigma = params["max_d"]
+        self.V_0_pot = params["V_0_pot"]
+        self.V_0_synth = params["V_0_synth"]
+        self.verbose = params["verbose"]
+        self.synth_cut_soft = params["synth_cut_soft"]
+        self.synth_cut_hard = params["synth_cut_hard"]
+        self.ensemble = params["ensemble"]
+        self.morfeus_output = {"morfeus": morfeus_coord_info_from_tp}
         
 
+        self.morfeus_args = chemspace_sampler_default_params.morfeus_args_single
+            
+        self.potential = self.flat_parabola_potential
+
+    def flat_parabola_potential(self, d):
+            """
+            A function to describe the potential as a flat parabola.
+            
+            Parameters:
+            d (float): Distance.
+            
+            Returns:
+            float: Potential value.
+            """
+
+            if d < self.gamma:
+                return self.V_0_pot * (d - self.gamma) ** 2
+            if self.gamma <= d <= self.sigma:
+                return 0
+            if d > self.sigma:
+                return self.V_0_pot * (d - self.sigma) ** 2
+
+    def synth_potential(self, score):
+        if score > self.synth_cut_hard:
+            return None
+        if score > self.synth_cut_soft:
+            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
+        else:
+            return 0
+        
+    def __call__(self, trajectory_point_in):
+
+        try:
+            output = trajectory_point_in.calc_or_lookup(
+                self.morfeus_output,
+                kwargs_dict=self.morfeus_args,
+            )["morfeus"]
+            
+
+            coords = output["coordinates"]
+            charges = output["nuclear_charges"]
+            SMILES = output["canon_rdkit_SMILES"]
+            rdkit_mol_no_H = Chem.RemoveHs(Chem.MolFromSmiles(SMILES))
+            score  = sascorer.calculateScore(rdkit_mol_no_H)
+            
+            V_synth = self.synth_potential(score)
+            if V_synth == None:
+                return None
+            
+            
+
+            
+            if coords.shape[0] == charges.shape[0]:
+                X_test =  gen_atomic_energy_rep(charges, coords , self.params["asize2"], rep_dict="atomic_energy")
+
+                if X_test is None:
+                    return None
+
+            else:
+                return None
+                
+        except Exception as e:
+            print(e)
+            print("Error in 3d conformer sampling")
+            return None
+                
+        distance = norm(X_test - self.X_init)
+        V = self.potential(distance) + V_synth
+
+        if self.verbose:
+            print(SMILES, distance, V)
+        
+        return V       
     
 
 class potential_BoB_cliffs:
@@ -834,65 +926,7 @@ class potential_BoB_cliffs:
             print(SMILES, distance, V, self.prop_0, prop_t)
         return V
 
-class potential_inv_ECFP:
-    def __init__(
-        self,
-        X_target,
-        params):
 
-        self.X_target = X_target
-        self.V_0_pot = params["V_0_pot"]
-        self.sigma = params["max_d"]
-        self.nBits = params["nBits"]
-        self.pot_type = params["pot_type"]
-        self.verbose = params["verbose"]
-
-
-        self.canonical_rdkit_output = {
-            "canonical_rdkit": trajectory_point_to_canonical_rdkit
-        }
-        
-        if self.pot_type == "flat_parabola":
-            self.potential = self.flat_parabola_potential
-        elif self.pot_type == "parabola":
-            self.potential = self.parabola_potential
-
-
-    def parabola_potential(self, d):
-        return self.V_0_pot * d  ** 2
-
-    def flat_parabola_potential(self, d):
-        """
-        A function to describe the potential as a flat parabola.
-        
-        Parameters:
-        d (float): Distance.
-        
-        Returns:
-        float: Potential value.
-        """
-
-        if d <= self.sigma:
-            return 0
-        if d > self.sigma:
-            return self.V_0_pot * (d - self.sigma) ** 2
-    
-    def __call__(self, trajectory_point_in):
-        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
-            self.canonical_rdkit_output
-        )["canonical_rdkit"]
-
-        if rdkit_mol is None:
-            raise RdKitFailure
-
-        X_test   = extended_get_single_FP(rdkit_mol, nBits=self.nBits)
-        distance = tanimoto_distance(X_test , self.X_target)
-        V = self.potential(distance)
-
-        if self.verbose:
-            print(canon_SMILES, distance, V)
-
-        return V
 
 
 
@@ -1417,6 +1451,18 @@ class Analyze_Chemspace:
                 
                 X = np.array(X)
                 return X
+        
+        elif params["rep_name"] == "atomic_energy":
+            X = []
+            
+            for TP in TP_ALL:
+                try:
+                    X.append(gen_atomic_energy_rep(TP["nuclear_charges"], TP["coordinates"], params["asize2"], rep_dict="atomic_energy"))
+                except:
+                    X.append(np.array([np.nan]))
+            
+            X = np.array(X)
+            return X
 
         else:
             print("Representation not implemented")
@@ -1450,6 +1496,9 @@ class Analyze_Chemspace:
                     X_ALL           = self.reevaluate_3d(TP_ALL, params)
 
                 if params["rep_name"] == "MBDF":
+                    X_ALL           = self.reevaluate_3d(TP_ALL, params)
+
+                if params["rep_name"] == "atomic_energy":
                     X_ALL           = self.reevaluate_3d(TP_ALL, params)
 
                 if params["rep_name"] == "BoB_cliffs":
@@ -1492,7 +1541,7 @@ class Analyze_Chemspace:
                 SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                 explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
                 X_ALL = np.array([calc_all_descriptors(rdkit_mol) for rdkit_mol in explored_rdkit])
-                D = np.array([norm(X_I - X) for X in X_ALL])/norm(X_I)
+                D = np.array([norm(X_I - X) for X in X_ALL])
                 SMILES = SMILES[np.argsort(D)]
                 SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                 D = D[np.argsort(D)]
@@ -1509,7 +1558,7 @@ class Analyze_Chemspace:
                     SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                     D = D[np.argsort(D)]
 
-                else:
+                elif params["rep_name"] == "ECFP":
                     SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                     explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
                     X_ALL = get_all_FP(explored_rdkit, nBits=params["nBits"])
@@ -1517,7 +1566,28 @@ class Analyze_Chemspace:
                     SMILES = SMILES[np.argsort(D)]
                     SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
                     D = D[np.argsort(D)]
+
+                elif params["rep_name"] == "inv_latent":
                     
+                    model_transformer, scalar_features = params["model"], params["scalar_features"]
+                    SMILES = np.array([Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+                    X_ALL  = scalar_features.transform(get_all_FP(explored_rdkit, nBits=params["nBits"]))
+                    
+                    T_ALL  =  model_transformer.transform(X_ALL)
+                    #np.array([model_transformer.transform( x.reshape(1,-1) ) for x in X_ALL])
+                    #Parallel(n_jobs=8)(delayed(model_transformer.transform)(x.reshape(-1,1)) for x in X_ALL)
+                    #
+                    
+                    D = np.array([norm(X_I.flatten() - T) for T in T_ALL])
+                    SMILES = SMILES[np.argsort(D)]
+                    SMILES = np.array([Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES] )
+                    D = D[np.argsort(D)]
+
+                else:
+                    print("Representation not implemented")
+                    return None
+
             return SMILES, D
 
 
@@ -1567,166 +1637,7 @@ def chemspacesampler_ECFP(smiles, params=None):
 
     return MOLS, D
 
-def chemspacesampler_inv_ECFP(smiles_init, X_target, params=None):
-    X, _, egc_0 = initialize_from_smiles(smiles_init, nBits=params['nBits'])
-    if params is None:
-        params = {
-            'V_0_pot': 0.05,
-            'max_d': 6.0,
-            'NPAR': 4,
-            'Nsteps': 100,
-            'bias_strength': "none",
-            'possible_elements': ["C", "O", "N", "F"],
-            'not_protonated': None, 
-            'forbidden_bonds': None,
-            'nhatoms_range': [6, 6],
-            'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
-            'make_restart_frequency': None,
-            "rep_type": "2d",
-            'nBits': 2048,
-            'rep_name': 'ECFP',
-            'strategy': 'default',
-            "verbose": False
-        }
-    
-    if params['strategy'] == "default":
-        min_func = potential_inv_ECFP(X_target, params=params)
-        respath = tempfile.mkdtemp()
-        if params['NPAR'] == 1:
-            mc_run(egc_0,min_func,"chemspacesampler", respath, f"results_{0}", params)
-        else:
-            Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_0,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
-        ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
-        _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-        MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
-        shutil.rmtree(respath)
 
-        return MOLS, D
-    
-    elif params['strategy'] == "modify_pot":
-
-        d_init = tanimoto_distance(X,X_target)
-        egc_best, d_best, V_0_best = egc_0, d_init, params['V_0_pot']
-        series = [1 for i in range(params['Nparts'])]
-        N_budget = [int(round(s / sum(series) * params['Nsteps'])) for s in series]
-        N_budget = np.array(N_budget)
-        for n in N_budget:
-            params['V_0_pot'] = V_0_best
-            params['Nsteps'] = n
-            min_func = potential_inv_ECFP(X_target, params=params)
-            respath = tempfile.mkdtemp()
-            if params['NPAR'] == 1:
-                mc_run(egc_best,min_func,"chemspacesampler", respath, f"results_{0}", params)
-            else:
-                Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_best,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
-            ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
-            _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-            MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
-            shutil.rmtree(respath)
-            if D[0] < d_best:
-                d_best, mol_best, V_0_best = D[0], MOLS[0], params['V_0_pot']
-                print(mol_best, d_best, V_0_best)
-                egc_best = SMILES_to_egc(mol_best)
-                if d_best <= params['d_threshold']:
-                    print("Found molecule within threshold")
-                    return MOLS, D
-            else:
-                params['V_0_pot'] = 2*V_0_best
-                min_func = potential_inv_ECFP(X_target, params=params)
-                respath = tempfile.mkdtemp()
-                if params['NPAR'] == 1:
-                    mc_run(egc_best,min_func,"chemspacesampler", respath, f"results_{0}", params)
-                else:
-                    Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_best,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
-                ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
-                _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-                MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
-                shutil.rmtree(respath)
-
-                if D[0] < d_best:
-                    d_best, mol_best, V_0_best = D[0], MOLS[0], params['V_0_pot']
-                    print(mol_best, d_best, V_0_best)
-                    egc_best = SMILES_to_egc(mol_best)
-                    if d_best <= params['d_threshold']:
-                        print("Found molecule within threshold")
-                        return MOLS, D
-                else:
-                    params['V_0_pot'] = V_0_best/2
-                    min_func = potential_inv_ECFP(X_target, params=params)
-                    respath = tempfile.mkdtemp()
-                    if params['NPAR'] == 1:
-                        mc_run(egc_best,min_func,"chemspacesampler", respath, f"results_{0}", params)
-                    else:
-                        Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_best,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
-                    ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
-                    _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-                    MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
-                    shutil.rmtree(respath)
-
-                    if D[0] < d_best:
-                        d_best, mol_best, V_0_best = D[0], MOLS[0], params['V_0_pot']
-                        print(mol_best, d_best, V_0_best)
-                        egc_best = SMILES_to_egc(mol_best)
-                        if d_best <= params['d_threshold']:
-                            print("Found molecule within threshold")
-                            return MOLS, D
-                        
-        return MOLS, D
-
-
-    elif params['strategy'] == "contract":
-        d_init = tanimoto_distance(X,X_target)
-        d_arr = np.linspace(d_init, params['max_d'], params['Nparts'])
-        # Generate exponential growth series
-        series = [params['growth_factor']**i for i in range(params['Nparts'])]
-
-        # Normalize series to make sum equals Nsteps
-        N_budget = [int(round(s / sum(series) * params['Nsteps'])) for s in series]
-        
-        # Correct possible rounding errors
-        N_budget[-1] += params['Nsteps'] - sum(N_budget)
-        N_budget = np.array(N_budget)[::-1]
-
-        egc_rep = [copy.deepcopy(egc_0) for _ in range(params['NPAR'])]
-        for d, n in zip(d_arr, N_budget):
-            params['max_d'] = d 
-            params['Nsteps'] = n
-
-            min_func = potential_inv_ECFP(X_target, params=params)
-            respath = tempfile.mkdtemp()
-            if params['NPAR'] == 1:
-                mc_run(egc_rep[0],min_func,"chemspacesampler", respath, f"results_{0}", params)
-            else:
-                Parallel(n_jobs=params['NPAR'])(delayed(mc_run)(egc_rep[i],min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params['NPAR']) )
-            ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="2d" , full_traj=False, verbose=False)
-            _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
-            MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM, X_target, params )
-            shutil.rmtree(respath)
-            if len(MOLS) > 0 and D[0] < d_init:
-                if len(MOLS) > params['NPAR']:
-                    MOLS_CHOICE = MOLS[:params['NPAR']].tolist()
-                else:
-                    diff = params['NPAR'] - len(MOLS)
-                    MOLS_CHOICE = MOLS.tolist() + [MOLS[i % len(MOLS)].tolist() for i in range(diff)]
-                egc_rep = []
-                for mol in MOLS_CHOICE:
-                    try:
-                        egc_rep.append(SMILES_to_egc(mol))
-                    except:
-                        egc_rep.append(egc_0)
-                        
-                smiles_closest, clostest_distance = MOLS[0], D[0]
-                print(clostest_distance, smiles_closest)
-                if clostest_distance <= params['d_threshold']:
-                    print("Found molecule within threshold")
-                    return MOLS, D
-
-        return MOLS, D
-
-    elif params['strategy'] == "modify_pot":
-        pass
-    else:
-        print("Strategy not implemented")
 
 
 def chemspacesampler_MolDescriptors(smiles, params=None):
@@ -1961,7 +1872,50 @@ def chemspacesampler_CM(smiles, params=None):
     return MOLS, D
 
 
+def chemspacesampler_atomization_rep(smiles, params=None):
+    init_egc, tp,rdkit_init =  initialize_fml_from_smiles(smiles, ensemble=params['ensemble'])
+    coords, charges    = tp["coordinates"], tp["nuclear_charges"]
+    symbols = [str_atom_corr(charge) for charge in charges]
+    
+    
+    asize, max_n = max_element_counts([symbols*3])
+    asize_copy = asize.copy()
+    elements_to_exclude = ['H']
+    elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
 
+    if elements_not_excluded:  # checks if list is not empty
+        avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(elements_not_excluded)
+    else:
+        avg_value = 0  # or any other value you consider appropriate when there are no elements
+
+    for element in params['possible_elements']:
+        if element not in asize:
+            asize[element] = 2*int(avg_value)
+
+    params["asize"], params["max_n"], params['unique_elements']  = asize, 3*max_n, list(asize.keys())
+    params["asize2"] = {NUCLEAR_CHARGE[k]:v for k,v in zip(asize.keys(),asize.values())}
+
+    if params['ensemble']:
+        print("Not implemented")
+        return None
+    else:
+        X  =      gen_atomic_energy_rep(charges, coords, params["asize2"], "atomic_energy")
+
+
+    min_func  = potential_atomic_energy(X, params)
+    respath   = tempfile.mkdtemp()
+
+    if params['NPAR'] > 1:
+        Parallel(n_jobs=params["NPAR"])(delayed(mc_run)(init_egc,min_func,"chemspacesampler", respath, f"results_{i}", params) for i in range(params["NPAR"]) )
+    else:
+        mc_run(init_egc,min_func,"chemspacesampler", respath, f"results_{0}", params)
+    
+    ana = Analyze_Chemspace(respath+f"/*.pkl",rep_type="3d" , full_traj=False, verbose=False)
+    _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+    MOLS, D  = ana.post_process(GLOBAL_HISTOGRAM,X, params)
+    shutil.rmtree(respath)
+
+    return MOLS, D
 
 
 def chemspacesampler_MBDF(smiles, params=None):

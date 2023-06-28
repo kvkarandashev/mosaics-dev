@@ -31,15 +31,18 @@ from rdkit.Chem import RDConfig
 import sys
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
 import sascorer
-
+import pdb
 
 def latent_pred(model, T_n):
     return (T_n@model.pty_)[0]
 
 
 def full_model_pred(model, T_n):
-    y_n = scalar_values.inverse_transform(model.predict(model.inverse_transform(T_n)))
-    return y_n[0]
+    X_n_scaled  = model.inverse_transform(T_n)
+    y_n = scalar_values.inverse_transform(latent_pred(model, T_n).reshape(1,-1))
+    X_n = scalar_features.inverse_transform(X_n_scaled)
+    X_n_rounded = np.round(X_n).astype(int)
+    return y_n[0][0], X_n, X_n_rounded
 
 #compute error on inverted vector!
 
@@ -69,7 +72,8 @@ def gradient_descent(model, T_init, gamma, N_steps,  delta=1e-8, minimize=False)
         else:
             T_n = T_n - gamma * gradient
 
-        y_n = full_model_pred(model, T_n)
+        y_n, X_n = full_model_pred(model, T_n)
+        pdb.set_trace()
         print("y_n", y_n)
 
     return T_n
@@ -77,7 +81,7 @@ def gradient_descent(model, T_init, gamma, N_steps,  delta=1e-8, minimize=False)
 
 
 
-def greedy_optimizer(model, T_init, delta, N_steps, y_goal=0.5):
+def greedy_optimizer(model, T_init, delta, N_steps, y_goal):
     T_n = T_init.reshape(1, 1000)
     y_n = full_model_pred(model, T_n)[0]
 
@@ -93,7 +97,7 @@ def greedy_optimizer(model, T_init, delta, N_steps, y_goal=0.5):
 
         # Perturb the current solution
         T_perturbed = T_n + displacement
-        y_perturbed = full_model_pred(model, T_perturbed)[0]
+        y_perturbed, X_pertubed,X_n_rounded = full_model_pred(model, T_perturbed)
 
         # If the perturbation improves the output, keep it
         if y_perturbed > y_n:
@@ -101,13 +105,15 @@ def greedy_optimizer(model, T_init, delta, N_steps, y_goal=0.5):
             y_n = y_perturbed
 
         # print progress
-        if n % 1000 == 0:
+        if n % 100 == 0:
             print(f"Step: {n}, Best output: {y_n}")
         
         if y_n >= y_goal:
-            return T_n, y_n
+            print("target reached")
+            print(y_n, y_goal)
+            return T_n, y_n, X_n_rounded
 
-    return T_n, y_n
+    return T_n, y_n,X_n_rounded
 
 
 
@@ -132,6 +138,7 @@ def parallel_tempering(model, T_init, delta, N_steps, temperatures):
     costs = [full_model_pred(model, T)[0] for T in replicas]
     best_T = replicas[np.argmax(costs)]
     DIM = T_init.shape[0]
+    y_best  = full_model_pred(model, best_T)[0]
 
     for n in range(N_steps):
         for i in range(num_replicas):
@@ -144,26 +151,36 @@ def parallel_tempering(model, T_init, delta, N_steps, temperatures):
 
             # Perturb the current solution
             T_perturbed = replicas[i] + displacement
-            cost_perturbed = full_model_pred(model, T_perturbed)[0]
+            y_perturbed, X_pertubed,X_n_rounded = full_model_pred(model, T_perturbed)
 
             # If the perturbation improves the output or is accepted by Metropolis criterion, keep it
-            if np.random.rand() < acceptance_probability(costs[i], cost_perturbed, temperatures[i]):
+            if np.random.rand() < acceptance_probability(costs[i], y_perturbed, temperatures[i]):
                 replicas[i] = T_perturbed
-                costs[i] = cost_perturbed
+                costs[i] = y_perturbed
 
             # Update best solution found so far
-            if cost_perturbed > full_model_pred(model, best_T)[0]:
+            if y_perturbed > y_best:
                 best_T = T_perturbed
+                y_best = y_perturbed
 
         # Attempt to swap configurations between replicas
         replicas, costs = swap_replicas(replicas, costs, temperatures)
 
         # print progress
-        if n % 1000 == 0:
+        if n % 100 == 0:
             print(f"Step: {n}, Best output: {full_model_pred(model, best_T)[0]}")
+        
+        if y_best >= y_goal:
+            print("target reached")
+            print(y_best, y_goal)
+            return best_T, y_best, X_n_rounded
 
-    return best_T
+    return  best_T, y_best, X_n_rounded
 
+def load_file_into_list(filename):
+    with open(filename, 'r') as file:
+        lines = file.read().splitlines()
+    return lines
 
 
 if __name__ == "__main__":
@@ -171,12 +188,13 @@ if __name__ == "__main__":
 
 
         SAVEPATH = "/data/jan/calculations/BOSS"
-
-        ALL_MODELS, ALL_MAEs, misc = loadpkl(f"{SAVEPATH}/pcovr_max.pkl")
+        ALL_MODELS,ALL_MAEs ,X_train, X_test, y_train, y_test, SMILES_train, SMILES_test,misc = loadpkl(f"{SAVEPATH}/pcovr_max.pkl")
+        
         scalar_features,scalar_values = misc[1], misc[2]
         selected_model = ALL_MODELS[-1]
-
-        SMILES = ["CC(=O)OC1=CC=CC=C1C(=O)O","CCCO" "CCO", "CCF", "CC(=O)OC1=CC=CC=C1C(=O)O", "C1COCCO1", "CCCCCCCC"]
+        filename = "/home/jan/projects/MOLOPT/chemspacesampler/paper/3_biased_sampling/QM9_targets.txt"
+        SMILES = load_file_into_list(filename)
+        #["CC(=O)OC1=CC=CC=C1C(=O)O","CCCO" "CCO", "CCF", "C1COCCO1", "CCCCCCCC", "C1=CC=CC=C1"]
         results = []
         for smi in SMILES:
             curr_results = []
@@ -189,16 +207,19 @@ if __name__ == "__main__":
             T_init = selected_model.transform(X)[0]
             y_pred = scalar_values.inverse_transform(selected_model.predict(X))
             error = abs(y_pred - y_ref)
-            y_goal =  (y_ref+error)
+            y_goal =  (100*y_ref+error)
             print(f"y_pred: {y_pred}")
             print(f"y_goal: {y_goal}")
-            T_opt, y_opt = greedy_optimizer(selected_model, T_init, 1e-2, 30000, y_goal=y_goal)
+            T_opt, y_opt, X_opt  = parallel_tempering(selected_model, T_init, 1, 300000, [1e4,1e3,1e2,1, 1e-1, 1e-2, 1e-3, 1e-4])
+            #T_opt, y_opt, X_opt = greedy_optimizer(selected_model, T_init, 1e-1, 200000, y_goal)
             print(f"y_opt: {y_opt}")
-            print(f"T_opt: {T_opt}")
+            #print(f"T_opt: {T_opt}")
 
 
-            curr_results.append([smi,X, y_ref,T_init, y_pred, y_goal, y_opt, T_opt])
+            results.append([smi,X, y_ref,T_init, y_pred, y_goal, y_opt, T_opt, X_opt])
 
-        print(results)
+
+
+       # print(results)
 
         dump2pkl(results, f"{SAVEPATH}/optimization_results.pkl")

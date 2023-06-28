@@ -164,6 +164,32 @@ def make_params_dict(selected_descriptor, min_d, max_d,strictly_in, Nsteps, poss
         'rep_name': 'SOAP',
         'ensemble': ensemble,
         "verbose": False}
+
+    elif selected_descriptor == 'atomic_energy':
+        params = {
+        'min_d': min_d,
+        'max_d': max_d,
+        'strictly_in': strictly_in,
+        'V_0_pot': 0.05,
+        'V_0_synth': 0.05,
+        'NPAR': NPAR,
+        'Nsteps': Nsteps,
+        'bias_strength': "none",
+        'possible_elements': ["C", "O", "N"],
+        'not_protonated': None, 
+        'forbidden_bonds': forbidden_bonds,
+        'nhatoms_range': [int(n) for n in nhatoms_range],
+        'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
+        'make_restart_frequency': None,
+        'rep_type': '3d',
+        'rep_name': 'atomic_energy',
+        'rep_dict': 'michael',
+        'synth_cut_soft':synth_cut_soft,
+        'synth_cut_hard':synth_cut_hard,
+        'ensemble': False,
+        "verbose": False,
+    }
+            
     else:
         raise ValueError('Invalid descriptor')
     

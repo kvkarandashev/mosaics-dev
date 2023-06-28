@@ -18,6 +18,7 @@ ADD . /app
 
 # Install any needed packages specified in requirements.txt
 COPY examples/03_chemspacesampler/chemspace.yml /app
+COPY examples/03_chemspacesampler/atomic_dict/alchemy_mean_energy_lookup.pkl /app
 RUN conda env create -f chemspace.yml
 # Make
 # Make RUN commands use the new environment
