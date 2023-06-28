@@ -239,18 +239,19 @@ if __name__ == "__main__":
     SMILES = qm9_df['canon_smiles'].values
     #add hydrogens because Crippen descriptors need them and also the representation vectors from rdkit in our convention
     SMILES_H = [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
-    X, y       =  [], []
+    X, y, SMILES_SET       =  [], [], []
     for smi in tqdm(SMILES_H):
         try:
             X.append(chemspace_potentials.initialize_from_smiles(smi)[0][0])
             y.append(Crippen.MolLogP(Chem.MolFromSmiles(smi) , True))
+            SMILES_SET.append(smi)
         except Exception as e:
             #some molecules from qm9 are not valid and fail to be processed by rdkit
             print(e)
 
-    X, y = np.array(X), np.array(y).reshape(-1,1)
+    X, y, SMILES_SET = np.array(X), np.array(y).reshape(-1,1), np.array(SMILES_SET)
 
-    np.savez_compressed('/data/jan/calculations/BOSS/qm9_processed.npz', X=X, y=y)
+    np.savez_compressed('/data/jan/calculations/BOSS/qm9_processed.npz', X=X, y=y, SMILES=SMILES_SET)
 
     if COMPUTE_VALUE_PLOT:
         average_dist = average_distance(X, chemspace_potentials.tanimoto_distance)
