@@ -651,6 +651,7 @@ class CandidateCompound:
             + str(self.func_val)
             + ",ChemGraph:"
             + str(self.tp.egc.chemgraph)
+            + ")"
         )
 
     def __repr__(self):

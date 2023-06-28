@@ -20,6 +20,10 @@ from xtb.libxtb import VERBOSITY_MUTED, VERBOSITY_MINIMAL, VERBOSITY_FULL
 from xtb.interface import Calculator
 from xtb.utils import get_method, get_solvent
 
+from rdkit import RDLogger
+
+RDLogger.DisableLog("rdApp.*")
+
 
 def morfeus_coord_info_from_tp(
     tp,
