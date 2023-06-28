@@ -60,7 +60,11 @@ st.set_page_config(
    layout="wide",
 )
 
-
+def check_string_in_list(lst):
+    for string in lst:
+        if string not in ["N", "O", "C"]:
+            return True
+    return False
 
 def mol_to_img(mol):
     mol = AllChem.RemoveHs(mol)
@@ -82,7 +86,7 @@ def str_to_tuple_list(string):
     return tuples
 
 
-descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP','CM', 'MBDF']
+descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP','CM', 'MBDF','atomic_energy']
 
 import streamlit as st
 
@@ -165,6 +169,14 @@ elif selected_descriptor == 'CM':
     chemspace_function = chemspace_potentials.chemspacesampler_CM
 elif selected_descriptor == 'MBDF':
     chemspace_function = chemspace_potentials.chemspacesampler_MBDF
+elif selected_descriptor == 'atomic_energy':
+    chemspace_function = chemspace_potentials.chemspacesampler_atomization_rep
+    if check_string_in_list(possible_elements):
+        print("Only C, N, O are allowed for atomic energy")
+        st.error("Only C, N, O are allowed for atomic energy")
+        possible_elements = ["C", "O", "N"]
+    else:
+        pass
 
 else:
     st.error('Unknown Descriptor selected')
@@ -273,7 +285,9 @@ if st.button('Run ChemSpace Sampler'):
             st.pyplot(plt.gcf())
 
 
-    except:
+    except Exception as e:
+        
         st.error('An error occurred. Please check your input parameters and try again. \
                  Is the starting molecule consistent with the conditions i.e. number of heavy atoms, elements, etc.? \
                  sometimes things fail for no apparent reason, just try again.')
+        print(e)

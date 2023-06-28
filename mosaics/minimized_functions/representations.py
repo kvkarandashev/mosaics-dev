@@ -1,6 +1,7 @@
 import numpy as np
 from copy import deepcopy
 from math import comb,cos
+import itertools
 from itertools import combinations, product
 from scipy.spatial.distance import cityblock, euclidean
 from scipy.stats import wasserstein_distance
@@ -16,6 +17,7 @@ except:
 import pdb
 from mosaics.data import *
 import numba
+import pickle
 
 def ExplicitBitVect_to_NumpyArray(fp_vec):
     """
@@ -813,3 +815,147 @@ def global_MBDF_bagged_wrapper(charges,coords, params):
 
     
     return mbdf_global(charges,coords,asize2,rep_size,asize2.keys(),grid1,grid2,cutoff_r=cutoff_r)
+
+
+
+class AtomicEnergyRepresentation():
+    
+    def __init__(self, fragment_dictionary):
+        self.mean_energy_by_fragment = fragment_dictionary
+        self.unique_charges = sorted(list(self.mean_energy_by_fragment.keys()))
+        
+    def get_pattern_from_ase(self, cutoff_radius = 1.6):
+        # pairwise distances for all atoms
+        distances = self.mol.get_all_distances()
+        pattern = [] # patterns of atoms
+        # d is the pairwise distance of an atom with Znuc, we check which elements have to the lowest distance to the atom
+        # idx is the index we use to get the respective atomic energy
+        for i ,d in enumerate(distances):
+            ind_nn = np.where((d < cutoff_radius) & (d > 0))
+            Znuc_nn = self.mol.get_atomic_numbers()[ind_nn]
+            pattern.append(self.pattern_from_nuccharge(Znuc_nn))
+        self.pattern = pattern
+        return(pattern)
+    
+    def pattern_from_nuccharge(self, Z_nn):
+        Z_nn.sort()
+        # four partners
+        if len(Z_nn) == 4:
+            charges = itertools.combinations_with_replacement([1,6,7,8], 4)
+            string = itertools.combinations_with_replacement('HCNO', 4)
+            for c, s in zip(charges, string):
+                if np.array_equal(Z_nn, np.array(c)):
+                    concatenated = ''
+                    for el in s:
+                        concatenated += el
+                    return(concatenated)
+            if np.array_equal(Z_nn, np.array([6,9,9,9])):
+                return('CFFF')
+        # three partners
+        elif len(Z_nn) == 3:
+            charges = itertools.combinations_with_replacement([1,6,7,8], 3)
+            string = itertools.combinations_with_replacement('HCNO', 3)
+            for c, s in zip(charges, string):
+                if np.array_equal(Z_nn, np.array(c)):
+                    concatenated = ''
+                    for el in s:
+                        concatenated += el
+                    return(concatenated)
+        # two partners    
+        elif len(Z_nn) == 2:
+            charges = itertools.combinations_with_replacement([1,6,7,8], 2)
+            string = itertools.combinations_with_replacement('HCNO', 2)
+            for c, s in zip(charges, string):
+                if np.array_equal(Z_nn, np.array(c)):
+                    concatenated = ''
+                    for el in s:
+                        concatenated += el
+                    return(concatenated)
+        # one partner
+        elif len(Z_nn) == 1:
+            charges = itertools.combinations_with_replacement([1,6,7,8], 1)
+            string = itertools.combinations_with_replacement('HCNO', 1)
+            for c, s in zip(charges, string):
+                if np.array_equal(Z_nn, np.array(c)):
+                    concatenated = ''
+                    for el in s:
+                        concatenated += el
+                    return(concatenated)
+        else:
+            raise ValueError(f'Cannot identify binding partners for {Z_nn}')
+    
+    def generate_repsentation(self, mol, num_atoms):
+        self.mol = mol
+        # find binding partners for each atom
+        fragments = self.get_pattern_from_ase() 
+        # get mean atomic energy for each atom depending on its environment
+        # elementwise_vectors = {Z:np.zeros(num_atoms[Z]) for Z in self.unique_charges}
+        # index_counter = {Z:0 for Z in self.unique_charges}
+        elementwise_vectors = {Z:[] for Z in self.unique_charges}
+        for Z, frag in zip(self.mol.get_atomic_numbers(), fragments):
+            try:
+                elementwise_vectors[Z].append(self.mean_energy_by_fragment[Z][frag])
+            except KeyError:
+                print(f'No atomic energy for {frag} available, returning nan')
+                return(None)
+            
+        # sort atomic energies by value and pad with zeros
+        elementwise_vectors = self.sort_and_add_padding(elementwise_vectors, num_atoms)
+            
+        # concatenate elementwise vectors to single vector and transform in numpy-array
+        representation_vector = self.construct_vector(elementwise_vectors)
+        
+        return(representation_vector)
+    
+    def sort_and_add_padding(self, elementwise_vectors, num_atoms):
+        for Z in elementwise_vectors.keys():
+            elementwise_vectors[Z].sort()
+            assert len(elementwise_vectors[Z]) <= num_atoms[Z], f'Number of atoms (={len(elementwise_vectors[Z])}) with Z = {Z} exceeds maximum number of atoms (={num_atoms[Z]})'
+            elementwise_vectors[Z] = elementwise_vectors[Z] + (num_atoms[Z] - len(elementwise_vectors[Z]))*[0.0]
+        return(elementwise_vectors)
+    
+    def construct_vector(self, elementwise_vectors):
+        vector = []
+        for Z in elementwise_vectors.keys():
+            vector.extend(elementwise_vectors[Z])
+        return(np.array(vector))
+    
+def gen_atomic_energy_rep(charges, positions, num_atoms, rep_dict="atomic_energy"):
+     
+    # # Table with mean energies from alchemy
+    # with open("./alchemy_mean_energy_lookup.pkl", "rb") as file:
+    #     mean_energy_dict = pickle.load(file)
+        
+    # # Table with mean energies from IQA
+    # with open("./IQA_mean_energy_lookup.pkl", "rb") as file:
+    #     mean_energy_dict = pickle.load(file)
+
+    # Table with mean energies from MO-decomposition
+    if rep_dict == "atomic_energy": 
+        #with open("./atomic_dict/mf_mean_energy_lookup.pkl", "rb") as file:
+        with open("./atomic_dict/alchemy_mean_energy_lookup.pkl", "rb") as file:
+            mean_energy_dict = pickle.load(file)
+    else:
+        print("No valid representation type selected")
+    
+
+    # # Table with mean energies from schnet
+    # with open("./schnet_mean_energy_lookup.pkl", "rb") as file:
+    #     mean_energy_dict = pickle.load(file)
+        
+    # initialize representation generator
+    RepGenerator = AtomicEnergyRepresentation(mean_energy_dict)
+
+    """
+    """
+
+    # generate ase atoms object
+    mol = Atoms(numbers = charges, positions=positions) 
+    # max number of atoms per element, key = nuclear charge, value = max number of atoms
+    
+    # generate representation for molecule
+    # elements are ordered by increasing charge
+    # for each element atomic energie are ordered by increasing value
+    rep = RepGenerator.generate_repsentation(mol, num_atoms)
+    
+    return rep
