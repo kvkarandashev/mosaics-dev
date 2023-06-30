@@ -313,7 +313,7 @@ class potential_inv_latent:
         X_test   = self.scalar_features.transform(X_test)
         T_test   = self.model.transform(X_test)[0]
         distance = np.linalg.norm(T_test - self.T_goal)
-        V = self.potential(distance) + V_synth + (1/(2+np.linalg.norm(T_test - self.T_init)))
+        V = self.potential(distance) + V_synth #+ (1/(2+np.linalg.norm(T_test - self.T_init)))
 
         if self.verbose:
             print(canon_SMILES, distance,score, V)

@@ -134,7 +134,7 @@ def swap_replicas(replicas, costs, temperatures):
 
 def parallel_tempering(model, T_init, delta, N_steps, temperatures):
     num_replicas = len(temperatures)
-    replicas = [T_init.reshape(1, 1000) for _ in range(num_replicas)]
+    replicas = [T_init.reshape(1, 2) for _ in range(num_replicas)]
     costs = [full_model_pred(model, T)[0] for T in replicas]
     best_T = replicas[np.argmax(costs)]
     DIM = T_init.shape[0]
@@ -159,7 +159,7 @@ def parallel_tempering(model, T_init, delta, N_steps, temperatures):
                 costs[i] = y_perturbed
 
             # Update best solution found so far
-            if y_perturbed > y_best:
+            if y_perturbed < y_best:
                 best_T = T_perturbed
                 y_best = y_perturbed
 
@@ -188,10 +188,11 @@ if __name__ == "__main__":
 
 
         SAVEPATH = "/data/jan/calculations/BOSS"
-        ALL_MODELS,ALL_MAEs ,X_train, X_test, y_train, y_test, SMILES_train, SMILES_test,misc = loadpkl(f"{SAVEPATH}/pcovr_max.pkl")
-        
+        ALL_MODELS,ALL_MAEs,misc = loadpkl(f"{SAVEPATH}/pcovr.pkl")
+        #ALL_MODELS,ALL_MAEs ,X_train, X_test, y_train, y_test, SMILES_train, SMILES_test,misc  = loadpkl(f"{SAVEPATH}/pcovr_max.pkl")
+        #pdb.set_trace()
         scalar_features,scalar_values = misc[1], misc[2]
-        selected_model = ALL_MODELS[-1]
+        selected_model = ALL_MODELS[0]
         filename = "/home/jan/projects/MOLOPT/chemspacesampler/paper/3_biased_sampling/QM9_targets.txt"
         SMILES = load_file_into_list(filename)
         #["CC(=O)OC1=CC=CC=C1C(=O)O","CCCO" "CCO", "CCF", "C1COCCO1", "CCCCCCCC", "C1=CC=CC=C1"]
@@ -207,10 +208,10 @@ if __name__ == "__main__":
             T_init = selected_model.transform(X)[0]
             y_pred = scalar_values.inverse_transform(selected_model.predict(X))
             error = abs(y_pred - y_ref)
-            y_goal =  (100*y_ref+error)
+            y_goal =  -abs((100*y_ref+error))
             print(f"y_pred: {y_pred}")
             print(f"y_goal: {y_goal}")
-            T_opt, y_opt, X_opt  = parallel_tempering(selected_model, T_init, 1, 300000, [1e4,1e3,1e2,1, 1e-1, 1e-2, 1e-3, 1e-4])
+            T_opt, y_opt, X_opt  = parallel_tempering(selected_model, T_init, 10, 300000, [1e4,1e3,1e2,1, 1e-1, 1e-2, 1e-3, 1e-4])
             #T_opt, y_opt, X_opt = greedy_optimizer(selected_model, T_init, 1e-1, 200000, y_goal)
             print(f"y_opt: {y_opt}")
             #print(f"T_opt: {T_opt}")
