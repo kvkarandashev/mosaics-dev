@@ -298,7 +298,7 @@ def hermite_polynomial(x, degree, a=1):
         return 16*x1 - 48*x2 + 12*a**2
 
 
-@numba.jit(nopython=False)
+@numba.jit(nopython=True)
 def generate_data(size,z,atom,charges,coods,cutoff_r=12):
     """
     returns 2 and 3-body internal coordinates
@@ -314,7 +314,10 @@ def generate_data(size,z,atom,charges,coods,cutoff_r=12):
 
         if rij_norm!=0 and rij_norm<cutoff_r:
             z2=charges[j]**0.8
-            twob[j]=rij_norm,z*charges[j]
+            #twob[j]=rij_norm,z*charges[j]
+            #I changed the following two lines to make it compatible with numba
+            twob[j, 0] = rij_norm
+            twob[j, 1] = z*charges[j]
 
             for k in range(size):
                 if j!=k:
@@ -336,7 +339,10 @@ def generate_data(size,z,atom,charges,coods,cutoff_r=12):
                         
                         charge = z1*z2*z3
                         
-                        threeb[j][k][3:] =  atm, charge
+                        #threeb[j][k][3:] =  atm, charge
+                        #I changed the following two lines to make it compatible with numba
+                        threeb[j, k, 3] = atm
+                        threeb[j, k, 4] = charge
 
     return twob, threeb                        
 

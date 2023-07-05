@@ -110,7 +110,7 @@ st.sidebar.subheader('Input Parameters')
 smiles = st.sidebar.text_input('Start molecule', value="CC(=O)OC1=CC=CC=C1C(=O)O", help='Enter the SMILES string of your starting molecule.')
 selected_descriptor = st.sidebar.selectbox('Select Descriptor', descriptor_options, help='Choose the descriptor used to calculate the distance between molecules. The descriptors are: RDKit (check rdkit.Chem.Descriptors), ECFP4 (hashed group based), BoB (Bag of Bonds), SOAP (Smooth Overlap of Atomic Positions), CM (Coulomb Matrix).')
 min_d = st.sidebar.number_input('Minimal distance', value=0.0, help='Enter the minimal desired distance from the start molecule.')
-max_d = st.sidebar.number_input('Maximal distance', value=12.0, help='Enter the maximal desired distance from the start molecule.')
+max_d = st.sidebar.number_input('Maximal distance', value=0.0, help='Enter the maximal desired distance from the start molecule.')
 Nsteps = st.sidebar.number_input('#MC iterations', value=10, help='Enter the number of Monte Carlo iterations to be performed.')
 possible_elements = st.sidebar.multiselect(
     'Select allowed elements in the generated molecules',
@@ -124,7 +124,7 @@ synth_cut_soft, synth_cut_hard = st.sidebar.slider('Select soft and hard cutoff 
                                            step=0.1,
                                            help='Move the slider to set the soft and hard synthesizability cut-off. A lower value means easier to synthesize. Left slider at 2 and right 5 means up to 2 is always accepted, above 5 is always rejected. ')
 
-strictly_in =  st.sidebar.checkbox('Only return molecules strictly in the interval?', value=True, help='During MC you also accept molecuels outside of the 0 interval if temperature allows, this just affects postprocessing')
+strictly_in =  st.sidebar.checkbox('Only return molecules strictly in the interval?', value=False, help='During MC you also accept molecuels outside of the 0 interval if temperature allows, this just affects postprocessing')
 mmff_check = st.sidebar.checkbox('MMFF94 parameters exist? (another sanity check)', value=True, help='Check if the generated molecules should have MMFF94 parameters.')
 ensemble   = st.sidebar.checkbox('Ensemble representation (affects only geometry-based representations, BoB & SOAP)', value=False, help='Check if the ensemble representation should be used. It affects only geometry-based representations (BoB & SOAP).')
 default_bonds = "(8, 9), (8, 8), (9, 9), (7, 7)"
