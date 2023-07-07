@@ -24,8 +24,8 @@ forbidden_bonds = [
     (15, 16),
 ]
 
-NCPUs = 20
-num_subpopulations = NCPUs
+NCPUs = 16  # 20
+num_subpopulations = 20
 
 # Whether we are using cloned betas.
 if len(sys.argv) == 1:
@@ -87,7 +87,7 @@ drw = DistributedRandomWalk(
     init_egcs=init_egcs,
     min_function=min_func,
     num_processes=NCPUs,
-    num_subpopulations=NCPUs,
+    num_subpopulations=num_subpopulations,
     num_internal_global_steps=200,
     global_step_params=global_step_params,
     num_saved_candidates=num_saved_candidates,
