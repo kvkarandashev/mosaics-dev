@@ -146,7 +146,7 @@ def generate_CM(cood,charges,pad):
 
 
 
-def generate_bob(elements,coords,asize={'C': 7, 'H': 16, 'N': 3, 'O': 3, 'S': 1}):
+def generate_bob(elements,coords,asize={'C': 12, 'H': 24, 'N': 6, 'O': 6, 'F':5}):
     """
     generates the Bag of Bonds representation
     :param elements: array of arrays of chemical element symbols for all molecules in the dataset

@@ -91,16 +91,24 @@ def GridSearchCV_KernelPCovR(
     return best_model, best_score, {"mixing": best_params[0], "gamma": best_params[1]}
 
 if __name__ == "__main__":
-    
+    NEW_FIT, PLOT, NEW_FIT_ALL = True, False, False
+    PROPERTY = 4
+
+
     SAVEPATH = "/data/jan/calculations/BOSS"
     data = np.load(f"{SAVEPATH}/qm9_processed.npz", allow_pickle=True)
     X, y, SMILES = data["X"], data["y"], data["SMILES"]
-    X_train, X_test, y_train, y_test, SMILES_train, SMILES_test = train_test_split(X, y,SMILES, test_size=0.2, random_state=42)
-    NEW_FIT, PLOT, NEW_FIT_ALL = False, False, True
-    ALL_DIMENSIONS = [2, 5, 10, 20, 100]
     
-    mixing_values = [0.05, 0.1]
-    gamma_values  = np.logspace(-2, 0, 3)  # Adjust these as needed
+    X = np.stack(data["X"][:,0])
+    X_train, X_test, y_train, y_test, SMILES_train, SMILES_test = train_test_split(X, y,SMILES, test_size=0.2, random_state=42)
+    y_train = y_train[:,PROPERTY].reshape(-1,1)
+    y_test = y_test[:,PROPERTY].reshape(-1,1)
+    N_train = [2**i for i in range(8, 17)][:7]
+    ALL_DIMENSIONS = [2] #[2, 5, 10, 20, 100]
+    mixing_values = [0.05, 0.1, 0.3]
+    #gamma_values  = np.logspace(-2, 0, 3)  # Adjust these as needed
+    gamma_values  = np.logspace(-2, 2, 10)  # Property 0
+
     if NEW_FIT:
         scalar_features = SFS()
         scalar_values   = SFS()
@@ -108,7 +116,7 @@ if __name__ == "__main__":
         X_train = scalar_features.fit_transform(X_train)
         y_train = scalar_values.fit_transform(y_train)
         X_test = scalar_features.transform(X_test)
-        N_train = [2**i for i in range(7, 17)][:7]
+        
 
 
         ALL_MODELS, ALL_MAEs     = [], []
@@ -125,7 +133,7 @@ if __name__ == "__main__":
             
             ALL_MAEs.append(MAEs)
 
-        dump2pkl([ALL_MODELS,ALL_MAEs , [N_train,scalar_features,scalar_values]], f"{SAVEPATH}/pcovr.pkl")
+        dump2pkl([ALL_MODELS,ALL_MAEs , [N_train,scalar_features,scalar_values]], f"{SAVEPATH}/pcovr_{PROPERTY}.pkl")
 
 
     if NEW_FIT_ALL:
@@ -154,10 +162,10 @@ if __name__ == "__main__":
     
         ALL_MAEs.append(MAEs)
 
-        dump2pkl([ALL_MODELS,ALL_MAEs ,X_train, X_test, y_train, y_test, SMILES_train, SMILES_test, [N_train,scalar_features,scalar_values]], f"{SAVEPATH}/pcovr_max.pkl")
+        dump2pkl([ALL_MODELS,ALL_MAEs ,X_train, X_test, y_train, y_test, SMILES_train, SMILES_test, [N_train,scalar_features,scalar_values]], f"{SAVEPATH}/pcovr_max_{PROPERTY}.pkl")
 
     if PLOT:
-        ALL_MODELS, ALL_MAEs, misc = loadpkl(f"{SAVEPATH}/pcovr.pkl")
+        ALL_MODELS, ALL_MAEs, misc = loadpkl(f"{SAVEPATH}/pcovr_{PROPERTY}.pkl")
         N_train = misc[0]
         # Plot learning curves
         fig, ax = plt.subplots(figsize=(10, 8))

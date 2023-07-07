@@ -9,9 +9,16 @@ from mosaics.minimized_functions import chemspace_potentials
 import rdkit.Chem.Crippen as Crippen
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-
+import pdb
 import random
+from mosaics.minimized_functions.representations import *
+from mosaics.misc_procedures import str_atom_corr
+import math
+import pdb
 random.seed(42)
+
+def is_float_not_nan(variable):
+    return isinstance(variable, float) and not math.isnan(variable)
 
 def read_xyz(path):
     """
@@ -222,6 +229,12 @@ def find_V_0_pot(lowest_beta, dbar):
     return (2/lowest_beta)* (1/dbar)**2
 
 
+
+
+
+
+ha2kcalmol = 630
+
 if __name__ == "__main__":
 
     COMPUTE_VALUE_PLOT = False
@@ -232,34 +245,37 @@ if __name__ == "__main__":
     else:
         qm9_df = pd.read_csv('qm9.csv')
     print(qm9_df)
-
-
     #random suffle the data
-    qm9_df = qm9_df.sample(frac=1, random_state=42).reset_index(drop=True)
-    SMILES = qm9_df['canon_smiles'].values
+    #qm9_df = qm9_df.sample(frac=1, random_state=42).reset_index(drop=True)
+    #SMILES = qm9_df['canon_smiles'].values
+
+    GAP = qm9_df['gap'].values * ha2kcalmol #qm9_df['h298_atom'].values #atomization energy in kcal/mol
+    ATOMIZATION_ENERGY = qm9_df['h298_atom'].values #atomization energy in kcal/mol
+    #random suffle the data
+    qm9_df = qm9_df.sample(frac=1.0, random_state=42).reset_index(drop=True)
+    SMILES = qm9_df['smiles'].values
     #add hydrogens because Crippen descriptors need them and also the representation vectors from rdkit in our convention
     SMILES_H = [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
     X, y, SMILES_SET       =  [], [], []
-    for smi in tqdm(SMILES_H):
+    for smi, y1, y2 in tqdm(zip(SMILES_H , GAP, ATOMIZATION_ENERGY)):
         try:
-            X.append(chemspace_potentials.initialize_from_smiles(smi)[0][0])
-            y.append(Crippen.MolLogP(Chem.MolFromSmiles(smi) , True))
-            SMILES_SET.append(smi)
+            y3 = Crippen.MolLogP(Chem.MolFromSmiles(smi) , True)
+            y4 = Crippen.MolMR(Chem.MolFromSmiles(smi), True)
+            y5 = chemspace_potentials.compute_values(smi)[0]*ha2kcalmol
+            #just get free energies with bmapqml!
+            if is_float_not_nan(y5):
+                x1 = chemspace_potentials.initialize_from_smiles(smi)[0][0]
+                output = chemspace_potentials.initialize_fml_from_smiles(smi, ensemble=False)[1]
+                R, Q = output["coordinates"], output["nuclear_charges"]
+                CHG = [str_atom_corr(q) for q in Q]
+                x2 = generate_bob(CHG, R)
+                X.append([x1, x2])
+                y.append([y1, y2, y3, y4, y5])
+                SMILES_SET.append(smi)
         except Exception as e:
             #some molecules from qm9 are not valid and fail to be processed by rdkit
             print(e)
 
-    X, y, SMILES_SET = np.array(X), np.array(y).reshape(-1,1), np.array(SMILES_SET)
+    X, y, SMILES_SET = np.array(X), np.array(y), np.array(SMILES_SET)
 
     np.savez_compressed('/data/jan/calculations/BOSS/qm9_processed.npz', X=X, y=y, SMILES=SMILES_SET)
-
-    if COMPUTE_VALUE_PLOT:
-        average_dist = average_distance(X, chemspace_potentials.tanimoto_distance)
-        print("Average distance:", average_dist)
-        print("Suggested V_0_pot value:", find_V_0_pot(1, average_dist))
-
-
-
-        plt.hist(y, bins=50)
-
-        plt.show()

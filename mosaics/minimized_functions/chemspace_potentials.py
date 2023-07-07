@@ -1189,8 +1189,8 @@ def compute_values(smi,**kwargs):
     kwargs = {
         "ff_type": "MMFF94",
         "remaining_rho": 0.9,
-        "num_conformers": 32,
-        "num_attempts": 16,
+        "num_conformers": 4, #32
+        "num_attempts": 2, #16
         "solvent": "water",
         "quantities": quantities,
     }
