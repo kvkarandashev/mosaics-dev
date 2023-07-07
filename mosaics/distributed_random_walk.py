@@ -231,7 +231,8 @@ class DistributedRandomWalk:
             self.subpopulation_numpy_rng_states = self.default_init_rng_states()
         # Parallelization.
         self.num_processes = num_processes
-        self.executor = get_reusable_executor(max_workers=self.num_processes)
+        self.executor_needs_reset = True
+        self.executor = None
         # Logs of relevant information.
         self.save_logs = save_logs
         if self.save_logs:
@@ -620,6 +621,10 @@ class DistributedRandomWalk:
     def attempt_subpopulation_propagation(
         self,
     ):
+        if self.executor_needs_reset:
+            self.executor = get_reusable_executor(max_workers=self.num_processes)
+            self.executor_needs_reset = False
+
         all_propagated_subpopulation_ids = np.where(
             np.logical_not(self.subpopulation_propagation_completed)
         )[0]
@@ -650,6 +655,7 @@ class DistributedRandomWalk:
                 ):
                     raise TerminatedWorkerError
                 self.subpopulation_num_extra_rng_calls[subpopulation_id] += 1
+                self.executor_needs_reset = True
             propagated_subpopulation_id += 1
 
     def generate_all_subpopulation_propagation_results(self):

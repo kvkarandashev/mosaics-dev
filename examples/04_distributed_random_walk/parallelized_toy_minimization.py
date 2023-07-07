@@ -24,8 +24,8 @@ forbidden_bonds = [
     (15, 16),
 ]
 
-NCPUs = 20
-num_subpopulations = NCPUs
+NCPUs = 16  # 20
+num_subpopulations = 20
 
 # Whether we are using cloned betas.
 if len(sys.argv) == 1:
