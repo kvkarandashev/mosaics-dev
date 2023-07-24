@@ -17,7 +17,7 @@ WORKDIR /app
 ADD . /app
 
 # Install any needed packages specified in requirements.txt
-COPY examples/03_chemspacesampler/chemspace.yml /app
+COPY examples/05_chemspacesampler/chemspace.yml /app
 #COPY examples/03_chemspacesampler/atomic_dict/alchemy_mean_energy_lookup.pkl /app
 RUN conda env create -f chemspace.yml
 # Make
@@ -50,5 +50,5 @@ COPY . .
 EXPOSE 8501
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
 # command to run on container start
-ENTRYPOINT ["streamlit", "run", "examples/03_chemspacesampler/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["streamlit", "run", "examples/05_chemspacesampler/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
 #docker run -p 8501:8501 chemspace

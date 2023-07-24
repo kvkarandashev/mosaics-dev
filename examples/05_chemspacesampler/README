@@ -8,7 +8,7 @@ To start using the app, please follow the below instructions:
 
 1. **Navigate to the directory**
 ```bash
-cd mosaics/examples/03_chemspacesampler
+cd mosaics/examples/05_chemspacesampler
 ```
 
 2. **Build the Docker image**
