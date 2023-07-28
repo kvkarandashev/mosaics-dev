@@ -86,7 +86,7 @@ def str_to_tuple_list(string):
     return tuples
 
 
-descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP','CM', 'MBDF','atomic_energy']
+descriptor_options = ['RDKit', 'ECFP4','BoB', 'SOAP','CM', 'MBDF'] #,'atomic_energy']
 
 import streamlit as st
 
@@ -103,34 +103,43 @@ st.write('🔍 If you want to find the closest molecules, set both distances to 
 
 
 # Parameters input
+st.sidebar.image("/app/examples/05_chemspacesampler/radar.png", caption='Navigate chemical space', use_column_width=True)
+
 st.sidebar.subheader('Input Parameters')
 
 
 
-smiles = st.sidebar.text_input('Start molecule', value="CC(=O)OC1=CC=CC=C1C(=O)O", help='Enter the SMILES string of your starting molecule.')
-selected_descriptor = st.sidebar.selectbox('Select Descriptor', descriptor_options, help='Choose the descriptor used to calculate the distance between molecules. The descriptors are: RDKit (check rdkit.Chem.Descriptors), ECFP4 (hashed group based), BoB (Bag of Bonds), SOAP (Smooth Overlap of Atomic Positions), CM (Coulomb Matrix).')
-min_d = st.sidebar.number_input('Minimal distance', value=0.0, help='Enter the minimal desired distance from the start molecule.')
-max_d = st.sidebar.number_input('Maximal distance', value=0.0, help='Enter the maximal desired distance from the start molecule.')
-Nsteps = st.sidebar.number_input('#MC iterations', value=10, help='Enter the number of Monte Carlo iterations to be performed.')
+help_text_selected_descriptor = 'Choose the representation (descriptor) used to calculate the distance between molecules. \
+                                 The descriptors are: RDKit (check rdkit.Chem.Descriptors), ECFP4 (hashed group based), BoB (Bag of Bonds), (global) SOAP (Smooth Overlap of Atomic Positions)  doi:10.1039/c6cp00415f, CM (Coulomb Matrix) Phys. Rev. Lett. 108, 058301 . MBDF (many-body distribution functionals) https://doi.org/10.1063/5.0152215'
+
+smiles = st.sidebar.text_input('Start molecule', value="OC1=CC=CC=C1", help='Enter the SMILES string of your starting molecule.')
+selected_descriptor = st.sidebar.selectbox('Select Representation', descriptor_options, help=help_text_selected_descriptor)
+min_d = st.sidebar.number_input('Min distance', value=0.0, help='Enter the minimal desired distance from the central molecule.')
+max_d = st.sidebar.number_input('Max distance', value=0.0, help='Enter the maximal desired distance from the central molecule.')
+Nsteps = st.sidebar.number_input('#MC steps', value=30, help='Enter the number of Monte Carlo iterations to be performed.')
 possible_elements = st.sidebar.multiselect(
     'Select allowed elements in the generated molecules',
     options=['C', 'O', 'N', 'F', 'P', 'S', 'Si', 'Br', 'Cl', 'B'],
     default=['C', 'O', 'N', 'F'],  help='Enter the elements that are allowed in the generated molecules.')
-nhatoms_range = st.sidebar.text_input('Number of heavy atoms (non-hydrogen)', value="2, 16", help='Enter the range of the number of heavy atoms that should be in the generated molecules.').split(', ')
+nhatoms_range = st.sidebar.text_input('Number of heavy atoms (non-hydrogen)', value="2, 9", help='Enter the range of the number of heavy atoms that should be in the generated molecules.').split(', ')
 synth_cut_soft, synth_cut_hard = st.sidebar.slider('Select soft and hard cutoff for Synthesizability (1 easy to 10 impossible to make) read the (?) for more info',
                                            min_value=1.0,
                                            max_value=10.0,
-                                           value=(2.0, 5.0),
+                                           value=(6.8, 9.5),
                                            step=0.1,
                                            help='Move the slider to set the soft and hard synthesizability cut-off. A lower value means easier to synthesize. Left slider at 2 and right 5 means up to 2 is always accepted, above 5 is always rejected. ')
 
-strictly_in =  st.sidebar.checkbox('Only return molecules strictly in the interval?', value=False, help='During MC you also accept molecuels outside of the 0 interval if temperature allows, this just affects postprocessing')
+strictly_in =  st.sidebar.checkbox('Only return molecules strictly in the distance interval?', value=False, help='During MC you also accept molecuels outside of the 0 interval if temperature allows, this just affects postprocessing')
 mmff_check = st.sidebar.checkbox('MMFF94 parameters exist? (another sanity check)', value=True, help='Check if the generated molecules should have MMFF94 parameters.')
 ensemble   = st.sidebar.checkbox('Ensemble representation (affects only geometry-based representations, BoB & SOAP)', value=False, help='Check if the ensemble representation should be used. It affects only geometry-based representations (BoB & SOAP).')
 default_bonds = "(8, 9), (8, 8), (9, 9), (7, 7)"
 
 # Input field for forbidden bonds
 bonds_input = st.sidebar.text_input("Enter forbidden bonds as pairs (a, b), separated by commas:", value=default_bonds, help="Enter forbidden bonds as pairs (a, b), separated by commas where a anb b are the atomic numbers of the atoms forming the bond.")
+
+
+#just add some text to the sidebar
+st.sidebar.write('📚 References: Understanding Representations by Exploring Galaxies in Chemical Space, Jan Weinreich, Konstantin Karandashev, Guido von Rudorff arXiv:xxxx.xxxxx')
 
 # Convert input string to list of tuples
 try:
@@ -288,6 +297,6 @@ if st.button('Run ChemSpace Sampler'):
     except Exception as e:
         
         st.error('An error occurred. Please check your input parameters and try again. \
-                 Is the starting molecule consistent with the conditions i.e. number of heavy atoms, elements, etc.? \
-                 sometimes things fail for no apparent reason, just try again.')
+                 Is the starting molecule consistent with the conditions i.e. number of heavy atoms, elements, synthesizability, etc.? \
+                 Usually it means no molecules were found that satisfy the conditions.')
         print(e)

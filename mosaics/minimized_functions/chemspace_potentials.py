@@ -20,7 +20,6 @@ from joblib import Parallel, delayed
 import pandas as pd
 from tqdm import tqdm
 from rdkit.Chem import AllChem
-from sklearn.model_selection import train_test_split
 from mosaics.misc_procedures import str_atom_corr
 from mosaics.minimized_functions import chemspace_sampler_default_params
 import pdb
@@ -2066,54 +2065,3 @@ def chemspacesampler_find_cliffs(smiles, params=None):
     
 
     return MOLS, D, P
-
-
-
-class QM9Dataset():
-    def __init__(self, params):
-        self.params = params
-        self.load = self.params['load']
-        if self.load:
-            data = np.load(f'{params["loc_path"]}/data.npz')
-            self.X_train, self.X_test, self.y_train, self.y_test = data['X_train'], data['X_test'], data['y_train'], data['y_test']
-            
-        else:
-            N = params['N']
-            self.qm9 = np.load(params["qm9_path"], allow_pickle=True)
-            self.coords = self.qm9['coordinates']
-            
-            self.nuclear_charges = self.qm9['charges']
-            self.elements = self.qm9['elements']
-            self.energies = np.array(self.qm9['H_atomization'])
-            self.Cvs = np.array(self.qm9['Cv'])
-            self.species = ["C", "O", "N", "F", "H"]
-
-
-            self.asize, self.max_n = max_element_counts(self.elements)
-            idx = np.arange(len(self.coords))
-            np.random.shuffle(idx)
-            self.coords = self.coords[idx[:N]]
-            self.nuclear_charges = self.nuclear_charges[idx[:N]]
-            self.elements = self.elements[idx[:N]]
-            self.energies = self.energies[idx[:N]]
-            self.Cvs = self.Cvs[idx[:N]]
-
-            self.generate_representations()
-            
-            self.energies = self.energies.reshape(-1,1)
-            self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.energies, test_size=0.2, random_state=42)
-            np.savez_compressed(f'{params["loc_path"]}/data.npz', X_train = self.X_train, X_test = self.X_test, y_train = self.y_train, y_test = self.y_test)
-
-
-    def generate_representations(self):
-
-        self.X = []
-
-
-        for i in range(len(self.coords)):
-            if self.params['rep_type'] == 'BoB':
-                self.X.append(generate_bob(self.nuclear_charges[i],self.coords[i],asize=self.asize))
-        self.X = np.array(self.X)
-
-
-
