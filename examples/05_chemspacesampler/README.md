@@ -1,4 +1,7 @@
-# ChemSpaceSampler: A Chemistry Space Sampling App 🧪🚀
+# ChemSpaceSampler: A Chemical Space Sampling App 🧪🚀
+
+
+![Alt Text](app_shot.png)
 
 Welcome to ChemSpaceSampler, an app for generating novel chemical structures starting from a given molecule.
 
