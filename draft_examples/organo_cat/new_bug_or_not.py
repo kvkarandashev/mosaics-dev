@@ -6,7 +6,6 @@ from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
 from mosaics.minimized_functions.chemspace_potentials import potential_ECFP, initialize_from_smiles
 import rdkit
 import os
-from retrieve_model_smiles import PredictSmilesDrugOrgCat
 from rdkit import Chem
 import pdb
 
@@ -24,54 +23,6 @@ forbidden_bonds = [(7, 7), (7, 8), (8, 8), (7, 9), (8, 9), (9, 9)]
 not_protonated = [8, 9]
 nhatoms_range = [1, 30]
 # Define minimized function using parameters discussed in the MOSAiCS paper.
-
-
-
-
-class classify_molecule:
-    def __init__(self, model_path, goal) -> None:
-
-        model_path = '/home/jan/projects/theo/model/perso_gcnn_seed_22_100_epochs' #FILL HERE THE PATH
-        self.model = PredictSmilesDrugOrgCat(model_path)
-        self.goal = goal
-        self.call_counter = 0
-
-        self.V_0_synth = 0.05
-        self.synth_cut_soft = 5
-        self.synth_cut_hard = 8
-
-    def synth_potential(self, score):
-        if score > self.synth_cut_hard:
-            return None
-        if score > self.synth_cut_soft:
-            return self.V_0_synth * (score - self.synth_cut_soft) ** 2
-        else:
-            return 0
-
-    def __call__(self, trajectory_point_in):
-            self.call_counter += 1
-            # Get the SMILES string of the molecule.
-            SMILES = canonical_SMILES_from_tp(trajectory_point_in)
-            #remove the Hs with the RDKit
-            mol = Chem.MolFromSmiles(SMILES)
-            mol = Chem.RemoveHs(mol)
-            #back to canonical SMILES
-            SMILES = Chem.MolToSmiles(mol)
-            V_synth = 0
-            if self.call_counter > 5:
-                score  = sascorer.calculateScore(mol)
-                V_synth = self.synth_potential(score)
-                if V_synth == None:
-                    return None
-
-
-            prediction = self.model.predict(SMILES)[0][0]
-            print(SMILES,prediction)
-            if self.goal == 'org':
-                return prediction[0]+V_synth
-            elif self.goal == 'cat':
-                return prediction[1]+V_synth
-            
 
 
 # None corresponds to greedy optimization, other betas are used in a Metropolis scheme.
