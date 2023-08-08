@@ -1669,6 +1669,13 @@ def split_chemgraph_no_dissociation_check(cg_input, membership_vector, copied=Fa
     return output
 
 
+def split_chemgraph_into_connected_fragments(cg_input, copied=False):
+    connected_fragment_membership_vector = cg_input.graph.components().membership
+    return split_chemgraph_no_dissociation_check(
+        cg_input, connected_fragment_membership_vector, copied=copied
+    )
+
+
 def combine_chemgraphs(cg1, cg2):
     new_hatoms = copy.deepcopy(cg1.hatoms + cg2.hatoms)
     new_graph = disjoint_union([cg1.graph, cg2.graph])

@@ -8,6 +8,7 @@ from .valence_treatment import (
     default_valence,
     canonically_permuted_ChemGraph,
     str2ChemGraph,
+    split_chemgraph_into_connected_fragments,
 )
 from .ext_graph_compound import ExtGraphCompound
 import copy
@@ -338,3 +339,21 @@ def ChemGraphStr_to_SMILES(chemgraph_str):
 
 def canonical_SMILES_from_tp(tp):
     return chemgraph_to_canonical_rdkit(tp.egc.chemgraph, SMILES_only=True)
+
+
+def canonical_connected_rdkit_list_from_tp(tp, SMILES_only=False):
+    """
+    Returns rdkit (with SMILES) of all connected fragments.
+    """
+    connected_chemgraphs = split_chemgraph_into_connected_fragments(tp.egc.chemgraph)
+    return [
+        chemgraph_to_canonical_rdkit(cg, SMILES_only=SMILES_only)
+        for cg in connected_chemgraphs
+    ]
+
+
+def canonical_connected_SMILES_list_from_tp(tp):
+    """
+    Returns SMILES of all connected fragments.
+    """
+    return canonical_connected_rdkit_list_from_tp(tp, SMILES_only=True)
