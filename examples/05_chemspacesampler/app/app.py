@@ -103,7 +103,7 @@ st.write('🔍 If you want to find the closest molecules, set both distances to 
 
 
 # Parameters input
-st.sidebar.image("/app/examples/05_chemspacesampler/radar.png", caption='Navigate chemical space', use_column_width=True)
+st.sidebar.image("/app/examples/05_chemspacesampler/app/radar.png", caption='Navigate chemical space', use_column_width=True)
 
 st.sidebar.subheader('Input Parameters')
 
