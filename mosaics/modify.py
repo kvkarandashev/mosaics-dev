@@ -955,6 +955,7 @@ def egc_valid_wrt_change_params(
     forbidden_bonds=None,
     possible_elements=None,
     not_protonated=None,
+    max_fragment_num=None,
     **other_kwargs,
 ):
     """
@@ -978,4 +979,7 @@ def egc_valid_wrt_change_params(
         for ha in egc.chemgraph.hatoms:
             if ha.ncharge not in possible_elements_nc:
                 return False
+    if max_fragment_num is not None:
+        if egc.chemgraph.num_connected() > max_fragment_num:
+            return False
     return True

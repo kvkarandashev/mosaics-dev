@@ -11,7 +11,7 @@ class RandFunc:
         self.min_vec = np.random.random((self.ndims,))
 
     def __call__(self, x):
-        return np.mean((x - self.min_vec) ** 2 * self.prop_coeffs)
+        return np.mean((x[0] - self.min_vec) ** 2 * self.prop_coeffs)
 
 
 def main():

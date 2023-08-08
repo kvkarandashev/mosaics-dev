@@ -78,10 +78,15 @@ class FragmentPair:
 
         while self.core_size() < neighborhood_size:
             self.expand_core(update_affected_status=False)
+            if self.no_fragment_neighbors():
+                break
 
-        # Two list of vertices corresponding to the two grahments.
+        # Two list of vertices corresponding to the two fragments.
         self.sorted_vertices = None
         self.init_affected_status_info()
+
+    def no_fragment_neighbors(self):
+        return len(self.affected_bonds) == 0
 
     def expand_core(self, update_affected_status=True):
         for old_affected_bond in self.affected_bonds:
@@ -445,6 +450,8 @@ def frag_size_status_list(cg, origin_point, max_num_affected_bonds=3):
             if len(temp_fp.affected_bonds) <= max_num_affected_bonds:
                 output.append((temp_fp.core_size(), temp_fp.affected_status))
         temp_fp.expand_core()
+        if temp_fp.no_fragment_neighbors():
+            break
     return output
 
 

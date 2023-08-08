@@ -3,22 +3,30 @@ from mosaics.random_walk import RandomWalk
 from mosaics.beta_choice import gen_exp_beta_array
 from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
 from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.minimized_functions.chemspace_potentials import potential_ECFP, initialize_from_smiles
+from mosaics.minimized_functions.chemspace_potentials import (
+    potential_ECFP,
+    initialize_from_smiles,
+)
 import rdkit
 import os
 from rdkit import Chem
 import pdb
+import random, numpy
 
 from rdkit.Chem import RDConfig
 import rdkit.Chem.Crippen as Crippen
 from rdkit.Contrib.SA_Score import sascorer
 import sys
-sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
+
+random.seed(2)
+numpy.random.seed(2)
+
+sys.path.append(os.path.join(RDConfig.RDContribDir, "SA_Score"))
 # SMILES of the molecule from which we will start optimization.
 init_SMILES = "CC(=O)OC1=C2OC3C(OC(C)=O)C=CC4C5CC(=C2C43CCN5C)C=C1"
-#"CC(=O)OC1=C2OC3C(OC(C)=O)C=CC4C5CC(=C2C43CCN5C)C=C1"
+# "CC(=O)OC1=C2OC3C(OC(C)=O)C=CC4C5CC(=C2C43CCN5C)C=C1"
 # Parameter of the QM9* chemical space over which the property is optimized.
-possible_elements = ["C", "N", "O", "F", "Cl", "Br",  "S"]
+possible_elements = ["C", "N", "O", "F", "Cl", "Br", "S"]
 forbidden_bonds = [(7, 7), (7, 8), (8, 8), (7, 9), (8, 9), (9, 9)]
 not_protonated = [8, 9]
 nhatoms_range = [1, 30]
@@ -56,29 +64,29 @@ global_change_params = {
 }
 
 params = {
-    'min_d': 0.0,
-    'max_d': 6.0,
-    'NPAR': 1,
-    'Nsteps': 100,
-    'bias_strength': "none",
-    'possible_elements': possible_elements,
-    'not_protonated': None, 
-    'forbidden_bonds': [(8, 9), (8,8), (9,9), (7,7)],
-    'nhatoms_range': nhatoms_range,
-    'betas': gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
-    'make_restart_frequency': None,
+    "min_d": 0.0,
+    "max_d": 6.0,
+    "NPAR": 1,
+    "Nsteps": 100,
+    "bias_strength": "none",
+    "possible_elements": possible_elements,
+    "not_protonated": None,
+    "forbidden_bonds": [(8, 9), (8, 8), (9, 9), (7, 7)],
+    "nhatoms_range": nhatoms_range,
+    "betas": gen_exp_beta_array(4, 1.0, 32, max_real_beta=8.0),
+    "make_restart_frequency": None,
     "rep_type": "2d",
     "nBits": 2048,
-    'mmff_check': True,
-    'synth_cut_soft': 3,
-    'synth_cut_hard': 7,
-    'V_0_pot': 0.05,
-    'V_0_synth': 0.05,
-    "verbose": False
+    "mmff_check": True,
+    "synth_cut_soft": 3,
+    "synth_cut_hard": 7,
+    "V_0_pot": 0.05,
+    "V_0_synth": 0.05,
+    "verbose": False,
 }
 
 X, rdkit_init, egc = initialize_from_smiles(init_SMILES)
-minimized_function = potential_ECFP(X ,params=params)
+minimized_function = potential_ECFP(X, params=params)
 
 
 rw = RandomWalk(
