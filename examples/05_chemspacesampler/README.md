@@ -1,6 +1,5 @@
 # ChemSpaceSampler: A Chemical Space Sampling App 🧪🚀
 
-
 ![Alt Text](app_shot.png)
 
 Welcome to ChemSpaceSampler, an app for generating novel chemical structures starting from a given molecule.
@@ -11,14 +10,17 @@ To start using the app, please follow the below instructions:
 
 1. **Navigate to the directory**
 ```bash
-cd mosaics/examples/05_chemspacesampler
+cd mosaics/examples/05_chemspacesampler/app
 ```
 
 2. **Build the Docker image**
 ```bash
-docker build -f Dockerfile -t chemspace ../..
+docker build -f Dockerfile -t chemspace ../../..
 ```
-⏰ This step will take about 5 minutes. 
+NOTE: For some linux systems if docker was not set up with sudo rights you need to do this command first:
+```sudo chmod 666 /var/run/docker.sock```
+
+⏰ Setting up the docker image will take about 5 minutes. 
 
 3. **Run the Docker container**
 ```bash
@@ -54,5 +56,7 @@ If no molecules are found, you might need to adjust your parameters. Try increas
 ## Contact and Feedback 📬
 
 For any issues or suggestions, feel free to reach out to us. Your feedback is greatly appreciated!
+
+- [Jan Weinreich](mailto:  [jan.weinreich@epfl.ch])
 
 Happy experimenting! 🎉
