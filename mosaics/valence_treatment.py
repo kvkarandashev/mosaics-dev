@@ -21,6 +21,7 @@ from .misc_procedures import (
     int_atom_checked,
     sorted_by_membership,
     sorted_tuple,
+    log_natural_factorial,
 )
 
 
@@ -422,6 +423,7 @@ class ChemGraph:
             ha.possible_valences = None
 
         self.comparison_list = None
+        self.log_permutation_factor = None
 
     # Checking graph's state.
     def valences_reasonable(self):
@@ -477,12 +479,15 @@ class ChemGraph:
         else:
             return self.pair_equivalence_matrix
 
+    def check_all_atom_equivalence_classes(self):
+        for i in range(self.nhatoms()):
+            self.check_equivalence_class((i,))
+
     def checked_equivalence_vector(self):
         """
         Check that all equivalence classes have been initialized and return the resulting equivalence vector.
         """
-        for i in range(self.nhatoms()):
-            self.check_equivalence_class((i,))
+        self.check_all_atom_equivalence_classes()
         return self.equivalence_vector
 
     def sorted_colors(self, atom_set):
@@ -560,8 +565,8 @@ class ChemGraph:
     def uninit_atom_sets_equivalent(self, atom_set1, atom_set2):
         self.init_colors()
 
-        temp_colors1 = copy.deepcopy(self.colors)
-        temp_colors2 = copy.deepcopy(self.colors)
+        temp_colors1 = np.copy(self.colors)
+        temp_colors2 = np.copy(self.colors)
         dummy_color = max(self.colors) + 1
         for atom_id1, atom_id2 in zip(atom_set1, atom_set2):
             temp_colors1[atom_id1] = dummy_color
@@ -588,6 +593,22 @@ class ChemGraph:
             return self.uninit_atom_sets_equivalent(atom_set1, atom_set2)
         return self.equivalence_class(atom_set1) == self.equivalence_class(atom_set2)
 
+    def init_log_permutation_factor(self):
+        # TODO Is there a better name for this?
+        self.check_all_atom_equivalence_classes()
+        self.log_permutation_factor = log_natural_factorial(self.nhatoms())
+        for equiv_class_id in range(self.num_equiv_classes(1)):
+            multiplicity = sum(self.equivalence_vector == equiv_class_id)
+            self.log_permutation_factor -= log_natural_factorial(multiplicity)
+
+    def get_log_permutation_factor(self):
+        """
+        Logarithm of the number of distinct ways the molecule can be permuted.
+        """
+        if self.log_permutation_factor is None:
+            self.init_log_permutation_factor()
+        return self.log_permutation_factor
+
     # How many times atom_id is repeated inside a molecule.
     def atom_multiplicity(self, atom_id):
         return sum(
@@ -596,8 +617,7 @@ class ChemGraph:
         )
 
     def unrepeated_atom_list(self):
-        for atom_id in range(self.nhatoms()):
-            self.check_equivalence_class([atom_id])
+        self.check_all_atom_equivalence_classes()
         return self.equiv_class_examples(1, as_tuples=False)
 
     # Coordination number including unconnected electronic pairs. TO-DO: make sure it does not count pairs that contribute to an aromatic system?
@@ -616,11 +636,16 @@ class ChemGraph:
     def hybridization(self, hatom_id):
         return coord_num_hybrid[self.effective_coordination_number(hatom_id)]
 
-    def is_connected(self):
+    def is_connected(self) -> bool:
+        """
+        Whether instance contains just one molecule.
+        """
         return self.num_connected() == 1
 
-    # Number of connected molecules.
-    def num_connected(self):
+    def num_connected(self) -> int:
+        """
+        Number of connected molecules inside instance.
+        """
         return len(self.graph.components())
 
     # Order of bond between atoms atom_id1 and atom_id2
@@ -650,7 +675,9 @@ class ChemGraph:
         else:
             return 0.0
 
-    def aa_all_bond_orders(self, atom_id1, atom_id2, unsorted=False):
+    def aa_all_bond_orders(
+        self, atom_id1, atom_id2, unsorted=False, output_comparison_function=None
+    ):
         self.init_resonance_structures()
 
         stuple = sorted_tuple(atom_id1, atom_id2)
@@ -659,22 +686,55 @@ class ChemGraph:
                 res_struct_ords = self.resonance_structure_orders[
                     self.resonance_structure_map[stuple]
                 ]
-                output = []
+                if output_comparison_function is not None:
+                    extrema_val = None
+                else:
+                    output = []
                 for res_struct_ord in res_struct_ords:
                     if stuple in res_struct_ord:
                         new_bond_order = res_struct_ord[stuple] + 1
                     else:
                         new_bond_order = 1
-                    if unsorted or (new_bond_order not in output):
-                        output.append(new_bond_order)
-                if unsorted:
-                    return output
+                    if output_comparison_function is not None:
+                        if extrema_val is None:
+                            extrema_val = new_bond_order
+                        extrema_val = output_comparison_function(
+                            new_bond_order, extrema_val
+                        )
+                    else:
+                        if unsorted or (new_bond_order not in output):
+                            output.append(new_bond_order)
+                if output_comparison_function is not None:
+                    return extrema_val
                 else:
-                    return sorted(output)
+                    if unsorted:
+                        return output
+                    else:
+                        return sorted(output)
             else:
-                return [self.bond_orders[stuple]]
+                bond_val = self.bond_orders[stuple]
         else:
-            return [0]
+            bond_val = 0
+        if output_comparison_function is not None:
+            return bond_val
+        else:
+            return [bond_val]
+
+    def max_bond_order(self, atom_id1, atom_id2):
+        """
+        Bond order between atom_id1 and atom_id2 which is maximum over all resonance structures.
+        """
+        return self.aa_all_bond_orders(
+            atom_id1, atom_id2, output_comparison_function=max
+        )
+
+    def min_bond_order(self, atom_id1, atom_id2):
+        """
+        Bond order between atom_id1 and atom_id2 which is minimum over all resonance structures.
+        """
+        return self.aa_all_bond_orders(
+            atom_id1, atom_id2, output_comparison_function=min
+        )
 
     def nhatoms(self):
         """

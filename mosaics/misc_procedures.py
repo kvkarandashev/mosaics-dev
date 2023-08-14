@@ -1,6 +1,8 @@
 # Several auxiliary functions that appear everywhere.
 from .data import NUCLEAR_CHARGE
 import os, copy
+import numpy as np
+import random
 
 
 def canonical_atomtype(atomtype):
@@ -164,3 +166,122 @@ def repeated_dict(labels, repeated_el, copy_needed=False):
 
 def all_None_dict(labels):
     return repeated_dict(labels, None)
+
+
+def lookup_or_none(dict_in, key):
+    if key in dict_in:
+        return dict_in[key]
+    else:
+        return None
+
+
+# Lookup table for saving values of natural number factorial.
+
+
+class NaturalFactorialLogLookup:
+    def __init__(self):
+        self.saved_values = None
+        self.max_avail_val = 0
+
+    def fill_saved_values(self, new_max_avail_val):
+        new_saved_values = np.empty((new_max_avail_val,))
+        if self.saved_values is None:
+            current_log = 0.0
+        else:
+            new_saved_values[: self.max_avail_val] = self.saved_values[:]
+            current_log = self.saved_values[-1]
+        for i in range(self.max_avail_val, new_max_avail_val):
+            current_log += np.log(float(i + 1))
+            new_saved_values[i] = current_log
+        self.saved_values = new_saved_values
+        self.max_avail_val = new_max_avail_val
+
+    def __call__(self, int_val):
+        assert int_val > 0
+        if int_val > self.max_avail_val:
+            self.fill_saved_values(int_val)
+        return self.saved_values[int_val - 1]
+
+
+log_natural_factorial = NaturalFactorialLogLookup()
+
+
+# Used for different random choices (mainly in modify)
+def available_options_prob_norm(dict_in):
+    output = 0.0
+    for i in list(dict_in):
+        if len(dict_in[i]) != 0:
+            output += 1.0
+    return output
+
+
+def random_choice_from_dict(possibilities, choices=None, get_probability_of=None):
+    prob_sum = 0.0
+    corr_prob_choice = {}
+    if choices is None:
+        choices = possibilities.keys()
+    for choice in choices:
+        if (choice not in possibilities) or (len(possibilities[choice]) == 0):
+            continue
+        if isinstance(choices, dict):
+            prob = choices[choice]
+        else:
+            prob = 1.0
+        prob_sum += prob
+        corr_prob_choice[choice] = prob
+    if get_probability_of is None:
+        if len(corr_prob_choice.keys()) == 0:
+            raise Exception(
+                "Something is wrong: encountered a molecule that cannot be changed"
+            )
+        final_choice = random.choices(
+            list(corr_prob_choice.keys()), list(corr_prob_choice.values())
+        )[0]
+        final_prob_log = np.log(corr_prob_choice[final_choice] / prob_sum)
+        return final_choice, possibilities[final_choice], final_prob_log
+    else:
+        return possibilities[get_probability_of], np.log(
+            corr_prob_choice[get_probability_of] / prob_sum
+        )
+
+
+def random_choice_from_nested_dict(
+    possibilities, choices=None, get_probability_of=None
+):
+
+    continue_nested = True
+    cur_possibilities = possibilities
+    prob_log = 0.0
+    cur_choice_prob_dict = choices
+
+    if get_probability_of is None:
+        final_choice = []
+    else:
+        choice_level = 0
+
+    while continue_nested:
+        if not isinstance(cur_possibilities, dict):
+            if isinstance(cur_possibilities, list):
+                prob_log -= np.log(float(len(cur_possibilities)))
+                if get_probability_of is None:
+                    final_choice.append(random.choice(cur_possibilities))
+            break
+        if get_probability_of is None:
+            get_prob_arg = None
+        else:
+            get_prob_arg = get_probability_of[choice_level]
+            choice_level += 1
+        rcfd_res = random_choice_from_dict(
+            cur_possibilities,
+            choices=cur_choice_prob_dict,
+            get_probability_of=get_prob_arg,
+        )
+        prob_log += rcfd_res[-1]
+        cur_possibilities = rcfd_res[-2]
+        cur_choice_prob_dict = None
+        if get_probability_of is None:
+            final_choice.append(rcfd_res[0])
+    if get_probability_of is None:
+        return final_choice, prob_log
+    else:
+        return prob_log
