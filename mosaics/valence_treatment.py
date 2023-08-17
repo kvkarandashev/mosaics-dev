@@ -425,6 +425,10 @@ class ChemGraph:
         self.comparison_list = None
         self.log_permutation_factor = None
 
+        # For checking vertex equivalence.
+        self.temp_colors1 = None
+        self.temp_colors2 = None
+
     # Checking graph's state.
     def valences_reasonable(self):
         for ha_id, ha in enumerate(self.hatoms):
@@ -565,15 +569,17 @@ class ChemGraph:
     def uninit_atom_sets_equivalent(self, atom_set1, atom_set2):
         self.init_colors()
 
-        temp_colors1 = np.copy(self.colors)
-        temp_colors2 = np.copy(self.colors)
         dummy_color = max(self.colors) + 1
         for atom_id1, atom_id2 in zip(atom_set1, atom_set2):
-            temp_colors1[atom_id1] = dummy_color
-            temp_colors2[atom_id2] = dummy_color
-        return self.graph.isomorphic_vf2(
-            self.graph, color1=temp_colors1, color2=temp_colors2
+            self.temp_colors1[atom_id1] = dummy_color
+            self.temp_colors2[atom_id2] = dummy_color
+        are_equivalent = self.graph.isomorphic_vf2(
+            self.graph, color1=self.temp_colors1, color2=self.temp_colors2
         )
+        for atom_id1, atom_id2 in zip(atom_set1, atom_set2):
+            self.temp_colors1[atom_id1] = self.colors[atom_id1]
+            self.temp_colors2[atom_id2] = self.colors[atom_id2]
+        return are_equivalent
 
     def atom_pair_equivalent(self, atom_id1, atom_id2):
         return self.atom_sets_equivalent([atom_id1], [atom_id2])
@@ -640,7 +646,7 @@ class ChemGraph:
         """
         Whether instance contains just one molecule.
         """
-        return self.num_connected() == 1
+        return self.graph.is_connected()
 
     def num_connected(self) -> int:
         """
@@ -1416,6 +1422,8 @@ class ChemGraph:
     def init_colors(self):
         if self.colors is None:
             self.colors = list2colors(self.hatoms)
+            self.temp_colors1 = np.copy(self.colors)
+            self.temp_colors2 = np.copy(self.colors)
 
     def init_canonical_permutation(self):
         if self.canonical_permutation is None:

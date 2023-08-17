@@ -87,6 +87,7 @@ opt_protocol = OptimizationProtocol(
     greedy_delete_checked_paths=True,
     init_egc=SMILES_to_egc(init_SMILES),  # saved_candidates_max_difference=None,
     num_saved_candidates=40,
+    debug=True,
 )
 
 for iteration_id in opt_protocol:

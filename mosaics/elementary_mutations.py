@@ -192,6 +192,28 @@ def atom_removal_possibilities(
     return possible_ids
 
 
+def hatoms_with_changeable_nhydrogens(
+    egc, bond_order_change, not_protonated=None, origin_point=None
+):
+    cg = egc.chemgraph
+    if origin_point is None:
+        ha_ids = range(cg.nhatoms())
+    else:
+        ha_ids = cg.neighbors(origin_point)
+    output = []
+    for ha_id in ha_ids:
+        ha = cg.hatoms[ha_id]
+        if bond_order_change > 0:
+            if ha.nhydrogens < bond_order_change:
+                continue
+        else:
+            if not_protonated is not None:
+                if ha.ncharge in not_protonated:
+                    continue
+        output.append(ha_id)
+    return output
+
+
 def chain_addition_possibilities(
     egc,
     chain_starting_element=None,
@@ -226,26 +248,28 @@ def chain_addition_possibilities(
 
     min_avail_added_bond_order = min(avail_added_bond_order)
 
-    for ha_id, ha in enumerate(egc.chemgraph.hatoms):
-        if (ha.nhydrogens >= min_avail_added_bond_order) and (
-            not connection_forbidden(
-                ha.ncharge, chain_starting_ncharge, forbidden_bonds
-            )
-        ):
-            if exclude_equivalent:
-                if atom_equivalent_to_list_member(egc, ha_id, possible_ids):
-                    continue
-            for added_bond_order in avail_added_bond_order:
-                if added_bond_order > max_bo(ha, chain_starting_ncharge):
-                    continue
-                if added_bond_order <= ha.nhydrogens:
-                    if chain_addition_tuple_possibilities:
-                        possible_ids.append((ha_id, added_bond_order))
+    potentially_altered_ha_ids = hatoms_with_changeable_nhydrogens(
+        egc, min_avail_added_bond_order
+    )
+
+    for ha_id in potentially_altered_ha_ids:
+        ha = egc.chemgraph.hatoms[ha_id]
+        if connection_forbidden(ha.ncharge, chain_starting_ncharge, forbidden_bonds):
+            continue
+        if exclude_equivalent:
+            if atom_equivalent_to_list_member(egc, ha_id, possible_ids):
+                continue
+        for added_bond_order in avail_added_bond_order:
+            if added_bond_order > max_bo(ha, chain_starting_ncharge):
+                continue
+            if added_bond_order <= ha.nhydrogens:
+                if chain_addition_tuple_possibilities:
+                    possible_ids.append((ha_id, added_bond_order))
+                else:
+                    if ha_id in possible_ids:
+                        possible_ids[ha_id].append(added_bond_order)
                     else:
-                        if ha_id in possible_ids:
-                            possible_ids[ha_id].append(added_bond_order)
-                        else:
-                            possible_ids[ha_id] = [added_bond_order]
+                        possible_ids[ha_id] = [added_bond_order]
     return possible_ids
 
 
@@ -415,26 +439,24 @@ def bond_change_possibilities(
             max_fragment_num=max_fragment_num,
         )
     output = []
-    cg = egc.chemgraph
-    hatoms = cg.hatoms
     if bond_order_change == 0:
         return output
-    for ha_id1, ha1 in enumerate(hatoms):
-        nc1 = ha1.ncharge
-        if not_protonated is not None:
-            if nc1 in not_protonated:
-                continue
+    potentially_altered_first_atoms = hatoms_with_changeable_nhydrogens(
+        egc, bond_order_change, not_protonated=not_protonated
+    )
+    for ha_id1 in potentially_altered_first_atoms:
         if bond_order_change > 0:
-            if ha1.nhydrogens < bond_order_change:
-                continue
-        for ha_id2, ha2 in enumerate(hatoms[:ha_id1]):
-            nc2 = ha2.ncharge
-            if not_protonated is not None:
-                if nc2 in not_protonated:
-                    continue
-            if bond_order_change > 0:
-                if ha2.nhydrogens < bond_order_change:
-                    continue
+            potentially_altered_second_atoms = potentially_altered_first_atoms
+        else:
+            potentially_altered_second_atoms = hatoms_with_changeable_nhydrogens(
+                egc,
+                bond_order_change,
+                not_protonated=not_protonated,
+                origin_point=ha_id1,
+            )
+        for ha_id2 in potentially_altered_second_atoms:
+            if ha_id2 >= ha_id1:
+                break
             bond_tuple = (ha_id1, ha_id2)
             possible_resonance_structures = (
                 bond_order_change_possible_resonance_structures(
@@ -445,7 +467,7 @@ def bond_change_possibilities(
                     forbidden_bonds=forbidden_bonds,
                 )
             )
-            if possible_resonance_structures is None:
+            if len(possible_resonance_structures) == 0:
                 continue
             if exclude_equivalent:
                 if atom_pair_equivalent_to_list_member(egc, bond_tuple, output):
@@ -763,6 +785,113 @@ def valence_change_remove_atoms_possibilities(
     return possibilities
 
 
+def valence_bond_change_atom_possibilities(
+    egc,
+    bond_order_change,
+    forbidden_bonds=None,
+    not_protonated=None,
+    max_fragment_num=None,
+):
+    cg = egc.chemgraph
+    hatoms = cg.hatoms
+    valence_altered_hatom_list = []
+    for mod_val_ha_id, mod_val_ha in enumerate(hatoms):
+        mod_val_nc = mod_val_ha.ncharge
+        if not mod_val_ha.is_polyvalent():
+            continue
+
+        resonance_structure_region = cg.single_atom_resonance_structure(mod_val_ha_id)
+        if resonance_structure_region is None:
+            resonance_struct_ids = [None]
+        else:
+            res_struct_valence_vals = cg.resonance_structure_valence_vals[
+                resonance_structure_region
+            ]
+            resonance_struct_ids = range(len(res_struct_valence_vals))
+            res_struct_added_bos = cg.resonance_structure_orders[
+                resonance_structure_region
+            ]
+
+        if (
+            bond_order_change < 0
+        ):  # check that at least one neighbor can be disconnected.
+            found_disconnecting_neighbor = False
+            for other_ha_id in cg.neighbors(mod_val_ha_id):
+                if not_protonated is not None:
+                    if hatoms[other_ha_id].ncharge in not_protonated:
+                        continue
+                st = sorted_tuple(mod_val_ha_id, other_ha_id)
+                for resonance_struct_id in resonance_struct_ids:
+                    if resonance_struct_id is not None:
+                        cur_res_struct_added_bos = res_struct_added_bos[
+                            resonance_struct_id
+                        ]
+                    if (resonance_struct_id is None) or (
+                        mod_val_ha.possible_valences is None
+                    ):
+                        valence_option_id = None
+                        cur_mod_valence = mod_val_ha.valence
+                    else:
+                        valence_option_id = res_struct_valence_vals[resonance_struct_id]
+                        cur_mod_valence = mod_val_ha.possible_valences[
+                            valence_option_id
+                        ]
+                    if (
+                        next_valence(
+                            mod_val_ha,
+                            -1,
+                            valence_option_id=valence_option_id,
+                        )
+                        != cur_mod_valence + bond_order_change
+                    ):
+                        continue
+
+                    cur_bo = cg.bond_order(mod_val_ha_id, other_ha_id)
+                    if st in cur_res_struct_added_bos:
+                        cur_bo += cur_res_struct_added_bos[st]
+                    if cur_bo < -bond_order_change:
+                        found_disconnecting_neighbor = True
+                        break
+                    if cur_bo == -bond_order_change:
+                        if breaking_bond_obeys_num_fragments(
+                            egc,
+                            mod_val_ha_id,
+                            other_ha_id,
+                            max_fragment_num=max_fragment_num,
+                        ):
+                            found_disconnecting_neighbor = True
+                            break
+                if found_disconnecting_neighbor:
+                    break
+            if not found_disconnecting_neighbor:
+                continue
+
+    if bond_order_change > 0:
+        # If we want to increase bond order, check what atoms it can be connected to.
+        possible_connected_atoms = hatoms_with_excess_hydrogens(egc, bond_order_change)
+        # Delete hatoms that cannot be connected to anything.
+        checked_valence_altered_hatom_list_id = 0
+        while checked_valence_altered_hatom_list_id != len(valence_altered_hatom_list):
+            checked_hatom_id = valence_altered_hatom_list[
+                checked_valence_altered_hatom_list_id
+            ]
+            found_possible_connection = False
+            for possible_connected_atom in possible_connected_atoms:
+                if forbidden_bonds is not None:
+                    if connection_forbidden(
+                        hatoms[possible_connected_atom].ncharge,
+                        hatoms[checked_hatom_id].ncharge,
+                    ):
+                        continue
+                found_possible_connection = True
+                break
+            if found_possible_connection:
+                checked_valence_altered_hatom_list_id += 1
+            else:
+                del valence_altered_hatom_list[checked_valence_altered_hatom_list_id]
+    return valence_altered_hatom_list
+
+
 # TODO add option for having opportunities as tuples vs dictionary? (PERHAPS NOT RELEVANT WITHOUT 4-order bonds)
 def valence_bond_change_possibilities(
     egc,
@@ -779,6 +908,11 @@ def valence_bond_change_possibilities(
     output = []
     if bond_order_change == 0:
         return output
+
+    if bond_order_change > 0:
+        possible_second_atoms = hatoms_with_changeable_nhydrogens(
+            egc, bond_order_change
+        )
 
     altered_sigma_bond_class_tuples = []
     altered_hydrogen_number_classes = []
@@ -800,21 +934,23 @@ def valence_bond_change_possibilities(
                 resonance_structure_region
             ]
 
-        for other_ha_id, other_ha in enumerate(hatoms):
+        if bond_order_change < 0:
+            #           TODO the two lines are apparently equivalent, the former is better but messes up tests due to change of order of equivalence class calls.
+            #            possible_second_atoms=hatoms_with_changeable_nhydrogens(egc, bond_order_change, origin_point=mod_val_ha_id, not_protonated=not_protonated)
+            possible_second_atoms = hatoms_with_changeable_nhydrogens(
+                egc, bond_order_change, not_protonated=not_protonated
+            )
+        for other_ha_id in possible_second_atoms:
             if other_ha_id == mod_val_ha_id:
                 continue
+
+            other_ha = hatoms[other_ha_id]
 
             other_nc = other_ha.ncharge
 
             if bond_order_change > 0:
                 if connection_forbidden(mod_val_nc, other_nc, forbidden_bonds):
                     continue
-                if hatoms[other_ha_id].nhydrogens < bond_order_change:
-                    continue
-            else:
-                if not_protonated is not None:
-                    if other_nc in not_protonated:
-                        continue
 
             bond_tuple = (mod_val_ha_id, other_ha_id)
 
@@ -859,11 +995,11 @@ def valence_bond_change_possibilities(
                     if cur_bo < -bond_order_change:
                         continue
                     if cur_bo == -bond_order_change:
-                        if (cg.num_connected() == max_fragment_num) and (
-                            cg.graph.edge_connectivity(
-                                source=mod_val_ha_id, target=other_ha_id
-                            )
-                            == 1
+                        if not breaking_bond_obeys_num_fragments(
+                            egc,
+                            mod_val_ha_id,
+                            other_ha_id,
+                            max_fragment_num=max_fragment_num,
                         ):
                             continue
                         changed_sigma_bond = True
