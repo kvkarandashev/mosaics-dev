@@ -180,10 +180,25 @@ def chemgraph_to_rdkit(
         return mol
 
 
-def chemgraph_to_canonical_rdkit(cg, SMILES_only=False):
+from .test_utils import print_to_separate_file_wprefix
+
+
+def chemgraph_to_canonical_rdkit(
+    cg: ChemGraph,
+    SMILES_only=False,
+    print_all_SMILES_prefix=None,
+    print_all_SMILES_suffix=".txt",
+):
     canon_cg = canonically_permuted_ChemGraph(cg)
 
     canon_rdkit, canon_SMILES = chemgraph_to_rdkit(canon_cg, include_SMILES=True)
+
+    if print_all_SMILES_prefix is not None:
+        print_to_separate_file_wprefix(
+            canon_SMILES,
+            print_all_SMILES_prefix,
+            print_file_suffix=print_all_SMILES_suffix,
+        )
 
     if SMILES_only:
         return canon_SMILES
@@ -357,3 +372,6 @@ def canonical_connected_SMILES_list_from_tp(tp):
     Returns SMILES of all connected fragments.
     """
     return canonical_connected_rdkit_list_from_tp(tp, SMILES_only=True)
+
+
+# Added for testing prurposes.

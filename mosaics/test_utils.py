@@ -1,5 +1,5 @@
 # Utils that mainly appear in tests or analysis of data.
-from ..data import NUCLEAR_CHARGE
+from .data import NUCLEAR_CHARGE
 from sortedcontainers import SortedDict
 from .random_walk import (
     randomized_change,
@@ -373,3 +373,33 @@ def print_distribution_analysis_single_beta(
             else:
                 dev_err = np.sqrt(rel_errs[i] ** 2 + rel_errs[min_err_id] ** 2)
             print(i, dev, dev_err)
+
+
+import os
+
+
+def ordered_filename(file_id, print_file_prefix, print_file_suffix=".txt"):
+    return print_file_prefix + str(file_id) + print_file_suffix
+
+
+def print_to_separate_file_wprefix(
+    printed_string, print_file_prefix, print_file_suffix=".txt"
+):
+    """
+    Write string into the next file with a name derived as print_file_prefix+{file_id}+print_file_suffix
+    """
+    file_id = 0
+    filename = ordered_filename(
+        file_id, print_file_prefix, print_file_suffix=print_file_suffix
+    )
+    while os.path.isfile(
+        ordered_filename(
+            file_id, print_file_prefix, print_file_suffix=print_file_suffix
+        )
+    ):
+        file_id += 1
+        filename = ordered_filename(
+            file_id, print_file_prefix, print_file_suffix=print_file_suffix
+        )
+    with open(filename, "w") as f:
+        f.write(printed_string)
