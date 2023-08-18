@@ -355,7 +355,6 @@ class ChemGraph:
         # Check that valences make sense.
 
         self.changed()
-
         self.init_resonance_structures()
 
     def init_graph_natoms(
@@ -410,7 +409,7 @@ class ChemGraph:
         self.canonical_permutation = None
         self.inv_canonical_permutation = None
         self.colors = None
-        # TO-DO: perhaps sort by classes in the beginning instead?
+        # TODO some of these lines might be excessive.
         self.equivalence_vector = None
         self.pair_equivalence_matrix = None
 
@@ -441,6 +440,9 @@ class ChemGraph:
             if ha.valence != cur_val:
                 return False
         return True
+
+    def valence_sum(self):
+        return sum(ha.valence for ha in self.hatoms)
 
     def polyvalent_atoms_present(self):
         for ha in self.hatoms:
@@ -655,12 +657,80 @@ class ChemGraph:
         return len(self.graph.components())
 
     # Order of bond between atoms atom_id1 and atom_id2
-    def bond_order(self, atom_id1, atom_id2):
+    def bond_order(self, atom_id1, atom_id2, resonance_structure_id=None):
+        if resonance_structure_id is not None:
+            self.init_resonance_structures()
         stuple = sorted_tuple(atom_id1, atom_id2)
         if stuple in self.bond_orders:
-            return self.bond_orders[stuple]
+            if (resonance_structure_id is None) or (
+                stuple not in self.resonance_structure_map
+            ):
+                cur_bo = self.bond_orders[stuple]
+            else:
+                add_bos = self.resonance_structure_orders[
+                    self.resonance_structure_map[stuple]
+                ][resonance_structure_id]
+                cur_bo = 1
+                if stuple in add_bos:
+                    cur_bo += add_bos[stuple]
         else:
-            return 0
+            cur_bo = 0
+        return cur_bo
+
+    # Valence for a given resonance structure.
+    def valence_woption(self, atom_id, resonance_structure_id=None):
+        if resonance_structure_id is not None:
+            self.init_resonance_structures()
+        ha = self.hatoms[atom_id]
+        val = ha.valence
+        option_id = None
+        if (resonance_structure_id is not None) and (ha.possible_valences is not None):
+            resonance_structure_region = self.single_atom_resonance_structure(atom_id)
+            option_id = self.resonance_structure_valence_vals[
+                resonance_structure_region
+            ][resonance_structure_id]
+            val = ha.possible_valences[option_id]
+        return val, option_id
+
+    def min_valence_woption(self, atom_id):
+        self.init_resonance_structures()
+        ha = self.hatoms[atom_id]
+        if ha.possible_valences is None:
+            cur_valence = ha.valence
+            valence_option = None
+        else:
+            cur_valence = min(ha.possible_valences)
+            valence_option = ha.possible_valences.index(cur_valence)
+        return cur_valence, valence_option
+
+    def hatom_default_valence(self, atom_id):
+        return default_valence(self.hatoms[atom_id].ncharge)
+
+    def default_valence_available(self, atom_id):
+        self.init_resonance_structures()
+        ha_default_valence = self.hatom_default_valence(atom_id)
+        ha = self.hatoms[atom_id]
+        if ha.possible_valences is None:
+            return ha.valence == ha_default_valence
+        else:
+            return ha_default_valence in ha.possible_valences
+
+    def default_valence_resonance_structure_id(self, atom_id):
+        self.init_resonance_structures()
+        ha_default_valence = self.hatom_default_valence(atom_id)
+        return self.atom_valence_resonance_structure_id(
+            hatom_id=atom_id, valence=ha_default_valence
+        )
+
+    def possible_res_struct_ids(self, atom_id):
+        self.init_resonance_structures()
+        resonance_structure_region = self.single_atom_resonance_structure(atom_id)
+        if resonance_structure_region is None:
+            return [None]
+        else:
+            return range(
+                len(self.resonance_structure_orders[resonance_structure_region])
+            )
 
     def bond_order_float(self, atom_id1, atom_id2):
         self.init_resonance_structures()
