@@ -5,10 +5,11 @@ from .misc_procedures import (
     random_choice_from_dict,
     random_choice_from_nested_dict,
     str_atom_corr,
+    llenlog,
 )
 from .valence_treatment import canonically_permuted_ChemGraph, ChemGraph
 from .ext_graph_compound import ExtGraphCompound
-
+from sortedcontainers import SortedList
 
 global_step_traj_storage_label = "global"
 nonglobal_step_traj_storage_label = "local"
@@ -363,6 +364,10 @@ valence_ha_change_list = [
 ]
 
 
+def is_bond_change(func_in):
+    return (func_in is change_bond_order) or (func_in is change_bond_order_valence)
+
+
 # For checking that ExtGraphCompound objects satisfy constraints of the chemical space.
 def no_forbidden_bonds(egc: ExtGraphCompound, forbidden_bonds: None or list = None):
     """
@@ -543,7 +548,7 @@ def inverse_mod_path(
     change_procedure,
     forward_path,
     chain_addition_tuple_possibilities=False,
-    bond_change_ignore_equivalence=False,
+    linear_scaling_bond_changes=False,
     **other_kwargs,
 ):
     """
@@ -552,7 +557,7 @@ def inverse_mod_path(
     if (change_procedure is change_bond_order) or (
         change_procedure is change_bond_order_valence
     ):
-        if bond_change_ignore_equivalence:
+        if linear_scaling_bond_changes:
             return [-forward_path[0], forward_path[1]]
         else:
             return [-forward_path[0]]
@@ -630,7 +635,7 @@ def get_second_changed_atom_res_struct_list(
     return output
 
 
-def choose_bond_change_parameters_ignore_equiv(
+def choose_bond_change_parameters_linear_scaling(
     egc, possibilities, choices=None, **other_kwargs
 ):
     # possibilities is structured as dictionnary of "bond order change" : list of potential atoms.
@@ -638,9 +643,10 @@ def choose_bond_change_parameters_ignore_equiv(
     (
         bond_order_change,
         possible_atom_choices,
-        first_atom_log_choice_prob,
+        log_choice_prob,
     ) = random_choice_from_dict(possibilities, choices=choices)
     first_changed_atom = random.choice(possible_atom_choices)
+    log_choice_prob -= llenlog(possible_atom_choices)
     possible_second_changed_atom_res_struct_list = (
         get_second_changed_atom_res_struct_list(
             egc,
@@ -651,14 +657,118 @@ def choose_bond_change_parameters_ignore_equiv(
         )
     )
     second_atom_res_struct = random.choice(possible_second_changed_atom_res_struct_list)
-    log_choice_prob = first_atom_log_choice_prob + np.log(
-        float(len(possible_second_changed_atom_res_struct_list))
-    )
+    log_choice_prob -= llenlog(possible_second_changed_atom_res_struct_list)
     mod_path = [bond_order_change, (first_changed_atom, *second_atom_res_struct)]
     return mod_path, log_choice_prob
 
 
-def inv_prob_bond_change_parameters_ignore_equiv(
+def get_valence_preserved_changed_atom_res_struct_list(
+    egc: ExtGraphCompound,
+    val_changed_atom,
+    bond_order_change,
+    not_protonated=None,
+    max_fragment_num=None,
+    forbidden_bonds=None,
+    **other_kwargs,
+):
+    init_hatoms_kwargs = {"not_protonated": not_protonated}
+    if bond_order_change < 0:
+        init_hatoms_kwargs["origin_point"] = val_changed_atom
+    initial_atoms = hatoms_with_changeable_nhydrogens(
+        egc, bond_order_change, **init_hatoms_kwargs
+    )
+    output = []
+    val_changed_ha = egc.chemgraph.hatoms[val_changed_atom]
+    cg = egc.chemgraph
+    resonance_struct_ids = cg.possible_res_struct_ids(val_changed_atom)
+    for init_atom in initial_atoms:
+        if (bond_order_change > 0) and (forbidden_bonds is not None):
+            if connection_forbidden(
+                cg.hatoms[init_atom].ncharge,
+                cg.hatoms[val_changed_atom].ncharge,
+                forbidden_bonds,
+            ):
+                continue
+        if bond_order_change < 0:
+            full_disconnections = []
+
+        for resonance_struct_id in resonance_struct_ids:
+            cur_mod_valence, valence_option_id = cg.valence_woption(
+                val_changed_atom, resonance_structure_id=resonance_struct_id
+            )
+            if (
+                next_valence(
+                    val_changed_ha,
+                    np.sign(bond_order_change),
+                    valence_option_id=valence_option_id,
+                )
+                != cur_mod_valence + bond_order_change
+            ):
+                continue
+            if bond_order_change < 0:
+                cur_bo = cg.bond_order(val_changed_atom, init_atom)
+                if cur_bo < -bond_order_change:
+                    continue
+                if cur_bo == -bond_order_change:
+                    if breaking_bond_obeys_num_fragments(
+                        egc,
+                        val_changed_atom,
+                        init_atom,
+                        max_fragment_num=max_fragment_num,
+                    ):
+                        cur_full_disconnection = True
+                    else:
+                        continue
+                else:
+                    cur_full_disconnection = False
+                if cur_full_disconnection in full_disconnections:
+                    continue
+                else:
+                    full_disconnections.append(cur_full_disconnection)
+            output.append((init_atom, resonance_struct_id))
+            if (
+                bond_order_change > 0
+            ):  # we only need to find one way to create a connection
+                break
+    return output
+
+
+def choose_bond_valence_change_parameters_linear_scaling(
+    egc, possibilities, choices=None, **other_kwargs
+):
+    (
+        bond_order_change,
+        valence_change_atom_choices,
+        log_choice_prob,
+    ) = random_choice_from_dict(possibilities, choices=choices)
+    val_changed_atom = random.choice(valence_change_atom_choices)
+    log_choice_prob -= llenlog(valence_change_atom_choices)
+    valence_preserved_atom_res_struct_choices = (
+        get_valence_preserved_changed_atom_res_struct_list(
+            egc,
+            val_changed_atom,
+            bond_order_change,
+            **other_kwargs,
+        )
+    )
+    valence_preserved_atom_res_struct = random.choice(
+        valence_preserved_atom_res_struct_choices
+    )
+    log_choice_prob -= llenlog(valence_preserved_atom_res_struct_choices)
+    mod_path = [
+        bond_order_change,
+        (val_changed_atom, *valence_preserved_atom_res_struct),
+    ]
+    return mod_path, log_choice_prob
+
+
+special_bond_change_functions = {
+    change_bond_order: choose_bond_change_parameters_linear_scaling,
+    change_bond_order_valence: choose_bond_valence_change_parameters_linear_scaling,
+}
+
+
+def inv_prob_bond_change_parameters_linear_scaling(
     new_egc, inv_poss_dict, inv_mod_path, **other_kwargs
 ):
     inv_bo_change = inv_mod_path[0]
@@ -666,7 +776,7 @@ def inv_prob_bond_change_parameters_ignore_equiv(
     possible_atom_choices, log_choice_prob = random_choice_from_dict(
         inv_poss_dict, get_probability_of=inv_bo_change
     )
-    log_choice_prob -= np.log(float(len(possible_atom_choices)))
+    log_choice_prob -= llenlog(possible_atom_choices)
     second_atom_res_struct_choices = get_second_changed_atom_res_struct_list(
         new_egc,
         first_changed_atom,
@@ -674,8 +784,33 @@ def inv_prob_bond_change_parameters_ignore_equiv(
         inv_bo_change,
         **other_kwargs,
     )
-    log_choice_prob -= np.log(float(len(second_atom_res_struct_choices)))
+    log_choice_prob -= llenlog(second_atom_res_struct_choices)
     return log_choice_prob
+
+
+def inv_prob_bond_valence_change_parameters_linear_scaling(
+    new_egc, inv_poss_dict, inv_mod_path, **other_kwargs
+):
+    inv_bo_change = inv_mod_path[0]
+    val_changed_atom = inv_mod_path[1][0]
+    all_val_changed_choices, log_choice_prob = random_choice_from_dict(
+        inv_poss_dict, get_probability_of=inv_bo_change
+    )
+    log_choice_prob -= llenlog(all_val_changed_choices)
+    val_preserved_atoms = get_valence_preserved_changed_atom_res_struct_list(
+        new_egc,
+        val_changed_atom,
+        inv_bo_change,
+        **other_kwargs,
+    )
+    log_choice_prob -= llenlog(val_preserved_atoms)
+    return log_choice_prob
+
+
+special_inv_prob_calculators = {
+    change_bond_order: inv_prob_bond_change_parameters_linear_scaling,
+    change_bond_order_valence: inv_prob_bond_valence_change_parameters_linear_scaling,
+}
 
 
 def randomized_change(
@@ -683,17 +818,17 @@ def randomized_change(
     change_prob_dict=full_change_list,
     visited_tp_list: list or None = None,
     delete_chosen_mod_path: bool = False,
-    bond_change_ignore_equivalence: bool = False,
+    linear_scaling_bond_changes: bool = False,
     **other_kwargs,
 ):
     """
     Randomly modify a TrajectoryPoint object.
     visited_tp_list : list of TrajectoryPoint objects for which data is available.
-    bond_change_ignore_equivalence : whether equivalence is accounted for during bond change moves (False is preferable for large systems).
+    linear_scaling_bond_changes : whether equivalence is accounted for during bond change moves (False is preferable for large systems).
     """
     init_possibilities_kwargs = {
         "change_prob_dict": change_prob_dict,
-        "bond_change_ignore_equivalence": bond_change_ignore_equivalence,
+        "linear_scaling_bond_changes": linear_scaling_bond_changes,
         **other_kwargs,
     }
     if delete_chosen_mod_path:
@@ -710,17 +845,18 @@ def randomized_change(
     cur_change_procedure, possibilities, total_forward_prob = random_choice_from_dict(
         full_possibility_dict, change_prob_dict
     )
-    special_bond_change_func = bond_change_ignore_equivalence and (
-        cur_change_procedure is change_bond_order
+    special_bond_change_func = linear_scaling_bond_changes and is_bond_change(
+        cur_change_procedure
     )
-
     possibility_dict_label = change_possibility_label[cur_change_procedure]
     possibility_dict = lookup_or_none(other_kwargs, possibility_dict_label)
 
     old_egc = tp.egc
 
     if special_bond_change_func:
-        modification_path, forward_prob = choose_bond_change_parameters_ignore_equiv(
+        modification_path, forward_prob = special_bond_change_functions[
+            cur_change_procedure
+        ](
             old_egc,
             possibilities,
             choices=possibility_dict,
@@ -760,7 +896,7 @@ def randomized_change(
             old_egc,
             cur_change_procedure,
             modification_path,
-            bond_change_ignore_equivalence=bond_change_ignore_equivalence,
+            linear_scaling_bond_changes=linear_scaling_bond_changes,
             **other_kwargs,
         )
         inverse_possibilities, total_inverse_prob = random_choice_from_dict(
@@ -769,7 +905,7 @@ def randomized_change(
             get_probability_of=inv_proc,
         )
         if special_bond_change_func:
-            inverse_prob = inv_prob_bond_change_parameters_ignore_equiv(
+            inverse_prob = special_inv_prob_calculators[cur_change_procedure](
                 new_egc,
                 inverse_possibilities,
                 inv_mod_path,

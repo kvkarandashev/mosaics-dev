@@ -45,7 +45,7 @@ def atom_pair_equivalent_to_list_member(egc, atom_pair, atom_pair_list):
 
 def atom_replacement_possibilities(
     egc: ExtGraphCompound,
-    inserted_atom,
+    inserted_atom: str,
     inserted_valence=None,
     replaced_atom=None,
     forbidden_bonds=None,
@@ -116,7 +116,7 @@ def gen_atom_removal_possible_hnums(added_bond_orders, default_valence):
 
 def atom_removal_possibilities(
     egc: ExtGraphCompound,
-    deleted_atom="C",
+    deleted_atom: str = "C",
     exclude_equivalent=True,
     nhatoms_range=None,
     not_protonated=None,
@@ -399,10 +399,10 @@ def bond_change_possibilities(
     not_protonated=None,
     max_fragment_num=None,
     exclude_equivalent=True,
-    bond_change_ignore_equivalence=False,
+    linear_scaling_bond_changes=False,
     **other_kwargs,
 ):
-    if bond_change_ignore_equivalence:
+    if linear_scaling_bond_changes:
         return bond_atom_change_possibilities(
             egc,
             bond_order_change,
@@ -714,10 +714,6 @@ def valence_change_remove_atoms_possibilities(
                         continue
                     if cg.num_neighbors(neigh) != 1:
                         continue
-                    if neigh_ha.possible_valences is None:
-                        neigh_valence = neigh_ha.valence
-                    else:
-                        neigh_valence = neigh_ha.possible_valences[val_opt]
                     neigh_valence, _ = cg.valence_woption(
                         neigh, resonance_structure_id=res_struct_id
                     )
@@ -751,15 +747,18 @@ def valence_bond_change_atom_possibilities(
     forbidden_bonds=None,
     not_protonated=None,
     max_fragment_num=None,
+    **other_kwargs,
 ):
+    # TODO shares a lot with the "badly scaling" version, might be combinable.
     cg = egc.chemgraph
     hatoms = cg.hatoms
+
     valence_altered_hatom_list = []
     for mod_val_ha_id, mod_val_ha in enumerate(hatoms):
-        mod_val_nc = mod_val_ha.ncharge
         if not mod_val_ha.is_polyvalent():
             continue
         resonance_struct_ids = cg.possible_res_struct_ids(mod_val_ha_id)
+
         if (
             bond_order_change < 0
         ):  # check that at least one neighbor can be disconnected.
@@ -803,11 +802,12 @@ def valence_bond_change_atom_possibilities(
                     break
             if not found_disconnecting_neighbor:
                 continue
+        valence_altered_hatom_list.append(mod_val_ha_id)
 
     if bond_order_change > 0:
         # If we want to increase bond order, check what atoms it can be connected to.
-        possible_connected_atoms = hatoms_with_changeable_nhydrogens(
-            egc, bond_order_change
+        valence_preserved_hatom_list = hatoms_with_changeable_nhydrogens(
+            egc, bond_order_change, not_protonated=not_protonated
         )
         # Delete hatoms that cannot be connected to anything.
         checked_valence_altered_hatom_list_id = 0
@@ -816,11 +816,12 @@ def valence_bond_change_atom_possibilities(
                 checked_valence_altered_hatom_list_id
             ]
             found_possible_connection = False
-            for possible_connected_atom in possible_connected_atoms:
+            for possible_connected_atom in valence_preserved_hatom_list:
                 if forbidden_bonds is not None:
                     if connection_forbidden(
                         hatoms[possible_connected_atom].ncharge,
                         hatoms[checked_hatom_id].ncharge,
+                        forbidden_bonds,
                     ):
                         continue
                 found_possible_connection = True
@@ -840,8 +841,17 @@ def valence_bond_change_possibilities(
     not_protonated=None,
     max_fragment_num=None,
     exclude_equivalent=True,
+    linear_scaling_bond_changes=False,
     **other_kwargs,
 ):
+    if linear_scaling_bond_changes:
+        return valence_bond_change_atom_possibilities(
+            egc,
+            bond_order_change,
+            forbidden_bonds=forbidden_bonds,
+            not_protonated=not_protonated,
+            max_fragment_num=max_fragment_num,
+        )
     # exclude_equivalent used to be a toggleable option here too. Perhaps should be deprecated everywhere.
     cg = egc.chemgraph
     hatoms = cg.hatoms

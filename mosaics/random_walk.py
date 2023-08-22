@@ -316,7 +316,7 @@ class RandomWalk:
         added_bond_orders_val_change : when creating atoms to be connected to a molecule's atom with a change of valence of the latter what the possible bond orders are.
         cross_coupling_max_num_affected_bonds : when a molecule is broken into two fragments what is the maximum number of bonds that can be broken.
         cross_coupling_smallest_exchange_size : do not perform a cross-coupling move if less than this number of atoms is exchanged on both sides.
-        bond_change_ignore_equivalence : O(nhatoms) scaling of bond order changes at the cost of not accounting for graph invariance at trial step generation.
+        linear_scaling_bond_changes : O(nhatoms) scaling of bond order changes at the cost of not accounting for graph invariance at trial step generation.
         """
         if randomized_change_params is not None:
             self.randomized_change_params = randomized_change_params
@@ -345,7 +345,7 @@ class RandomWalk:
                 added_bond_orders_val_change=[1, 2],
                 cross_coupling_max_num_affected_bonds=3,
                 cross_coupling_smallest_exchange_size=2,
-                bond_change_ignore_equivalence=False,
+                linear_scaling_bond_changes=False,
             )
 
             # Some convenient aliases.

@@ -175,9 +175,16 @@ def lookup_or_none(dict_in, key):
         return None
 
 
+# Shorthands to decrease annoyance.
+def intlog(i):
+    return np.log(float(i))
+
+
+def llenlog(l):
+    return intlog(len(l))
+
+
 # Lookup table for saving values of natural number factorial.
-
-
 class NaturalFactorialLogLookup:
     def __init__(self):
         self.saved_values = None
@@ -191,7 +198,7 @@ class NaturalFactorialLogLookup:
             new_saved_values[: self.max_avail_val] = self.saved_values[:]
             current_log = self.saved_values[-1]
         for i in range(self.max_avail_val, new_max_avail_val):
-            current_log += np.log(float(i + 1))
+            current_log += intlog(i + 1)
             new_saved_values[i] = current_log
         self.saved_values = new_saved_values
         self.max_avail_val = new_max_avail_val
@@ -262,7 +269,7 @@ def random_choice_from_nested_dict(
     while continue_nested:
         if not isinstance(cur_possibilities, dict):
             if isinstance(cur_possibilities, list):
-                prob_log -= np.log(float(len(cur_possibilities)))
+                prob_log -= llenlog(cur_possibilities)
                 if get_probability_of is None:
                     final_choice.append(random.choice(cur_possibilities))
             break
