@@ -7,8 +7,9 @@ import sys
 import random
 import numpy as np
 
-random.seed(1)
-np.random.seed(1)
+seed = 2
+random.seed(seed)
+np.random.seed(seed)
 
 possible_elements = ["C", "N", "O", "F", "P", "S"]
 
@@ -94,7 +95,7 @@ drw = DistributedRandomWalk(
     greedy_delete_checked_paths=True,
     debug=True,
     randomized_change_params=randomized_change_params,
-    subpopulation_propagation_seed=1,
+    subpopulation_propagation_seed=seed,
     cloned_betas=cloned_betas,
     num_beta_subpopulation_clones=num_beta_subpopulation_clones,
 )
