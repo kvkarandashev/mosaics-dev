@@ -1,4 +1,5 @@
-from .valence_treatment import ChemGraph, sorted_by_membership
+from .valence_treatment import ChemGraph
+from .misc_procedures import sorted_tuple, sorted_by_membership, int_atom_checked
 from .data import NUCLEAR_CHARGE
 import numpy as np
 
@@ -199,3 +200,73 @@ class ExtGraphCompound:
 
     def __repr__(self):
         return str(self)
+
+
+# For checking that ExtGraphCompound objects satisfy constraints of the chemical space.
+def connection_forbidden(nc1, nc2, forbidden_bonds):
+    if (nc1 is None) or (nc2 is None) or (forbidden_bonds is None):
+        return False
+    nc_tuple = sorted_tuple(int_atom_checked(nc1), int_atom_checked(nc2))
+    return nc_tuple in forbidden_bonds
+
+
+def no_forbidden_bonds(egc, forbidden_bonds: None or list = None):
+    """
+    Check that an ExtGraphCompound or ChemGraph object has no covalent bonds whose nuclear charge tuple is inside forbidden_bonds.
+    egc : checked ExtGraphCompound object
+    forbidden_bonds : list of sorted nuclear charge tuples.
+    """
+    if forbidden_bonds is not None:
+        if isinstance(egc, ChemGraph):
+            cg = egc
+        else:
+            cg = egc.chemgraph
+        hatoms = cg.hatoms
+        for bond_tuple in cg.bond_orders.keys():
+            if connection_forbidden(
+                hatoms[bond_tuple[0]].ncharge,
+                hatoms[bond_tuple[1]].ncharge,
+                forbidden_bonds=forbidden_bonds,
+            ):
+                return False
+    return True
+
+
+def egc_valid_wrt_change_params(
+    egc,
+    nhatoms_range=None,
+    forbidden_bonds=None,
+    possible_elements=None,
+    not_protonated=None,
+    max_fragment_num=None,
+    **other_kwargs,
+):
+    """
+    Check that an ExtGraphCompound or ChemGraph object is a member of chemical subspace spanned by change params used throughout chemxpl.modify module.
+    egc : ExtGraphCompound object
+    nhatoms_range : range of possible numbers of heavy atoms
+    forbidden_bonds : ordered tuples of nuclear charges corresponding to elements that are forbidden to have bonds.
+    """
+    if isinstance(egc, ChemGraph):
+        cg = egc
+    else:
+        cg = egc.chemgraph
+    if not no_forbidden_bonds(cg, forbidden_bonds=forbidden_bonds):
+        return False
+    if not_protonated is not None:
+        for ha in cg.hatoms:
+            if (ha.ncharge in not_protonated) and (ha.nhydrogens != 0):
+                return False
+    if nhatoms_range is not None:
+        nhas = cg.nhatoms()
+        if (nhas < nhatoms_range[0]) or (nhas > nhatoms_range[1]):
+            return False
+    if possible_elements is not None:
+        possible_elements_nc = [int_atom_checked(pe) for pe in possible_elements]
+        for ha in cg.hatoms:
+            if ha.ncharge not in possible_elements_nc:
+                return False
+    if max_fragment_num is not None:
+        if egc.chemgraph.num_connected() > max_fragment_num:
+            return False
+    return True

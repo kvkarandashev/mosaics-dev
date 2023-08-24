@@ -6,11 +6,10 @@
 # TODO change_bond_order does not seem to function properly with max_fragment_num None or not 1.
 
 import numpy as np
-from .ext_graph_compound import ExtGraphCompound
+from .ext_graph_compound import ExtGraphCompound, connection_forbidden
 from .valence_treatment import (
     default_valence,
     avail_val_list,
-    connection_forbidden,
     max_bo,
     next_valence,
     sorted_tuple,

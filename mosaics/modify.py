@@ -368,62 +368,6 @@ def is_bond_change(func_in):
     return (func_in is change_bond_order) or (func_in is change_bond_order_valence)
 
 
-# For checking that ExtGraphCompound objects satisfy constraints of the chemical space.
-def no_forbidden_bonds(egc: ExtGraphCompound, forbidden_bonds: None or list = None):
-    """
-    Check that an ExtGraphCompound object has no covalent bonds whose nuclear charge tuple is inside forbidden_bonds.
-    egc : checked ExtGraphCompound object
-    forbidden_bonds : list of sorted nuclear charge tuples.
-    """
-    if forbidden_bonds is not None:
-        cg = egc.chemgraph
-        hatoms = cg.hatoms
-        for bond_tuple in cg.bond_orders.keys():
-            if connection_forbidden(
-                hatoms[bond_tuple[0]].ncharge,
-                hatoms[bond_tuple[1]].ncharge,
-                forbidden_bonds=forbidden_bonds,
-            ):
-                return False
-    return True
-
-
-def egc_valid_wrt_change_params(
-    egc,
-    nhatoms_range=None,
-    forbidden_bonds=None,
-    possible_elements=None,
-    not_protonated=None,
-    max_fragment_num=None,
-    **other_kwargs,
-):
-    """
-    Check that an ExtGraphCompound object is a member of chemical subspace spanned by change params used throughout chemxpl.modify module.
-    egc : ExtGraphCompound object
-    nhatoms_range : range of possible numbers of heavy atoms
-    forbidden_bonds : ordered tuples of nuclear charges corresponding to elements that are forbidden to have bonds.
-    """
-    if not no_forbidden_bonds(egc, forbidden_bonds=forbidden_bonds):
-        return False
-    if not_protonated is not None:
-        for ha in egc.chemgraph.hatoms:
-            if (ha.ncharge in not_protonated) and (ha.nhydrogens != 0):
-                return False
-    if nhatoms_range is not None:
-        nhas = egc.chemgraph.nhatoms()
-        if (nhas < nhatoms_range[0]) or (nhas > nhatoms_range[1]):
-            return False
-    if possible_elements is not None:
-        possible_elements_nc = [int_atom_checked(pe) for pe in possible_elements]
-        for ha in egc.chemgraph.hatoms:
-            if ha.ncharge not in possible_elements_nc:
-                return False
-    if max_fragment_num is not None:
-        if egc.chemgraph.num_connected() > max_fragment_num:
-            return False
-    return True
-
-
 # For randomly applying elementary mutations and maintaining detailed balance.
 
 inverse_procedure = {

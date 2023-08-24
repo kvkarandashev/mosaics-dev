@@ -1825,13 +1825,6 @@ def combine_chemgraphs(cg1, cg2):
     return ChemGraph(hatoms=new_hatoms, bond_orders=new_bond_orders, graph=new_graph)
 
 
-def connection_forbidden(nc1, nc2, forbidden_bonds):
-    if (nc1 is None) or (nc2 is None) or (forbidden_bonds is None):
-        return False
-    nc_tuple = sorted_tuple(int_atom_checked(nc1), int_atom_checked(nc2))
-    return nc_tuple in forbidden_bonds
-
-
 def h2chemgraph():
     """
     ChemGraph representation of the H2 molecule.

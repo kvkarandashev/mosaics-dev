@@ -3,9 +3,10 @@ from .valence_treatment import (
     ChemGraph,
     sorted_by_membership,
     sorted_tuple,
-    connection_forbidden,
     max_bo,
 )
+from .ext_graph_compound import connection_forbidden, no_forbidden_bonds
+from .misc_procedures import llenlog, log_natural_factorial
 import numpy as np
 import random, bisect, itertools
 from igraph.operators import disjoint_union
@@ -21,6 +22,9 @@ class Frag2FragMapping:
         self.new_frag_ids = np.where(new_membership_vector == frag_id)[0]
 
     def __call__(self, old_id):
+        """
+        The new id of HeavyAtom which went by old_id in the old fragment pair.
+        """
         inside_id = bisect.bisect_left(self.old_frag_ids, old_id)
         return self.new_frag_ids[inside_id]
 
@@ -55,7 +59,7 @@ class FragmentPair:
         neighborhood_size : int - distance between origin point and nodes included into the "core" fragment
         """
         self.chemgraph = cg
-
+        # Check that resonance structures are initialized.
         self.chemgraph.init_resonance_structures()
 
         self.origin_point = origin_point
@@ -79,6 +83,7 @@ class FragmentPair:
         while self.core_size() < neighborhood_size:
             self.expand_core(update_affected_status=False)
             if self.no_fragment_neighbors():
+                # Can happen before self.core_size() == neighborhood_size if self.cg is disjoint.
                 break
 
         # Two list of vertices corresponding to the two fragments.
@@ -111,6 +116,9 @@ class FragmentPair:
         return np.sum(self.membership_vector == self.core_membership_vector_value)
 
     def init_affected_status_info(self):
+        """
+        Initialize information about bonds and valences that are parts of resonance structures affected by fragmentation.
+        """
         self.affected_resonance_structures = []
         resonance_structure_orders_iterators = []
 
@@ -299,6 +307,20 @@ def valid_cross_connection(cg1, cg2, tlist1, tlist2, bo, forbidden_bonds=None):
     return True
 
 
+def bo_tuple_dicts_shapes_match(bo_tuple_dict1, bo_tuple_dict2):
+    """
+    Check that the two dictionnaries are of similar dimensionality.
+    """
+    if len(bo_tuple_dict1) != len(bo_tuple_dict2):
+        return False
+    for bo1, bo_tuples1 in bo_tuple_dict1.items():
+        if bo1 not in bo_tuple_dict2:
+            return False
+        if len(bo_tuple_dict2[bo1]) != len(bo_tuples1):
+            return False
+    return True
+
+
 class BondOrderSortedTuplePermutations:
     def __init__(
         self,
@@ -311,18 +333,15 @@ class BondOrderSortedTuplePermutations:
         """
         Generates permutations of tuples grouped by bond orders making sure no forbidden bonds are created.
         """
-        self.non_empty = False
         self.bo_tuple_dict1 = status1.bond_tuple_dict
         self.bo_tuple_dict2 = status2.bond_tuple_dict
         # Check that the two dictionnaries are of similar dimensionality.
-        if len(self.bo_tuple_dict1) != len(self.bo_tuple_dict2):
+        self.non_empty = bo_tuple_dicts_shapes_match(
+            self.bo_tuple_dict1, self.bo_tuple_dict2
+        )
+
+        if not self.non_empty:
             return
-        for bo1, bo_tuples1 in self.bo_tuple_dict1.items():
-            if bo1 not in self.bo_tuple_dict2:
-                return
-            if len(self.bo_tuple_dict2[bo1]) != len(bo_tuples1):
-                return
-        self.non_empty = True
 
         # Initialize necessary quantities.
         self.chemgraph1 = chemgraph1
@@ -421,6 +440,117 @@ def cross_couple_outcomes(cg_pair, chosen_sizes, origin_points, forbidden_bonds=
         return None, None
     else:
         return new_chemgraph_pairs, new_origin_points
+
+
+class RandomTupleBondReconnector:
+    def __init__(self, status1, status2):
+        bo_tuple_dict1 = status1.bond_tuple_dict
+        bo_tuple_dict2 = status2.bond_tuple_dict
+
+        self.tuples_correspondence = {}
+        for bo1, tuples1 in bo_tuple_dict1:
+            self.tuples_correspondence[sorted(tuples1)] = sorted(bo_tuple_dict2[bo1])
+
+    def __eq__(self, other_rtbr):
+        for self_tuples1, self_tuples2 in self.tuples_correspondence.items():
+            if self_tuples1 not in other_rtbr:
+                return False
+            if self_tuples2 != other_rtbr.tuples_correspondence[self_tuples1]:
+                return False
+        return True
+
+    def shuffle(self):
+        for tuples2 in self.tuples_correspondence.values():
+            random.shuffle(tuples2)
+
+    def current_tuples_map(self):
+        all_tuples1 = []
+        all_tuples2 = []
+        for tuples1, tuples2 in self.tuples_correspondence.items():
+            all_tuples1 += tuples1
+            all_tuples2 += tuples2
+        return all_tuples1, all_tuples2
+
+    def log_num_shuffles(self):
+        res = 0.0
+        for tuples1 in self.tuples_correspondence.keys():
+            res += log_natural_factorial(len(tuples1))
+        return res
+
+
+def matching_status_reconnectors(frag1, frag2):
+    valid_reconnectors = []
+    valid_status_ids = []
+    for status_id1, status1 in frag1.affected_status:
+        for status_id2, status2 in frag2.affected_status:
+            if not bo_tuple_dicts_shapes_match(status1, status2):
+                continue
+            cur_reconnector = RandomTupleBondReconnector(status1, status2)
+            if cur_reconnector not in valid_reconnectors:
+                valid_reconnectors.append(cur_reconnector)
+                valid_status_ids.append((status_id1, status_id2))
+    return valid_reconnectors, valid_status_ids
+
+
+def cross_couple_sample_random_outcomes(
+    cg_pair, chosen_sizes, origin_points, forbidden_bonds=None
+):
+    """
+    Make num_pair_generation_attempts attempts to create a cross-coupling from , then randomly choose among the resulting random cross-couplings.
+    Also returns: (1) probability factor related to the number of permutations (2) probability factor corresponding to status choice.
+    """
+    frag1 = FragmentPair(
+        cg_pair[0], origin_points[0], neighborhood_size=chosen_sizes[0]
+    )
+    frag2 = FragmentPair(
+        cg_pair[1], origin_points[1], neighborhood_size=chosen_sizes[1]
+    )
+    valid_reconnectors, valid_status_ids = matching_status_reconnectors(frag1, frag2)
+
+    if len(valid_reconnectors) == 0:
+        return None, None, None, None
+
+    final_reconnector_id = np.random.randint(len(valid_reconnectors))
+    final_reconnector = valid_reconnectors[final_reconnector_id]
+    final_status_id1, final_status_id2 = valid_status_ids[final_reconnector_id]
+    final_reconnector.shuffle()
+    frag1_bond_tuples, frag2_bond_tuples = final_reconnector.current_tuples_map()
+
+    new_chemgraph_1, new_membership_vector_1 = frag1.cross_couple(
+        frag2, frag1_bond_tuples, frag2_bond_tuples, final_status_id1, final_status_id2
+    )
+    new_chemgraph_2, new_membership_vector_2 = frag2.cross_couple(
+        frag1, frag1_bond_tuples, frag2_bond_tuples, final_status_id1, final_status_id2
+    )
+    if (new_membership_vector_1 is None) or (new_membership_vector_2 is None):
+        return None, None, None, None
+    new_chemgraph_pair = (new_chemgraph_1, new_chemgraph_2)
+    for cg in new_chemgraph_pair:
+        if not no_forbidden_bonds(cg, forbidden_bonds=forbidden_bonds):
+            return None, None, None, None
+
+    map1 = Frag2FragMapping(
+        new_membership_vector_1,
+        frag1.membership_vector,
+        frag_id=frag1.core_membership_vector_value,
+    )
+    map2 = Frag2FragMapping(
+        new_membership_vector_2,
+        frag2.membership_vector,
+        frag_id=frag2.core_membership_vector_value,
+    )
+    new_origin_points = (
+        map1(frag1.origin_point),
+        map2(frag2.origin_point),
+    )
+    reconnector_choice_prob = -llenlog(valid_reconnectors)
+    reconnection_choice_prob = -final_reconnector.log_num_shuffles()
+    return (
+        new_chemgraph_pair,
+        new_origin_points,
+        reconnector_choice_prob,
+        reconnection_choice_prob,
+    )
 
 
 def frag_swap_size_compliant(
@@ -530,10 +660,13 @@ def randomized_cross_coupling(
         return None, None
 
     # Choose "origin points" neighborhoods of which will be marked "red"
+    # TODO For now I'm preserving integer multiplication to avoid breaking tests. Summing logarithms should be better though.
+    #    log_tot_choice_prob_ratio = 0.0
     tot_choice_prob_ratio = 1.0
     origin_points = []
     for cg in cg_pair:
         cg_ual = cg.unrepeated_atom_list()
+        #        log_tot_choice_prob_ratio -= llenlog(cg_ual)
         tot_choice_prob_ratio /= len(cg_ual)
         origin_points.append(random.choice(cg_ual))
 
@@ -544,6 +677,7 @@ def randomized_cross_coupling(
 
     if len(forward_mfssl) == 0:
         return None, None
+    #    log_tot_choice_prob_ratio -= llenlog(forward_mfssl)
     tot_choice_prob_ratio /= len(forward_mfssl)
     chosen_sizes = random.choice(forward_mfssl)
 
@@ -553,12 +687,14 @@ def randomized_cross_coupling(
     if new_origin_points is None:
         return None, None
 
+    #    log_tot_choice_prob_ratio -= llenlog(new_cg_pairs)
     tot_choice_prob_ratio /= len(new_cg_pairs)
 
     new_cg_pair = random.choice(new_cg_pairs)
 
     # Account for inverse choice probability.
     for new_cg in new_cg_pair:
+        #        log_tot_choice_prob_ratio += llenlog(new_cg.unrepeated_atom_list())
         tot_choice_prob_ratio *= len(new_cg.unrepeated_atom_list())
 
     inverse_mfssl = matching_frag_size_status_list(
@@ -570,6 +706,7 @@ def randomized_cross_coupling(
     inverse_cg_pairs, _ = cross_couple_outcomes(
         new_cg_pair, chosen_sizes, new_origin_points, forbidden_bonds=forbidden_bonds
     )
+    #    log_tot_choice_prob_ratio += llenlog(inverse_cg_pairs)
     tot_choice_prob_ratio *= len(inverse_cg_pairs)
 
     try:

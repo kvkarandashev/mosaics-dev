@@ -12,6 +12,7 @@
 
 from sortedcontainers import SortedList, SortedDict
 from .modify import *
+from .ext_graph_compound import egc_valid_wrt_change_params
 from .utils import dump2pkl, loadpkl, pkl_compress_ending
 from .valence_treatment import (
     sorted_tuple,

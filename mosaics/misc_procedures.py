@@ -175,31 +175,30 @@ def lookup_or_none(dict_in, key):
         return None
 
 
-# Shorthands to decrease annoyance.
-def intlog(i):
-    return np.log(float(i))
+# We evaluate a lot of logarithms of natural numbers, so makes sense to cut down on their calculation.
+def intlog_no_precalc(int_in):
+    return np.log(float(int_in))
 
 
-def llenlog(l):
-    return intlog(len(l))
-
-
-# Lookup table for saving values of natural number factorial.
-class NaturalFactorialLogLookup:
+class NaturalLogLookup:
     def __init__(self):
         self.saved_values = None
         self.max_avail_val = 0
 
-    def fill_saved_values(self, new_max_avail_val):
+    def gen_new_saved_values(self, new_max_avail_val):
         new_saved_values = np.empty((new_max_avail_val,))
-        if self.saved_values is None:
-            current_log = 0.0
-        else:
+        if self.saved_values is not None:
             new_saved_values[: self.max_avail_val] = self.saved_values[:]
-            current_log = self.saved_values[-1]
-        for i in range(self.max_avail_val, new_max_avail_val):
-            current_log += intlog(i + 1)
-            new_saved_values[i] = current_log
+        old_max_avail_val = self.max_avail_val
+        self.max_avail_val
+        return new_saved_values, old_max_avail_val
+
+    def fill_saved_values(self, new_max_avail_val):
+        new_saved_values, old_max_avail_val = self.gen_new_saved_values(
+            new_max_avail_val
+        )
+        for i in range(old_max_avail_val, new_max_avail_val):
+            new_saved_values[i] = intlog_no_precalc(i + 1)
         self.saved_values = new_saved_values
         self.max_avail_val = new_max_avail_val
 
@@ -210,7 +209,30 @@ class NaturalFactorialLogLookup:
         return self.saved_values[int_val - 1]
 
 
-log_natural_factorial = NaturalFactorialLogLookup()
+intlog = NaturalLogLookup()
+
+
+def llenlog(l):
+    return intlog(len(l))
+
+
+class FactorialLogLookup(NaturalLogLookup):
+    def fill_saved_values(self, new_max_avail_val):
+        new_saved_values, old_max_avail_val = self.gen_new_saved_values(
+            new_max_avail_val
+        )
+        if old_max_avail_val == 1:
+            current_log = 0.0
+        else:
+            current_log = self.saved_values[old_max_avail_val - 1]
+        for i in range(old_max_avail_val, new_max_avail_val):
+            current_log += intlog(i + 1)
+            new_saved_values[i] = current_log
+        self.saved_values = new_saved_values
+        self.max_avail_val = new_max_avail_val
+
+
+log_natural_factorial = NaturalLogLookup()
 
 
 # Used for different random choices (mainly in modify)
