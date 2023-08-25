@@ -420,6 +420,7 @@ def egc_change_func(
         atom_id_tuple = modification_path[1][:2]
         resonance_structure_id = modification_path[1][-1]
         bo_change = modification_path[0]
+
         return change_function(
             egc_in,
             *atom_id_tuple,
@@ -626,6 +627,8 @@ def get_valence_preserved_changed_atom_res_struct_list(
     cg = egc.chemgraph
     resonance_struct_ids = cg.possible_res_struct_ids(val_changed_atom)
     for init_atom in initial_atoms:
+        if (bond_order_change > 0) and (init_atom == val_changed_atom):
+            continue
         if (bond_order_change > 0) and (forbidden_bonds is not None):
             if connection_forbidden(
                 cg.hatoms[init_atom].ncharge,
@@ -649,8 +652,8 @@ def get_valence_preserved_changed_atom_res_struct_list(
                 != cur_mod_valence + bond_order_change
             ):
                 continue
+            cur_bo = cg.bond_order(val_changed_atom, init_atom)
             if bond_order_change < 0:
-                cur_bo = cg.bond_order(val_changed_atom, init_atom)
                 if cur_bo < -bond_order_change:
                     continue
                 if cur_bo == -bond_order_change:
@@ -669,6 +672,11 @@ def get_valence_preserved_changed_atom_res_struct_list(
                     continue
                 else:
                     full_disconnections.append(cur_full_disconnection)
+            else:
+                if cur_bo + bond_order_change > max_bo(
+                    val_changed_ha, cg.hatoms[init_atom]
+                ):
+                    continue
             output.append((init_atom, resonance_struct_id))
             if (
                 bond_order_change > 0
@@ -733,8 +741,15 @@ def inv_prob_bond_change_parameters_linear_scaling(
 
 
 def inv_prob_bond_valence_change_parameters_linear_scaling(
-    new_egc, inv_poss_dict, inv_mod_path, **other_kwargs
+    new_egc: ExtGraphCompound, inv_poss_dict, inv_mod_path, **other_kwargs
 ):
+    print(
+        "UUU",
+        new_egc,
+        inv_mod_path,
+        inv_poss_dict,
+        new_egc.chemgraph.possible_res_struct_ids(1),
+    )
     inv_bo_change = inv_mod_path[0]
     val_changed_atom = inv_mod_path[1][0]
     all_val_changed_choices, log_choice_prob = random_choice_from_dict(
@@ -755,6 +770,48 @@ special_inv_prob_calculators = {
     change_bond_order: inv_prob_bond_change_parameters_linear_scaling,
     change_bond_order_valence: inv_prob_bond_valence_change_parameters_linear_scaling,
 }
+
+
+def needed_special_bond_change_func(
+    cur_change_procedure, linear_scaling_bond_changes=False
+):
+    return linear_scaling_bond_changes and is_bond_change(cur_change_procedure)
+
+
+def random_modification_path_choice(
+    egc: ExtGraphCompound,
+    possibilities: dict,
+    cur_change_procedure,
+    choices=None,
+    get_probability_of=None,
+    linear_scaling_bond_changes=False,
+    **other_kwargs,
+):
+    special_bond_change_func = needed_special_bond_change_func(
+        cur_change_procedure, linear_scaling_bond_changes=linear_scaling_bond_changes
+    )
+    if get_probability_of is None:
+        if special_bond_change_func:
+            return special_bond_change_functions[cur_change_procedure](
+                egc,
+                possibilities,
+                choices=choices,
+                **other_kwargs,
+            )
+        else:
+            return random_choice_from_nested_dict(possibilities, choices=choices)
+    else:
+        if special_bond_change_func:
+            return special_inv_prob_calculators[cur_change_procedure](
+                egc,
+                possibilities,
+                get_probability_of,
+                **other_kwargs,
+            )
+        else:
+            return random_choice_from_nested_dict(
+                possibilities, choices=choices, get_probability_of=get_probability_of
+            )
 
 
 def randomized_change(
@@ -789,27 +846,22 @@ def randomized_change(
     cur_change_procedure, possibilities, total_forward_prob = random_choice_from_dict(
         full_possibility_dict, change_prob_dict
     )
-    special_bond_change_func = linear_scaling_bond_changes and is_bond_change(
-        cur_change_procedure
+    special_bond_change_func = needed_special_bond_change_func(
+        cur_change_procedure, linear_scaling_bond_changes=linear_scaling_bond_changes
     )
     possibility_dict_label = change_possibility_label[cur_change_procedure]
     possibility_dict = lookup_or_none(other_kwargs, possibility_dict_label)
 
     old_egc = tp.egc
 
-    if special_bond_change_func:
-        modification_path, forward_prob = special_bond_change_functions[
-            cur_change_procedure
-        ](
-            old_egc,
-            possibilities,
-            choices=possibility_dict,
-            **init_possibilities_kwargs,
-        )
-    else:
-        modification_path, forward_prob = random_choice_from_nested_dict(
-            possibilities, choices=possibility_dict
-        )
+    modification_path, forward_prob = random_modification_path_choice(
+        old_egc,
+        possibilities,
+        cur_change_procedure,
+        choices=possibility_dict,
+        linear_scaling_bond_changes=linear_scaling_bond_changes,
+        **other_kwargs,
+    )
 
     if delete_chosen_mod_path and (not special_bond_change_func):
         tp.delete_mod_path([cur_change_procedure] + modification_path)
@@ -848,17 +900,15 @@ def randomized_change(
             change_prob_dict,
             get_probability_of=inv_proc,
         )
-        if special_bond_change_func:
-            inverse_prob = special_inv_prob_calculators[cur_change_procedure](
-                new_egc,
-                inverse_possibilities,
-                inv_mod_path,
-                **init_possibilities_kwargs,
-            )
-        else:
-            inverse_prob = random_choice_from_nested_dict(
-                inverse_possibilities, inv_poss_dict, get_probability_of=inv_mod_path
-            )
+        inverse_prob = random_modification_path_choice(
+            new_egc,
+            inverse_possibilities,
+            inv_proc,
+            choices=inv_poss_dict,
+            get_probability_of=inv_mod_path,
+            linear_scaling_bond_changes=linear_scaling_bond_changes,
+            **other_kwargs,
+        )
     except KeyError:
         print("NON-INVERTIBLE OPERATION")
         print(old_egc, cur_change_procedure)
@@ -871,8 +921,7 @@ def randomized_change(
 
     if special_bond_change_func:
         prob_balance += (
-            old_egc.chemgraph.get_log_permutation_factor()
-            - new_egc.chemgraph.get_log_permutation_factor()
+            new_egc.chemgraph.get_log_permutation_factor()
+            - old_egc.chemgraph.get_log_permutation_factor()
         )
-
-    return new_tp, total_forward_prob - total_inverse_prob
+    return new_tp, prob_balance

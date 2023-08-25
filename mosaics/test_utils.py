@@ -3,10 +3,10 @@ from .data import NUCLEAR_CHARGE
 from sortedcontainers import SortedDict
 from .random_walk import (
     randomized_change,
+    random_modification_path_choice,
     TrajectoryPoint,
     RandomWalk,
     full_change_list,
-    random_choice_from_nested_dict,
     egc_change_func,
     inverse_procedure,
     default_minfunc_name,
@@ -179,15 +179,24 @@ def check_prop_probability(
 
 
 def generate_proc_example(
-    tp, change_procedure, new_tp=None, print_dicts=False, **other_kwargs
+    tp: TrajectoryPoint,
+    change_procedure,
+    new_tp=None,
+    print_dicts=False,
+    max_attempt_num=10000,
+    **other_kwargs
 ):
     tp_copy = copy.deepcopy(tp)
     tp_copy.possibility_dict = None
     tp_copy.init_possibility_info(change_prob_dict=[change_procedure], **other_kwargs)
+    if change_procedure not in tp_copy.possibility_dict:
+        return None
     tp_copy.modified_possibility_dict = copy.deepcopy(tp_copy.possibility_dict)
-    while tp_copy.modified_possibility_dict:
-        modification_path, _ = random_choice_from_nested_dict(
-            tp_copy.modified_possibility_dict[change_procedure]
+    for _ in range(max_attempt_num):
+        old_egc = tp.egc
+        possibilities = tp_copy.modified_possibility_dict[change_procedure]
+        modification_path, _ = random_modification_path_choice(
+            old_egc, possibilities, change_procedure, **other_kwargs
         )
         new_egc = egc_change_func(
             tp_copy.egc, modification_path, change_procedure, **other_kwargs
@@ -208,7 +217,6 @@ def generate_proc_example(
                 print("FORWARD PROC DICT:", tp_copy.possibility_dict[change_procedure])
                 tp_out.possibility_dict = None
             return tp_out
-        tp_copy.delete_mod_path([change_procedure, *modification_path])
     return None
 
 

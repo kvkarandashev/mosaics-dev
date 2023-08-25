@@ -752,83 +752,74 @@ def valence_bond_change_atom_possibilities(
     cg = egc.chemgraph
     hatoms = cg.hatoms
 
-    valence_altered_hatom_list = []
-    for mod_val_ha_id, mod_val_ha in enumerate(hatoms):
-        if not mod_val_ha.is_polyvalent():
-            continue
-        resonance_struct_ids = cg.possible_res_struct_ids(mod_val_ha_id)
-
-        if (
-            bond_order_change < 0
-        ):  # check that at least one neighbor can be disconnected.
-            found_disconnecting_neighbor = False
-            for other_ha_id in cg.neighbors(mod_val_ha_id):
-                if not_protonated is not None:
-                    if hatoms[other_ha_id].ncharge in not_protonated:
-                        continue
-                for resonance_struct_id in resonance_struct_ids:
-                    cur_mod_valence, valence_option_id = cg.valence_woption(
-                        mod_val_ha_id, resonance_structure_id=resonance_struct_id
-                    )
-                    if (
-                        next_valence(
-                            mod_val_ha,
-                            -1,
-                            valence_option_id=valence_option_id,
-                        )
-                        != cur_mod_valence + bond_order_change
-                    ):
-                        continue
-
-                    cur_bo = cg.bond_order(
-                        mod_val_ha_id,
-                        other_ha_id,
-                        resonance_structure_id=resonance_struct_id,
-                    )
-                    if cur_bo < -bond_order_change:
-                        found_disconnecting_neighbor = True
-                        break
-                    if cur_bo == -bond_order_change:
-                        if breaking_bond_obeys_num_fragments(
-                            egc,
-                            mod_val_ha_id,
-                            other_ha_id,
-                            max_fragment_num=max_fragment_num,
-                        ):
-                            found_disconnecting_neighbor = True
-                            break
-                if found_disconnecting_neighbor:
-                    break
-            if not found_disconnecting_neighbor:
-                continue
-        valence_altered_hatom_list.append(mod_val_ha_id)
-
     if bond_order_change > 0:
         # If we want to increase bond order, check what atoms it can be connected to.
         valence_preserved_hatom_list = hatoms_with_changeable_nhydrogens(
             egc, bond_order_change, not_protonated=not_protonated
         )
-        # Delete hatoms that cannot be connected to anything.
-        checked_valence_altered_hatom_list_id = 0
-        while checked_valence_altered_hatom_list_id != len(valence_altered_hatom_list):
-            checked_hatom_id = valence_altered_hatom_list[
-                checked_valence_altered_hatom_list_id
-            ]
-            found_possible_connection = False
-            for possible_connected_atom in valence_preserved_hatom_list:
-                if forbidden_bonds is not None:
-                    if connection_forbidden(
-                        hatoms[possible_connected_atom].ncharge,
-                        hatoms[checked_hatom_id].ncharge,
-                        forbidden_bonds,
+
+    valence_altered_hatom_list = []
+    for mod_val_ha_id, mod_val_ha in enumerate(hatoms):
+        if not mod_val_ha.is_polyvalent():
+            continue
+        resonance_struct_ids = cg.possible_res_struct_ids(mod_val_ha_id)
+        mod_val_ha_nc = mod_val_ha.ncharge
+        found_val_preserved_atom = False
+        if bond_order_change < 0:
+            valence_preserved_hatom_list = hatoms_with_changeable_nhydrogens(
+                egc,
+                bond_order_change,
+                not_protonated=not_protonated,
+                origin_point=mod_val_ha_id,
+            )
+        for other_ha_id in valence_preserved_hatom_list:
+            other_ha_nc = hatoms[other_ha_id].ncharge
+            if (bond_order_change > 0) and connection_forbidden(
+                mod_val_ha_nc, other_ha_nc, forbidden_bonds
+            ):
+                continue
+            found_valid_res_struct = False
+            for resonance_struct_id in resonance_struct_ids:
+                cur_mod_valence, valence_option_id = cg.valence_woption(
+                    mod_val_ha_id, resonance_structure_id=resonance_struct_id
+                )
+                next_valence_val = next_valence(
+                    mod_val_ha,
+                    np.sign(bond_order_change),
+                    valence_option_id=valence_option_id,
+                )
+                if next_valence_val is None:
+                    continue
+                if next_valence_val != cur_mod_valence + bond_order_change:
+                    continue
+
+                cur_bo = cg.bond_order(
+                    mod_val_ha_id,
+                    other_ha_id,
+                    resonance_structure_id=resonance_struct_id,
+                )
+                if bond_order_change > 0:
+                    if cur_bo + bond_order_change > max_bo(other_ha_nc, mod_val_ha_nc):
+                        continue
+                else:
+                    if cur_bo < -bond_order_change:
+                        continue
+                    if (cur_bo == -bond_order_change) and (
+                        not breaking_bond_obeys_num_fragments(
+                            egc,
+                            mod_val_ha_id,
+                            other_ha_id,
+                            max_fragment_num=max_fragment_num,
+                        )
                     ):
                         continue
-                found_possible_connection = True
+                found_valid_res_struct = True
                 break
-            if found_possible_connection:
-                checked_valence_altered_hatom_list_id += 1
-            else:
-                del valence_altered_hatom_list[checked_valence_altered_hatom_list_id]
+            if found_valid_res_struct:
+                found_val_preserved_atom = True
+                break
+        if found_val_preserved_atom:
+            valence_altered_hatom_list.append(mod_val_ha_id)
     return valence_altered_hatom_list
 
 
