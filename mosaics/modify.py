@@ -607,60 +607,72 @@ def choose_bond_change_parameters_linear_scaling(
     return mod_path, log_choice_prob
 
 
-def get_valence_preserved_changed_atom_res_struct_list(
+def get_valence_changed_atom_res_struct_list(
     egc: ExtGraphCompound,
-    val_changed_atom,
+    pres_val_atom_id,
     bond_order_change,
-    not_protonated=None,
     max_fragment_num=None,
     forbidden_bonds=None,
     **other_kwargs,
 ):
-    init_hatoms_kwargs = {"not_protonated": not_protonated}
+    origin_point = None
     if bond_order_change < 0:
-        init_hatoms_kwargs["origin_point"] = val_changed_atom
-    initial_atoms = hatoms_with_changeable_nhydrogens(
-        egc, bond_order_change, **init_hatoms_kwargs
+        origin_point = pres_val_atom_id
+    else:
+        found_without_sigma_bond_creation = False
+
+    possible_changed_val_atoms = polyvalent_hatom_indices(
+        egc, bond_order_change, origin_point=origin_point
     )
-    output = []
-    val_changed_ha = egc.chemgraph.hatoms[val_changed_atom]
+
     cg = egc.chemgraph
-    resonance_struct_ids = cg.possible_res_struct_ids(val_changed_atom)
-    for init_atom in initial_atoms:
-        if (bond_order_change > 0) and (init_atom == val_changed_atom):
+    hatoms = cg.hatoms
+    pres_val_ha = hatoms[pres_val_atom_id]
+    pres_val_ha_nc = pres_val_ha.ncharge
+
+    output = []
+    for changed_val_atom_id in possible_changed_val_atoms:
+        if changed_val_atom_id == pres_val_atom_id:
             continue
-        if (bond_order_change > 0) and (forbidden_bonds is not None):
+        changed_val_atom = hatoms[changed_val_atom_id]
+        changed_val_atom_nc = changed_val_atom.ncharge
+        if bond_order_change > 0:
             if connection_forbidden(
-                cg.hatoms[init_atom].ncharge,
-                cg.hatoms[val_changed_atom].ncharge,
+                pres_val_ha_nc,
+                changed_val_atom_nc,
                 forbidden_bonds,
             ):
                 continue
+            are_neighbors = cg.are_neighbors(pres_val_atom_id, changed_val_atom_id)
+            if found_without_sigma_bond_creation and are_neighbors:
+                continue
+
+        resonance_struct_ids = cg.possible_res_struct_ids(changed_val_atom_id)
         if bond_order_change < 0:
             full_disconnections = []
 
         for resonance_struct_id in resonance_struct_ids:
             cur_mod_valence, valence_option_id = cg.valence_woption(
-                val_changed_atom, resonance_structure_id=resonance_struct_id
+                changed_val_atom_id, resonance_structure_id=resonance_struct_id
             )
             if (
                 next_valence(
-                    val_changed_ha,
+                    changed_val_atom,
                     np.sign(bond_order_change),
                     valence_option_id=valence_option_id,
                 )
                 != cur_mod_valence + bond_order_change
             ):
                 continue
-            cur_bo = cg.bond_order(val_changed_atom, init_atom)
+            cur_bo = cg.bond_order(changed_val_atom_id, pres_val_atom_id)
             if bond_order_change < 0:
                 if cur_bo < -bond_order_change:
                     continue
                 if cur_bo == -bond_order_change:
                     if breaking_bond_obeys_num_fragments(
                         egc,
-                        val_changed_atom,
-                        init_atom,
+                        changed_val_atom_id,
+                        pres_val_atom_id,
                         max_fragment_num=max_fragment_num,
                     ):
                         cur_full_disconnection = True
@@ -674,10 +686,11 @@ def get_valence_preserved_changed_atom_res_struct_list(
                     full_disconnections.append(cur_full_disconnection)
             else:
                 if cur_bo + bond_order_change > max_bo(
-                    val_changed_ha, cg.hatoms[init_atom]
+                    changed_val_atom_nc, pres_val_ha_nc
                 ):
                     continue
-            output.append((init_atom, resonance_struct_id))
+                found_without_sigma_bond_creation = are_neighbors
+            output.append((changed_val_atom_id, resonance_struct_id))
             if (
                 bond_order_change > 0
             ):  # we only need to find one way to create a connection
@@ -690,26 +703,22 @@ def choose_bond_valence_change_parameters_linear_scaling(
 ):
     (
         bond_order_change,
-        valence_change_atom_choices,
+        pres_val_change_atom_choices,
         log_choice_prob,
     ) = random_choice_from_dict(possibilities, choices=choices)
-    val_changed_atom = random.choice(valence_change_atom_choices)
-    log_choice_prob -= llenlog(valence_change_atom_choices)
-    valence_preserved_atom_res_struct_choices = (
-        get_valence_preserved_changed_atom_res_struct_list(
-            egc,
-            val_changed_atom,
-            bond_order_change,
-            **other_kwargs,
-        )
+    pres_val_atom = random.choice(pres_val_change_atom_choices)
+    log_choice_prob -= llenlog(pres_val_change_atom_choices)
+    change_val_atom_res_struct_list = get_valence_changed_atom_res_struct_list(
+        egc,
+        pres_val_atom,
+        bond_order_change,
+        **other_kwargs,
     )
-    valence_preserved_atom_res_struct = random.choice(
-        valence_preserved_atom_res_struct_choices
-    )
-    log_choice_prob -= llenlog(valence_preserved_atom_res_struct_choices)
+    change_val_atom_res_struct = random.choice(change_val_atom_res_struct_list)
+    log_choice_prob -= llenlog(change_val_atom_res_struct_list)
     mod_path = [
         bond_order_change,
-        (val_changed_atom, *valence_preserved_atom_res_struct),
+        (change_val_atom_res_struct[0], pres_val_atom, change_val_atom_res_struct[1]),
     ]
     return mod_path, log_choice_prob
 
@@ -743,26 +752,19 @@ def inv_prob_bond_change_parameters_linear_scaling(
 def inv_prob_bond_valence_change_parameters_linear_scaling(
     new_egc: ExtGraphCompound, inv_poss_dict, inv_mod_path, **other_kwargs
 ):
-    print(
-        "UUU",
-        new_egc,
-        inv_mod_path,
-        inv_poss_dict,
-        new_egc.chemgraph.possible_res_struct_ids(1),
-    )
     inv_bo_change = inv_mod_path[0]
-    val_changed_atom = inv_mod_path[1][0]
-    all_val_changed_choices, log_choice_prob = random_choice_from_dict(
+    pres_val_changed_atom = inv_mod_path[1][1]
+    all_pres_val_choices, log_choice_prob = random_choice_from_dict(
         inv_poss_dict, get_probability_of=inv_bo_change
     )
-    log_choice_prob -= llenlog(all_val_changed_choices)
-    val_preserved_atoms = get_valence_preserved_changed_atom_res_struct_list(
+    log_choice_prob -= llenlog(all_pres_val_choices)
+    changed_val_atoms = get_valence_changed_atom_res_struct_list(
         new_egc,
-        val_changed_atom,
+        pres_val_changed_atom,
         inv_bo_change,
         **other_kwargs,
     )
-    log_choice_prob -= llenlog(val_preserved_atoms)
+    log_choice_prob -= llenlog(changed_val_atoms)
     return log_choice_prob
 
 

@@ -34,7 +34,7 @@ if possible_elements is None:
 init_tp = TrajectoryPoint(cg=init_cg)
 
 num_mols = 4
-num_attempts = 1000  # 40000
+num_attempts = 40000  # 1000 40000
 
 randomized_change_params = {
     "possible_elements": possible_elements,

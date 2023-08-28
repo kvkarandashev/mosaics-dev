@@ -149,6 +149,13 @@ class HeavyAtom:
         else:
             return 0
 
+    def min_valence(self):
+        val_list = self.avail_val_list()
+        if isinstance(val_list, tuple):
+            return val_list[0]
+        else:
+            return val_list
+
     def max_valence(self):
         val_list = self.avail_val_list()
         if isinstance(val_list, tuple):
@@ -692,16 +699,22 @@ class ChemGraph:
             val = ha.possible_valences[option_id]
         return val, option_id
 
-    def min_valence_woption(self, atom_id):
+    def extrema_valence_woption(self, atom_id, comparison_operator=max):
         self.init_resonance_structures()
         ha = self.hatoms[atom_id]
         if ha.possible_valences is None:
             cur_valence = ha.valence
             valence_option = None
         else:
-            cur_valence = min(ha.possible_valences)
+            cur_valence = comparison_operator(ha.possible_valences)
             valence_option = ha.possible_valences.index(cur_valence)
         return cur_valence, valence_option
+
+    def min_valence_woption(self, atom_id):
+        return self.extrema_valence_woption(atom_id, comparison_operator=min)
+
+    def max_valence_woption(self, atom_id):
+        return self.extrema_valence_woption(atom_id, comparison_operator=max)
 
     def hatom_default_valence(self, atom_id):
         return default_valence(self.hatoms[atom_id].ncharge)
@@ -842,6 +855,9 @@ class ChemGraph:
 
     def num_neighbors(self, hatom_id):
         return self.graph.neighborhood_size(vertices=hatom_id, order=1) - 1
+
+    def are_neighbors(self, hatom_id1, hatom_id2):
+        return self.graph.are_connected(hatom_id1, hatom_id2)
 
     # Basic commands for managing the graph.
     def set_edge_order(self, atom1, atom2, new_edge_order):

@@ -740,44 +740,74 @@ def valence_change_remove_atoms_possibilities(
     return possibilities
 
 
+def polyvalent_hatom_indices(
+    egc: ExtGraphCompound, bond_order_change: int, origin_point=None
+):
+    cg = egc.chemgraph
+
+    if bond_order_change > 0:
+        checked_hatom_ids = range(cg.nhatoms())
+    else:
+        checked_hatom_ids = cg.neighbors(origin_point)
+    output = []
+    for ha_id in checked_hatom_ids:
+        ha = cg.hatoms[ha_id]
+        if not ha.is_polyvalent():
+            continue
+        if bond_order_change > 0:
+            min_valence, _ = cg.min_valence_woption(ha_id)
+            if min_valence + bond_order_change > ha.max_valence():
+                continue
+        else:
+            max_valence, _ = cg.max_valence_woption(ha_id)
+            if max_valence + bond_order_change < ha.min_valence():
+                continue
+        output.append(ha_id)
+    return output
+
+
 def valence_bond_change_atom_possibilities(
     egc: ExtGraphCompound,
-    bond_order_change,
+    bond_order_change: int,
     forbidden_bonds=None,
     not_protonated=None,
     max_fragment_num=None,
     **other_kwargs,
 ):
+    """
+    Find ids of atoms whose nhydrogens can be changed to accomodate for a valence-bond chemical graph change.
+    """
     # TODO shares a lot with the "badly scaling" version, might be combinable.
     cg = egc.chemgraph
     hatoms = cg.hatoms
 
     if bond_order_change > 0:
-        # If we want to increase bond order, check what atoms it can be connected to.
-        valence_preserved_hatom_list = hatoms_with_changeable_nhydrogens(
-            egc, bond_order_change, not_protonated=not_protonated
-        )
+        checked_polyvalent_hatoms = polyvalent_hatom_indices(egc, bond_order_change)
 
-    valence_altered_hatom_list = []
-    for mod_val_ha_id, mod_val_ha in enumerate(hatoms):
-        if not mod_val_ha.is_polyvalent():
-            continue
-        resonance_struct_ids = cg.possible_res_struct_ids(mod_val_ha_id)
-        mod_val_ha_nc = mod_val_ha.ncharge
-        found_val_preserved_atom = False
+    checked_pres_val_hatoms = hatoms_with_changeable_nhydrogens(
+        egc, bond_order_change, not_protonated=not_protonated
+    )
+
+    pres_valence_final_hatom_list = []
+
+    for pres_val_ha_id in checked_pres_val_hatoms:
+        pres_val_ha_nc = hatoms[pres_val_ha_id].ncharge
+        # For each atom check that there is something else
         if bond_order_change < 0:
-            valence_preserved_hatom_list = hatoms_with_changeable_nhydrogens(
-                egc,
-                bond_order_change,
-                not_protonated=not_protonated,
-                origin_point=mod_val_ha_id,
+            checked_polyvalent_hatoms = polyvalent_hatom_indices(
+                egc, bond_order_change, origin_point=pres_val_ha_id
             )
-        for other_ha_id in valence_preserved_hatom_list:
-            other_ha_nc = hatoms[other_ha_id].ncharge
+        found_valid_mod_val_atom = False
+        for mod_val_ha_id in checked_polyvalent_hatoms:
+            if mod_val_ha_id == pres_val_ha_id:
+                continue
+            mod_val_ha = hatoms[mod_val_ha_id]
+            mod_val_ha_nc = mod_val_ha.ncharge
             if (bond_order_change > 0) and connection_forbidden(
-                mod_val_ha_nc, other_ha_nc, forbidden_bonds
+                pres_val_ha_nc, mod_val_ha.ncharge, forbidden_bonds
             ):
                 continue
+            resonance_struct_ids = cg.possible_res_struct_ids(mod_val_ha_id)
             found_valid_res_struct = False
             for resonance_struct_id in resonance_struct_ids:
                 cur_mod_valence, valence_option_id = cg.valence_woption(
@@ -795,11 +825,13 @@ def valence_bond_change_atom_possibilities(
 
                 cur_bo = cg.bond_order(
                     mod_val_ha_id,
-                    other_ha_id,
+                    pres_val_ha_id,
                     resonance_structure_id=resonance_struct_id,
                 )
                 if bond_order_change > 0:
-                    if cur_bo + bond_order_change > max_bo(other_ha_nc, mod_val_ha_nc):
+                    if cur_bo + bond_order_change > max_bo(
+                        pres_val_ha_nc, mod_val_ha_nc
+                    ):
                         continue
                 else:
                     if cur_bo < -bond_order_change:
@@ -808,7 +840,7 @@ def valence_bond_change_atom_possibilities(
                         not breaking_bond_obeys_num_fragments(
                             egc,
                             mod_val_ha_id,
-                            other_ha_id,
+                            pres_val_ha_id,
                             max_fragment_num=max_fragment_num,
                         )
                     ):
@@ -816,11 +848,11 @@ def valence_bond_change_atom_possibilities(
                 found_valid_res_struct = True
                 break
             if found_valid_res_struct:
-                found_val_preserved_atom = True
+                found_valid_mod_val_atom = True
                 break
-        if found_val_preserved_atom:
-            valence_altered_hatom_list.append(mod_val_ha_id)
-    return valence_altered_hatom_list
+        if found_valid_mod_val_atom:
+            pres_valence_final_hatom_list.append(pres_val_ha_id)
+    return pres_valence_final_hatom_list
 
 
 # TODO add option for having opportunities as tuples vs dictionary? (PERHAPS NOT RELEVANT WITHOUT 4-order bonds)
