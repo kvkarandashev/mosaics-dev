@@ -6,14 +6,21 @@ from mosaics.test_utils import check_prop_probability
 from mosaics.modify import randomized_cross_coupling
 from mosaics.valence_treatment import str2ChemGraph
 from mosaics.minimized_functions.toy_problems import ChargeSum
-
-random.seed(1)
-np.random.seed(1)
+import sys
 
 chemgraph_strings = [
-    "6#1@1@5:6#1@2:6#1@3:6#1@4:6#1@5:6#1",
-    "6#3@1:6@2:7@3:6#1@4:6@1@5:9",
+    sys.argv[1],
+    sys.argv[2],
 ]
+
+if len(sys.argv)>3:
+    seed=int(sys.argv[3])
+else:
+    seed=1
+
+random.seed(seed)
+np.random.seed(seed)
+
 cgs = [str2ChemGraph(cg_str) for cg_str in chemgraph_strings]
 
 tps = tuple([TrajectoryPoint(cg=cg) for cg in cgs])
@@ -51,7 +58,7 @@ ln2 = np.log(2.0)
 betas = [ln2, ln2 / 2.0]
 # betas = [ln2, ln2]
 
-num_attempts = 40000
+num_attempts = 400 #40000
 
 
 print("BETAS:", betas)

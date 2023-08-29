@@ -511,6 +511,7 @@ def cross_couple_sample_random_outcome(
     """
     Make num_pair_generation_attempts attempts to create a cross-coupling from , then randomly choose among the resulting random cross-couplings.
     Also returns: (1) probability factor related to the number of permutations (2) probability factor corresponding to status choice.
+    Note that probability factor corresponding to reconnector.shuffle cancels out.
     """
     frag1 = FragmentPair(
         cg_pair[0], origin_points[0], neighborhood_size=chosen_sizes[0]

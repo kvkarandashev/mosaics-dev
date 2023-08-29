@@ -134,7 +134,6 @@ class RandomWalk:
         no_min_function_lookup: bool = False,
         num_replicas: int or None = None,
         no_exploration: bool = False,
-        no_exploration_smove_adjust: bool = False,
         restricted_tps: list or None = None,
         min_function_name: str = default_minfunc_name,
         num_saved_candidates: int or None = None,
@@ -230,7 +229,6 @@ class RandomWalk:
                 raise Exception
             else:
                 self.restricted_tps = restricted_tps
-                self.no_exploration_smove_adjust = no_exploration_smove_adjust
 
         self.bias_coeff = bias_coeff
         self.vbeta_bias_coeff = vbeta_bias_coeff
@@ -419,12 +417,6 @@ class RandomWalk:
                 ] = gen_val_change_pos_ncharges(
                     cur_possible_elements, not_protonated=cur_not_protonated
                 )
-
-            if self.no_exploration:
-                if self.no_exploration_smove_adjust:
-                    self.used_randomized_change_params[
-                        "restricted_tps"
-                    ] = self.restricted_tps
 
     def used_randomized_change_params_check_defaults(
         self, check_kw_validity=False, **other_kwargs

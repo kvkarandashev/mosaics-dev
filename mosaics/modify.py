@@ -106,36 +106,6 @@ class TrajectoryPoint:
                     if len(cur_subdict) != 0:
                         self.possibility_dict[change_procedure] = cur_subdict
 
-            restricted_tps = lookup_or_none(kwargs, "restricted_tps")
-
-            if restricted_tps is not None:
-                self.clear_possibility_info(restricted_tps)
-
-    def clear_possibility_info(self, restricted_tps):
-        for poss_func, poss_dict in self.possibility_dict.items():
-            poss_key_id = 0
-            poss_keys = list(poss_dict.keys())
-            while poss_key_id != len(poss_keys):
-                poss_key = poss_keys[poss_key_id]
-                poss_list = poss_dict[poss_key]
-
-                poss_id = 0
-                while poss_id != len(poss_list):
-                    result = egc_change_func(
-                        self.egc, poss_key, poss_list[poss_id], poss_func
-                    )
-                    if (result is None) or (
-                        TrajectoryPoint(egc=result) in restricted_tps
-                    ):
-                        poss_id += 1
-                    else:
-                        del poss_list[poss_id]
-                if len(poss_list) == 0:
-                    del poss_dict[poss_key]
-                    del poss_keys[poss_key_id]
-                else:
-                    poss_key_id += 1
-
     def possibilities(self, **kwargs):
         self.init_possibility_info(**kwargs)
         return self.possibility_dict
@@ -664,7 +634,11 @@ def get_valence_changed_atom_res_struct_list(
                 != cur_mod_valence + bond_order_change
             ):
                 continue
-            cur_bo = cg.bond_order(changed_val_atom_id, pres_val_atom_id)
+            cur_bo = cg.bond_order(
+                changed_val_atom_id,
+                pres_val_atom_id,
+                resonance_structure_id=resonance_struct_id,
+            )
             if bond_order_change < 0:
                 if cur_bo < -bond_order_change:
                     continue
