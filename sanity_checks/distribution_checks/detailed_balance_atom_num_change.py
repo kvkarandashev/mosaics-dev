@@ -25,6 +25,7 @@ randomized_change_params = {
     "possible_elements": possible_elements,
     "bond_order_changes": [-1, 1],
     "forbidden_bonds": forbidden_bonds,
+    "linear_scaling_elementary_mutations": True,
     "change_prob_dict": {
         add_heavy_atom_chain: 0.25,
         remove_heavy_atom: 0.75,

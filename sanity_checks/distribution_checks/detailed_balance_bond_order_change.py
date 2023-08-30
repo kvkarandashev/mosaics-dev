@@ -19,7 +19,7 @@ possible_elements = ["C", "S"]
 
 forbidden_bonds = None
 
-num_MC_steps = 25000
+num_MC_steps = 100000
 
 bias_coeff = None
 
@@ -27,7 +27,7 @@ randomized_change_params = {
     "max_fragment_num": 1,
     "nhatoms_range": [1, 5],
     "final_nhatoms_range": [1, 5],
-    "linear_scaling_bond_changes": True,
+    "linear_scaling_elementary_mutations": True,
     "possible_elements": possible_elements,
     "bond_order_changes": [-1, 1],
     "forbidden_bonds": forbidden_bonds,

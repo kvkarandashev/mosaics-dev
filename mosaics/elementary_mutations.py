@@ -398,10 +398,10 @@ def bond_change_possibilities(
     not_protonated=None,
     max_fragment_num=None,
     exclude_equivalent=True,
-    linear_scaling_bond_changes=False,
+    linear_scaling_elementary_mutations=False,
     **other_kwargs,
 ):
-    if linear_scaling_bond_changes:
+    if linear_scaling_elementary_mutations:
         return bond_atom_change_possibilities(
             egc,
             bond_order_change,
@@ -862,11 +862,12 @@ def valence_bond_change_possibilities(
     forbidden_bonds=None,
     not_protonated=None,
     max_fragment_num=None,
-    exclude_equivalent=True,
-    linear_scaling_bond_changes=False,
+    linear_scaling_elementary_mutations=False,
     **other_kwargs,
 ):
-    if linear_scaling_bond_changes:
+    # exclude_equivalent used to be a toggleable option here too.
+    # The code assumes it to be True, with False being only used for linear_scaling_elementary_mutations anyway.
+    if linear_scaling_elementary_mutations:
         return valence_bond_change_atom_possibilities(
             egc,
             bond_order_change,
@@ -874,7 +875,6 @@ def valence_bond_change_possibilities(
             not_protonated=not_protonated,
             max_fragment_num=max_fragment_num,
         )
-    # exclude_equivalent used to be a toggleable option here too. Perhaps should be deprecated everywhere.
     cg = egc.chemgraph
     hatoms = cg.hatoms
     output = []

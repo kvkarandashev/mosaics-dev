@@ -42,7 +42,7 @@ randomized_change_params = {
     "bond_order_changes": [-1, 1],
     "bond_order_valence_changes": [-2, 2],
     "max_fragment_num": 1,
-    "linear_scaling_bond_changes": True,
+    "linear_scaling_elementary_mutations": True,
 }
 #    "change_prob_dict": {
 #        change_bond_order_valence: 1.0,

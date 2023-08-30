@@ -6,6 +6,7 @@ from .misc_procedures import (
     random_choice_from_nested_dict,
     str_atom_corr,
     llenlog,
+    intlog,
 )
 from .valence_treatment import canonically_permuted_ChemGraph, ChemGraph
 from .ext_graph_compound import ExtGraphCompound
@@ -458,12 +459,11 @@ def egc_change_func(
 
 
 def inverse_mod_path(
-    new_egc,
-    old_egc,
+    new_egc: ExtGraphCompound,
+    old_egc: ExtGraphCompound,
     change_procedure,
-    forward_path,
-    chain_addition_tuple_possibilities=False,
-    linear_scaling_bond_changes=False,
+    forward_path: list,
+    linear_scaling_elementary_mutations=False,
     **other_kwargs,
 ):
     """
@@ -472,33 +472,43 @@ def inverse_mod_path(
     if (change_procedure is change_bond_order) or (
         change_procedure is change_bond_order_valence
     ):
-        if linear_scaling_bond_changes:
+        if linear_scaling_elementary_mutations:
             return [-forward_path[0], forward_path[1]]
         else:
             return [-forward_path[0]]
     if change_procedure is remove_heavy_atom:
         removed_atom = forward_path[-1][0]
         removed_elname = str_atom_corr(old_egc.chemgraph.hatoms[removed_atom].ncharge)
-        if chain_addition_tuple_possibilities:
-            return [removed_elname]
-        else:
-            neigh = old_egc.chemgraph.neighbors(removed_atom)[0]
-            if removed_atom < neigh:
-                neigh -= 1
-            neigh = new_egc.chemgraph.min_id_equivalent_atom_unchecked(neigh)
-            return [removed_elname, neigh]
+
+        neigh_id = old_egc.chemgraph.neighbors(removed_atom)[0]
+        if removed_atom < neigh_id:
+            neigh_id -= 1
+        if not linear_scaling_elementary_mutations:
+            neigh_id = new_egc.chemgraph.min_id_equivalent_atom_unchecked(neigh_id)
+        return [removed_elname, neigh_id]
     if change_procedure is replace_heavy_atom:
-        changed_atom = forward_path[-1][0]
-        inserted_elname = str_atom_corr(old_egc.chemgraph.hatoms[changed_atom].ncharge)
-        return [inserted_elname]
+        changed_atom_id = forward_path[-1][0]
+        inserted_elname = str_atom_corr(
+            old_egc.chemgraph.hatoms[changed_atom_id].ncharge
+        )
+        return [inserted_elname, changed_atom_id]
     if change_procedure is add_heavy_atom_chain:
-        return [forward_path[0]]
+        added_element = forward_path[0]
+        added_atom_id = new_egc.chemgraph.nhatoms() - 1
+        return [added_element, added_atom_id, None]
     if change_procedure is change_valence:
-        return [new_egc.chemgraph.min_id_equivalent_atom_unchecked(forward_path[0])]
+        changed_id = forward_path[0]
+        if not linear_scaling_elementary_mutations:
+            changed_id = new_egc.chemgraph.min_id_equivalent_atom_unchecked(changed_id)
+        return [changed_id, None]
     if change_procedure is change_valence_add_atoms:
+        added_element = forward_path[0]
+        changed_id = forward_path[1]
+        if not linear_scaling_elementary_mutations:
+            changed_id = new_egc.chemgraph.min_id_equivalent_atom_unchecked(changed_id)
         return [
-            forward_path[0],
-            new_egc.chemgraph.min_id_equivalent_atom_unchecked(forward_path[1]),
+            added_element,
+            changed_id,
             list(range(old_egc.num_heavy_atoms(), new_egc.num_heavy_atoms())),
         ]
     if change_procedure is change_valence_remove_atoms:
@@ -508,13 +518,46 @@ def inverse_mod_path(
         for removed_id in removed_ids:
             if removed_id < modified_id:
                 new_modified_id -= 1
+        if not linear_scaling_elementary_mutations:
+            new_modified_id = new_egc.chemgraph.min_id_equivalent_atom_unchecked(
+                new_modified_id
+            )
         bo = old_egc.chemgraph.bond_order(modified_id, removed_ids[0])
-        return [
-            forward_path[0],
-            new_egc.chemgraph.min_id_equivalent_atom_unchecked(new_modified_id),
-            bo,
-        ]
+        return [forward_path[0], new_modified_id, bo]
     raise Exception()
+
+
+def atom_multiplicity_in_list(
+    egc: ExtGraphCompound, atom_id: int, atom_id_list: list, special_atom_id=None
+):
+    count = 0
+    cg = egc.chemgraph
+    if special_atom_id is None:
+        compared_atom_tuple = (atom_id,)
+    else:
+        compared_atom_tuple = (atom_id, special_atom_id)
+    if isinstance(atom_id_list[0], tuple):
+        used_atom_id_list = atom_res_struct_to_atoms(atom_id_list)
+    else:
+        used_atom_id_list = atom_id_list
+    for other_atom_id in used_atom_id_list:
+        if special_atom_id is None:
+            other_atom_tuple = (other_atom_id,)
+        else:
+            other_atom_tuple = (other_atom_id, special_atom_id)
+        if cg.atom_sets_equivalent(compared_atom_tuple, other_atom_tuple):
+            count += 1
+    return count
+
+
+def log_atom_multiplicity_in_list(
+    egc: ExtGraphCompound, atom_id: int, atom_id_list: list, special_atom_id=None
+):
+    return intlog(
+        atom_multiplicity_in_list(
+            egc, atom_id, atom_id_list, special_atom_id=special_atom_id
+        )
+    )
 
 
 # Special change functions required for changing bond orders while ignoring equivalence.
@@ -550,6 +593,16 @@ def get_second_changed_atom_res_struct_list(
     return output
 
 
+def atom_res_struct_to_atoms(atom_res_struct_list):
+    # TODO check whether atom_res_struct_list is always ordered? Should be that way!
+    atom_list = []
+    for atom_res_struct_tuple in atom_res_struct_list:
+        atom_id = atom_res_struct_tuple[0]
+        if atom_id not in atom_list:
+            atom_list.append(atom_id)
+    return atom_list
+
+
 def choose_bond_change_parameters_linear_scaling(
     egc, possibilities, choices=None, **other_kwargs
 ):
@@ -562,6 +615,9 @@ def choose_bond_change_parameters_linear_scaling(
     ) = random_choice_from_dict(possibilities, choices=choices)
     first_changed_atom = random.choice(possible_atom_choices)
     log_choice_prob -= llenlog(possible_atom_choices)
+    log_choice_prob += log_atom_multiplicity_in_list(
+        egc, first_changed_atom, possible_atom_choices
+    )
     possible_second_changed_atom_res_struct_list = (
         get_second_changed_atom_res_struct_list(
             egc,
@@ -572,8 +628,16 @@ def choose_bond_change_parameters_linear_scaling(
         )
     )
     second_atom_res_struct = random.choice(possible_second_changed_atom_res_struct_list)
+    second_atom = second_atom_res_struct[0]
+    res_struct = second_atom_res_struct[1]
     log_choice_prob -= llenlog(possible_second_changed_atom_res_struct_list)
-    mod_path = [bond_order_change, (first_changed_atom, *second_atom_res_struct)]
+    log_choice_prob += log_atom_multiplicity_in_list(
+        egc,
+        second_atom,
+        possible_second_changed_atom_res_struct_list,
+        special_atom_id=first_changed_atom,
+    )
+    mod_path = [bond_order_change, (first_changed_atom, second_atom, res_struct)]
     return mod_path, log_choice_prob
 
 
@@ -672,8 +736,26 @@ def get_valence_changed_atom_res_struct_list(
     return output
 
 
+def bond_valence_change_params_preserve_sigma_bonds(
+    egc: ExtGraphCompound,
+    bond_order_change: int,
+    pres_val_atom: int,
+    change_val_atom: int,
+    change_val_res_struct: int,
+):
+    cg = egc.chemgraph
+    if not cg.are_neighbors(change_val_atom, pres_val_atom):
+        return False
+    if bond_order_change > 0:
+        return True
+    changed_bo = cg.bond_order(
+        pres_val_atom, change_val_atom, resonance_structure_id=change_val_res_struct
+    )
+    return changed_bo != -bond_order_change
+
+
 def choose_bond_valence_change_parameters_linear_scaling(
-    egc, possibilities, choices=None, **other_kwargs
+    egc: ExtGraphCompound, possibilities, choices=None, **other_kwargs
 ):
     (
         bond_order_change,
@@ -682,6 +764,9 @@ def choose_bond_valence_change_parameters_linear_scaling(
     ) = random_choice_from_dict(possibilities, choices=choices)
     pres_val_atom = random.choice(pres_val_change_atom_choices)
     log_choice_prob -= llenlog(pres_val_change_atom_choices)
+    log_choice_prob += log_atom_multiplicity_in_list(
+        egc, pres_val_atom, pres_val_change_atom_choices
+    )
     change_val_atom_res_struct_list = get_valence_changed_atom_res_struct_list(
         egc,
         pres_val_atom,
@@ -689,10 +774,23 @@ def choose_bond_valence_change_parameters_linear_scaling(
         **other_kwargs,
     )
     change_val_atom_res_struct = random.choice(change_val_atom_res_struct_list)
+    change_val_atom = change_val_atom_res_struct[0]
+    change_val_res_struct = change_val_atom_res_struct[1]
+
     log_choice_prob -= llenlog(change_val_atom_res_struct_list)
+    if not bond_valence_change_params_preserve_sigma_bonds(
+        egc, bond_order_change, pres_val_atom, change_val_atom, change_val_res_struct
+    ):
+        log_choice_prob += log_atom_multiplicity_in_list(
+            egc,
+            change_val_atom,
+            change_val_atom_res_struct_list,
+            special_atom_id=pres_val_atom,
+        )
+
     mod_path = [
         bond_order_change,
-        (change_val_atom_res_struct[0], pres_val_atom, change_val_atom_res_struct[1]),
+        (change_val_atom, pres_val_atom, change_val_res_struct),
     ]
     return mod_path, log_choice_prob
 
@@ -708,10 +806,14 @@ def inv_prob_bond_change_parameters_linear_scaling(
 ):
     inv_bo_change = inv_mod_path[0]
     first_changed_atom = inv_mod_path[1][0]
+    second_changed_atom = inv_mod_path[1][1]
     possible_atom_choices, log_choice_prob = random_choice_from_dict(
         inv_poss_dict, get_probability_of=inv_bo_change
     )
     log_choice_prob -= llenlog(possible_atom_choices)
+    log_choice_prob += log_atom_multiplicity_in_list(
+        new_egc, first_changed_atom, possible_atom_choices
+    )
     second_atom_res_struct_choices = get_second_changed_atom_res_struct_list(
         new_egc,
         first_changed_atom,
@@ -720,6 +822,13 @@ def inv_prob_bond_change_parameters_linear_scaling(
         **other_kwargs,
     )
     log_choice_prob -= llenlog(second_atom_res_struct_choices)
+    log_choice_prob += log_atom_multiplicity_in_list(
+        new_egc,
+        second_changed_atom,
+        second_atom_res_struct_choices,
+        special_atom_id=first_changed_atom,
+    )
+
     return log_choice_prob
 
 
@@ -728,10 +837,14 @@ def inv_prob_bond_valence_change_parameters_linear_scaling(
 ):
     inv_bo_change = inv_mod_path[0]
     pres_val_changed_atom = inv_mod_path[1][1]
+    other_val_changed_atom = inv_mod_path[1][0]
     all_pres_val_choices, log_choice_prob = random_choice_from_dict(
         inv_poss_dict, get_probability_of=inv_bo_change
     )
     log_choice_prob -= llenlog(all_pres_val_choices)
+    log_choice_prob += log_atom_multiplicity_in_list(
+        new_egc, pres_val_changed_atom, all_pres_val_choices
+    )
     changed_val_atoms = get_valence_changed_atom_res_struct_list(
         new_egc,
         pres_val_changed_atom,
@@ -739,6 +852,12 @@ def inv_prob_bond_valence_change_parameters_linear_scaling(
         **other_kwargs,
     )
     log_choice_prob -= llenlog(changed_val_atoms)
+    log_choice_prob += log_atom_multiplicity_in_list(
+        new_egc,
+        other_val_changed_atom,
+        changed_val_atoms,
+        special_atom_id=pres_val_changed_atom,
+    )
     return log_choice_prob
 
 
@@ -749,9 +868,36 @@ special_inv_prob_calculators = {
 
 
 def needed_special_bond_change_func(
-    cur_change_procedure, linear_scaling_bond_changes=False
+    cur_change_procedure, linear_scaling_elementary_mutations=False
 ):
-    return linear_scaling_bond_changes and is_bond_change(cur_change_procedure)
+    return linear_scaling_elementary_mutations and is_bond_change(cur_change_procedure)
+
+
+changed_atom_mod_path_level = {
+    change_valence_add_atoms: 1,
+    change_valence: 0,
+    add_heavy_atom_chain: 1,
+    remove_heavy_atom: 1,
+    replace_heavy_atom: 1,
+    change_valence_remove_atoms: 1,
+}
+
+
+def prob_atom_invariance_factor(
+    egc: ExtGraphCompound, cur_procedure, possibilities: dict, mod_path: list
+):
+    atom_id_mod_path_level = changed_atom_mod_path_level[cur_procedure]
+    changed_atom_id = mod_path[atom_id_mod_path_level]
+    if isinstance(changed_atom_id, tuple):
+        changed_atom_id = changed_atom_id[0]
+    cur_level_options = possibilities
+    for mod_option in mod_path[:atom_id_mod_path_level]:
+        cur_level_options = cur_level_options[mod_option]
+    if isinstance(cur_level_options, dict):
+        atom_list = list(cur_level_options.keys())
+    else:
+        atom_list = cur_level_options
+    return log_atom_multiplicity_in_list(egc, changed_atom_id, atom_list)
 
 
 def random_modification_path_choice(
@@ -760,34 +906,49 @@ def random_modification_path_choice(
     cur_change_procedure,
     choices=None,
     get_probability_of=None,
-    linear_scaling_bond_changes=False,
+    linear_scaling_elementary_mutations=False,
     **other_kwargs,
 ):
     special_bond_change_func = needed_special_bond_change_func(
-        cur_change_procedure, linear_scaling_bond_changes=linear_scaling_bond_changes
+        cur_change_procedure,
+        linear_scaling_elementary_mutations=linear_scaling_elementary_mutations,
     )
     if get_probability_of is None:
         if special_bond_change_func:
-            return special_bond_change_functions[cur_change_procedure](
+            mod_path, log_prob_mod_path = special_bond_change_functions[
+                cur_change_procedure
+            ](
                 egc,
                 possibilities,
                 choices=choices,
                 **other_kwargs,
             )
         else:
-            return random_choice_from_nested_dict(possibilities, choices=choices)
+            mod_path, log_prob_mod_path = random_choice_from_nested_dict(
+                possibilities, choices=choices
+            )
+            if linear_scaling_elementary_mutations:
+                log_prob_mod_path += prob_atom_invariance_factor(
+                    egc, cur_change_procedure, possibilities, mod_path
+                )
+        return mod_path, log_prob_mod_path
     else:
         if special_bond_change_func:
-            return special_inv_prob_calculators[cur_change_procedure](
+            log_prob_mod_path = special_inv_prob_calculators[cur_change_procedure](
                 egc,
                 possibilities,
                 get_probability_of,
                 **other_kwargs,
             )
         else:
-            return random_choice_from_nested_dict(
+            log_prob_mod_path = random_choice_from_nested_dict(
                 possibilities, choices=choices, get_probability_of=get_probability_of
             )
+            if linear_scaling_elementary_mutations:
+                log_prob_mod_path += prob_atom_invariance_factor(
+                    egc, cur_change_procedure, possibilities, get_probability_of
+                )
+        return log_prob_mod_path
 
 
 def randomized_change(
@@ -795,17 +956,17 @@ def randomized_change(
     change_prob_dict=full_change_list,
     visited_tp_list: list or None = None,
     delete_chosen_mod_path: bool = False,
-    linear_scaling_bond_changes: bool = False,
+    linear_scaling_elementary_mutations: bool = False,
     **other_kwargs,
 ):
     """
     Randomly modify a TrajectoryPoint object.
     visited_tp_list : list of TrajectoryPoint objects for which data is available.
-    linear_scaling_bond_changes : whether equivalence is accounted for during bond change moves (False is preferable for large systems).
+    linear_scaling_elementary_mutations : whether equivalence is accounted for during bond change moves (False is preferable for large systems).
     """
     init_possibilities_kwargs = {
         "change_prob_dict": change_prob_dict,
-        "linear_scaling_bond_changes": linear_scaling_bond_changes,
+        "linear_scaling_elementary_mutations": linear_scaling_elementary_mutations,
         **other_kwargs,
     }
     if delete_chosen_mod_path:
@@ -823,7 +984,8 @@ def randomized_change(
         full_possibility_dict, change_prob_dict
     )
     special_bond_change_func = needed_special_bond_change_func(
-        cur_change_procedure, linear_scaling_bond_changes=linear_scaling_bond_changes
+        cur_change_procedure,
+        linear_scaling_elementary_mutations=linear_scaling_elementary_mutations,
     )
     possibility_dict_label = change_possibility_label[cur_change_procedure]
     possibility_dict = lookup_or_none(other_kwargs, possibility_dict_label)
@@ -835,7 +997,7 @@ def randomized_change(
         possibilities,
         cur_change_procedure,
         choices=possibility_dict,
-        linear_scaling_bond_changes=linear_scaling_bond_changes,
+        linear_scaling_elementary_mutations=linear_scaling_elementary_mutations,
         **other_kwargs,
     )
 
@@ -861,6 +1023,14 @@ def randomized_change(
     inv_proc = inverse_procedure[cur_change_procedure]
     inv_pos_label = change_possibility_label[inv_proc]
     inv_poss_dict = lookup_or_none(other_kwargs, inv_pos_label)
+    inv_mod_path = inverse_mod_path(
+        new_egc,
+        old_egc,
+        cur_change_procedure,
+        modification_path,
+        linear_scaling_elementary_mutations=linear_scaling_elementary_mutations,
+        **other_kwargs,
+    )
 
     try:
         inv_mod_path = inverse_mod_path(
@@ -868,7 +1038,7 @@ def randomized_change(
             old_egc,
             cur_change_procedure,
             modification_path,
-            linear_scaling_bond_changes=linear_scaling_bond_changes,
+            linear_scaling_elementary_mutations=linear_scaling_elementary_mutations,
             **other_kwargs,
         )
         inverse_possibilities, total_inverse_prob = random_choice_from_dict(
@@ -882,7 +1052,7 @@ def randomized_change(
             inv_proc,
             choices=inv_poss_dict,
             get_probability_of=inv_mod_path,
-            linear_scaling_bond_changes=linear_scaling_bond_changes,
+            linear_scaling_elementary_mutations=linear_scaling_elementary_mutations,
             **other_kwargs,
         )
     except KeyError:
@@ -895,9 +1065,4 @@ def randomized_change(
 
     prob_balance = total_forward_prob - total_inverse_prob
 
-    if special_bond_change_func:
-        prob_balance += (
-            new_egc.chemgraph.get_log_permutation_factor()
-            - old_egc.chemgraph.get_log_permutation_factor()
-        )
     return new_tp, prob_balance
