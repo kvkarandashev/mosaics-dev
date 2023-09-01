@@ -9,7 +9,7 @@ from .misc_procedures import (
     intlog,
 )
 from .valence_treatment import canonically_permuted_ChemGraph, ChemGraph
-from .ext_graph_compound import ExtGraphCompound
+from .ext_graph_compound import ExtGraphCompound, log_atom_multiplicity_in_list
 from sortedcontainers import SortedList
 
 global_step_traj_storage_label = "global"
@@ -527,39 +527,6 @@ def inverse_mod_path(
     raise Exception()
 
 
-def atom_multiplicity_in_list(
-    egc: ExtGraphCompound, atom_id: int, atom_id_list: list, special_atom_id=None
-):
-    count = 0
-    cg = egc.chemgraph
-    if special_atom_id is None:
-        compared_atom_tuple = (atom_id,)
-    else:
-        compared_atom_tuple = (atom_id, special_atom_id)
-    if isinstance(atom_id_list[0], tuple):
-        used_atom_id_list = atom_res_struct_to_atoms(atom_id_list)
-    else:
-        used_atom_id_list = atom_id_list
-    for other_atom_id in used_atom_id_list:
-        if special_atom_id is None:
-            other_atom_tuple = (other_atom_id,)
-        else:
-            other_atom_tuple = (other_atom_id, special_atom_id)
-        if cg.atom_sets_equivalent(compared_atom_tuple, other_atom_tuple):
-            count += 1
-    return count
-
-
-def log_atom_multiplicity_in_list(
-    egc: ExtGraphCompound, atom_id: int, atom_id_list: list, special_atom_id=None
-):
-    return intlog(
-        atom_multiplicity_in_list(
-            egc, atom_id, atom_id_list, special_atom_id=special_atom_id
-        )
-    )
-
-
 # Special change functions required for changing bond orders while ignoring equivalence.
 def get_second_changed_atom_res_struct_list(
     egc: ExtGraphCompound,
@@ -593,16 +560,6 @@ def get_second_changed_atom_res_struct_list(
     return output
 
 
-def atom_res_struct_to_atoms(atom_res_struct_list):
-    # TODO check whether atom_res_struct_list is always ordered? Should be that way!
-    atom_list = []
-    for atom_res_struct_tuple in atom_res_struct_list:
-        atom_id = atom_res_struct_tuple[0]
-        if atom_id not in atom_list:
-            atom_list.append(atom_id)
-    return atom_list
-
-
 def choose_bond_change_parameters_linear_scaling(
     egc, possibilities, choices=None, **other_kwargs
 ):
@@ -616,7 +573,7 @@ def choose_bond_change_parameters_linear_scaling(
     first_changed_atom = random.choice(possible_atom_choices)
     log_choice_prob -= llenlog(possible_atom_choices)
     log_choice_prob += log_atom_multiplicity_in_list(
-        egc, first_changed_atom, possible_atom_choices
+        egc, first_changed_atom, possible_atom_choices, **other_kwargs
     )
     possible_second_changed_atom_res_struct_list = (
         get_second_changed_atom_res_struct_list(
@@ -636,6 +593,7 @@ def choose_bond_change_parameters_linear_scaling(
         second_atom,
         possible_second_changed_atom_res_struct_list,
         special_atom_id=first_changed_atom,
+        **other_kwargs,
     )
     mod_path = [bond_order_change, (first_changed_atom, second_atom, res_struct)]
     return mod_path, log_choice_prob
@@ -786,6 +744,7 @@ def choose_bond_valence_change_parameters_linear_scaling(
             change_val_atom,
             change_val_atom_res_struct_list,
             special_atom_id=pres_val_atom,
+            **other_kwargs,
         )
 
     mod_path = [
@@ -812,7 +771,7 @@ def inv_prob_bond_change_parameters_linear_scaling(
     )
     log_choice_prob -= llenlog(possible_atom_choices)
     log_choice_prob += log_atom_multiplicity_in_list(
-        new_egc, first_changed_atom, possible_atom_choices
+        new_egc, first_changed_atom, possible_atom_choices, **other_kwargs
     )
     second_atom_res_struct_choices = get_second_changed_atom_res_struct_list(
         new_egc,
@@ -827,6 +786,7 @@ def inv_prob_bond_change_parameters_linear_scaling(
         second_changed_atom,
         second_atom_res_struct_choices,
         special_atom_id=first_changed_atom,
+        **other_kwargs,
     )
 
     return log_choice_prob
@@ -843,7 +803,7 @@ def inv_prob_bond_valence_change_parameters_linear_scaling(
     )
     log_choice_prob -= llenlog(all_pres_val_choices)
     log_choice_prob += log_atom_multiplicity_in_list(
-        new_egc, pres_val_changed_atom, all_pres_val_choices
+        new_egc, pres_val_changed_atom, all_pres_val_choices, **other_kwargs
     )
     changed_val_atoms = get_valence_changed_atom_res_struct_list(
         new_egc,
@@ -857,6 +817,7 @@ def inv_prob_bond_valence_change_parameters_linear_scaling(
         other_val_changed_atom,
         changed_val_atoms,
         special_atom_id=pres_val_changed_atom,
+        **other_kwargs,
     )
     return log_choice_prob
 
@@ -884,7 +845,11 @@ changed_atom_mod_path_level = {
 
 
 def prob_atom_invariance_factor(
-    egc: ExtGraphCompound, cur_procedure, possibilities: dict, mod_path: list
+    egc: ExtGraphCompound,
+    cur_procedure,
+    possibilities: dict,
+    mod_path: list,
+    **other_kwargs,
 ):
     atom_id_mod_path_level = changed_atom_mod_path_level[cur_procedure]
     changed_atom_id = mod_path[atom_id_mod_path_level]
@@ -897,7 +862,9 @@ def prob_atom_invariance_factor(
         atom_list = list(cur_level_options.keys())
     else:
         atom_list = cur_level_options
-    return log_atom_multiplicity_in_list(egc, changed_atom_id, atom_list)
+    return log_atom_multiplicity_in_list(
+        egc, changed_atom_id, atom_list, **other_kwargs
+    )
 
 
 def random_modification_path_choice(
@@ -929,7 +896,7 @@ def random_modification_path_choice(
             )
             if linear_scaling_elementary_mutations:
                 log_prob_mod_path += prob_atom_invariance_factor(
-                    egc, cur_change_procedure, possibilities, mod_path
+                    egc, cur_change_procedure, possibilities, mod_path, **other_kwargs
                 )
         return mod_path, log_prob_mod_path
     else:
@@ -946,7 +913,11 @@ def random_modification_path_choice(
             )
             if linear_scaling_elementary_mutations:
                 log_prob_mod_path += prob_atom_invariance_factor(
-                    egc, cur_change_procedure, possibilities, get_probability_of
+                    egc,
+                    cur_change_procedure,
+                    possibilities,
+                    get_probability_of,
+                    **other_kwargs,
                 )
         return log_prob_mod_path
 

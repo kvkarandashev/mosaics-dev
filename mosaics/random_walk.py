@@ -317,6 +317,7 @@ class RandomWalk:
         cross_coupling_smallest_exchange_size : do not perform a cross-coupling move if less than this number of atoms is exchanged on both sides.
         linear_scaling_elementary_mutations : O(nhatoms) scaling of elementary mutations at the cost of not accounting for graph invariance at trial step generation.
         linear_scaling_crossover_moves : O(nhatoms) scaling of crossover moves at the cost of not accounting for graph invariance and forbidden bonds at trial step generation.
+        save_equivalence_data :
         """
         if randomized_change_params is not None:
             self.randomized_change_params = randomized_change_params
@@ -347,6 +348,7 @@ class RandomWalk:
                 cross_coupling_smallest_exchange_size=2,
                 linear_scaling_elementary_mutations=False,
                 linear_scaling_crossover_moves=False,
+                save_equivalence_data=False,
             )
 
             # Some convenient aliases.

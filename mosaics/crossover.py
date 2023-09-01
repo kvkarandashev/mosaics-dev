@@ -5,12 +5,16 @@ from .valence_treatment import (
     sorted_tuple,
     max_bo,
 )
-from .ext_graph_compound import connection_forbidden, no_forbidden_bonds
-from .misc_procedures import llenlog, log_natural_factorial
+from .ext_graph_compound import (
+    connection_forbidden,
+    no_forbidden_bonds,
+    atom_multiplicity_in_list,
+)
 import numpy as np
 import random, bisect, itertools
 from igraph.operators import disjoint_union
 from copy import deepcopy
+from .misc_procedures import log_natural_factorial
 
 
 class Frag2FragMapping:
@@ -219,6 +223,9 @@ class FragmentPair:
         switched_bond_tuples_other: int,
         affected_status_id_self: int,
         affected_status_id_other: int,
+        return_invariance_factor=False,
+        save_equivalence_data=False,
+        **other_kwargs,
     ):
         """
         Couple to another fragment.
@@ -282,10 +289,12 @@ class FragmentPair:
         ) + other_fp.adjusted_ha_valences(affected_status_id_other, frag_id_other)
 
         # Lastly, check that re-initialization does not decrease the bond order.
-        if new_ChemGraph.valence_config_valid(new_hatoms_old_valences):
-            return new_ChemGraph, new_membership_vector
-        else:
+        if not new_ChemGraph.valence_config_valid(new_hatoms_old_valences):
             return None, None
+        if return_invariance_factor:
+            return new_ChemGraph, new_membership_vector, bond_invariance_factor
+        else:
+            return new_ChemGraph, new_membership_vector
 
 
 def possible_fragment_size_bounds(cg):
@@ -670,6 +679,7 @@ def randomized_cross_coupling(
     nhatoms_range: list or None = None,
     cross_coupling_max_num_affected_bonds: int = 3,
     linear_scaling_crossover_moves: bool = False,
+    save_equivalence_data=False,
     **dummy_kwargs,
 ):
     """
@@ -696,7 +706,10 @@ def randomized_cross_coupling(
         )
         #        log_tot_choice_prob_ratio -= llenlog(cg_ual)
         tot_choice_prob_ratio /= len(cg_possible_origin_points)
-        origin_points.append(random.choice(cg_possible_origin_points))
+        chosen_origin_point = random.choice(cg_possible_origin_points)
+        if linear_scaling_crossover_moves:
+            tot_choice_prob_ratio *= atom_multiplicity_in_list(cg, chosen_origin_point)
+        origin_points.append(chosen_origin_point)
 
     # Generate lists containing possible fragment sizes and the corresponding bond status.
     forward_mfssl = matching_frag_size_status_list(
@@ -732,13 +745,14 @@ def randomized_cross_coupling(
         new_cg_pair = random.choice(new_cg_pairs)
 
     # Account for inverse choice probability.
-    for new_cg in new_cg_pair:
+    for new_cg, new_origin_point in zip(new_cg_pair, new_origin_points):
         #        log_tot_choice_prob_ratio += llenlog(new_cg.unrepeated_atom_list())
-        tot_choice_prob_ratio *= len(
-            possible_origin_points(
-                new_cg, linear_scaling_crossover_moves=linear_scaling_crossover_moves
-            )
+        new_possible_origin_points = possible_origin_points(
+            new_cg, linear_scaling_crossover_moves=linear_scaling_crossover_moves
         )
+        tot_choice_prob_ratio *= len(new_possible_origin_points)
+        if linear_scaling_crossover_moves:
+            tot_choice_prob_ratio /= atom_multiplicity_in_list(new_cg, new_origin_point)
 
     inverse_mfssl = matching_frag_size_status_list(
         new_cg_pair, new_origin_points, **internal_kwargs
@@ -768,13 +782,5 @@ def randomized_cross_coupling(
         print("INITIAL CHEMGRAPHS:", cg_pair)
         print("PROPOSED CHEMGRAPHS:", new_cg_pair)
         quit()
-
-    if linear_scaling_crossover_moves:
-        # Account for graph symmetry.
-        for new_cg, old_cg in zip(new_cg_pair, cg_pair):
-            log_tot_choice_prob_ratio += (
-                new_cg.get_log_permutation_factor()
-                - old_cg.get_log_permutation_factor()
-            )
 
     return new_cg_pair, log_tot_choice_prob_ratio

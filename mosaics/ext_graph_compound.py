@@ -1,5 +1,10 @@
 from .valence_treatment import ChemGraph
-from .misc_procedures import sorted_tuple, sorted_by_membership, int_atom_checked
+from .misc_procedures import (
+    sorted_tuple,
+    sorted_by_membership,
+    int_atom_checked,
+    intlog,
+)
 from .data import NUCLEAR_CHARGE
 import numpy as np
 
@@ -270,3 +275,76 @@ def egc_valid_wrt_change_params(
         if egc.chemgraph.num_connected() > max_fragment_num:
             return False
     return True
+
+
+# Appears in several functions for modifying ExtGraphCompound objects.
+def atom_res_struct_to_atoms(atom_res_struct_list):
+    # TODO check whether atom_res_struct_list is always ordered? Should be that way!
+    atom_list = []
+    for atom_res_struct_tuple in atom_res_struct_list:
+        atom_id = atom_res_struct_tuple[0]
+        if atom_id not in atom_list:
+            atom_list.append(atom_id)
+    return atom_list
+
+
+def atom_multiplicity_in_list(
+    egc: ExtGraphCompound,
+    atom_id: int,
+    atom_id_list=None,
+    special_atom_id=None,
+    save_equivalence_data=False,
+    **other_kwargs,
+):
+    count = 0
+    if isinstance(egc, ExtGraphCompound):
+        cg = egc.chemgraph
+    else:
+        cg = egc
+    if atom_id_list is None:
+        used_atom_id_list = range(cg.nhatoms())
+    else:
+        if isinstance(atom_id_list[0], tuple):
+            used_atom_id_list = atom_res_struct_to_atoms(atom_id_list)
+        else:
+            used_atom_id_list = atom_id_list
+    if special_atom_id is None:
+        compared_atom_tuple = (atom_id,)
+    else:
+        compared_atom_tuple = (atom_id, special_atom_id)
+    for other_atom_id in used_atom_id_list:
+        if special_atom_id is None:
+            other_atom_tuple = (other_atom_id,)
+        else:
+            other_atom_tuple = (other_atom_id, special_atom_id)
+        if save_equivalence_data:
+            are_equivalent = cg.atom_sets_equivalent(
+                compared_atom_tuple, other_atom_tuple
+            )
+        else:
+            are_equivalent = cg.uninit_atom_sets_equivalent_wcolor_check(
+                compared_atom_tuple, other_atom_tuple
+            )
+        if are_equivalent:
+            count += 1
+    return count
+
+
+def log_atom_multiplicity_in_list(
+    egc: ExtGraphCompound,
+    atom_id: int,
+    atom_id_list: list,
+    special_atom_id=None,
+    save_equivalence_data=False,
+    **other_kwargs,
+):
+    return intlog(
+        atom_multiplicity_in_list(
+            egc,
+            atom_id,
+            atom_id_list,
+            special_atom_id=special_atom_id,
+            save_equivalence_data=save_equivalence_data,
+            **other_kwargs,
+        )
+    )

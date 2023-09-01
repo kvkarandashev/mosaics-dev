@@ -578,10 +578,10 @@ class ChemGraph:
     def uninit_atom_sets_equivalent(self, atom_set1, atom_set2):
         self.init_colors()
 
-        dummy_color = max(self.colors) + 1
+        dummy_color_addition = max(self.colors) + 1
         for atom_id1, atom_id2 in zip(atom_set1, atom_set2):
-            self.temp_colors1[atom_id1] = dummy_color
-            self.temp_colors2[atom_id2] = dummy_color
+            self.temp_colors1[atom_id1] += dummy_color_addition
+            self.temp_colors2[atom_id2] += dummy_color_addition
         are_equivalent = self.graph.isomorphic_vf2(
             self.graph, color1=self.temp_colors1, color2=self.temp_colors2
         )
@@ -589,6 +589,17 @@ class ChemGraph:
             self.temp_colors1[atom_id1] = self.colors[atom_id1]
             self.temp_colors2[atom_id2] = self.colors[atom_id2]
         return are_equivalent
+
+    def sorted_atom_set_color_list(self, atom_set):
+        self.init_colors()
+        return sorted(self.colors[atom_id] for atom_id in atom_set)
+
+    def uninit_atom_sets_equivalent_wcolor_check(self, atom_set1, atom_set2):
+        if self.sorted_atom_set_color_list(
+            atom_set1
+        ) != self.sorted_atom_set_color_list(atom_set2):
+            return False
+        return self.uninit_atom_sets_equivalent(atom_set1, atom_set2)
 
     def atom_pair_equivalent(self, atom_id1, atom_id2):
         return self.atom_sets_equivalent([atom_id1], [atom_id2])
