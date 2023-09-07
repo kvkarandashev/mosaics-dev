@@ -261,9 +261,9 @@ class DistributedRandomWalk:
             if del_key in self.random_walk_kwargs:
                 del self.random_walk_kwargs[del_key]
         # For storing statistics on move success.
-        self.num_attempted_cross_couplings = 0
-        self.num_valid_cross_couplings = 0
-        self.num_accepted_cross_couplings = 0
+        self.num_attempted_crossovers = 0
+        self.num_valid_crossovers = 0
+        self.num_accepted_crossovers = 0
 
         self.num_attempted_simple_moves = 0
         self.num_valid_simple_moves = 0
@@ -404,13 +404,9 @@ class DistributedRandomWalk:
         return self.true_beta_val_ids2beta_ids(min_beta, min_beta_id)
 
     def add_to_move_statistics(self, random_walk_instance):
-        self.num_attempted_cross_couplings += (
-            random_walk_instance.num_attempted_cross_couplings
-        )
-        self.num_valid_cross_couplings += random_walk_instance.num_valid_cross_couplings
-        self.num_accepted_cross_couplings += (
-            random_walk_instance.num_accepted_cross_couplings
-        )
+        self.num_attempted_crossovers += random_walk_instance.num_attempted_crossovers
+        self.num_valid_crossovers += random_walk_instance.num_valid_crossovers
+        self.num_accepted_crossovers += random_walk_instance.num_accepted_crossovers
 
         self.num_attempted_simple_moves += (
             random_walk_instance.num_attempted_simple_moves

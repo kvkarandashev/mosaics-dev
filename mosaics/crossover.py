@@ -14,7 +14,7 @@ import numpy as np
 import random, bisect, itertools
 from igraph.operators import disjoint_union
 from copy import deepcopy
-from .misc_procedures import log_natural_factorial
+from .misc_procedures import log_natural_factorial, intlog
 
 
 class Frag2FragMapping:
@@ -216,7 +216,7 @@ class FragmentPair:
     def get_frag_subgraph(self, frag_id):
         return self.chemgraph.graph.subgraph(self.get_sorted_vertices(frag_id))
 
-    def cross_couple(
+    def crossover(
         self,
         other_fp,
         switched_bond_tuples_self: int,
@@ -402,7 +402,7 @@ class BondOrderSortedTuplePermutations:
                 return tuples1, tuples2
 
 
-def cross_couple_outcomes(cg_pair, chosen_sizes, origin_points, forbidden_bonds=None):
+def crossover_outcomes(cg_pair, chosen_sizes, origin_points, forbidden_bonds=None):
     frag1 = FragmentPair(
         cg_pair[0], origin_points[0], neighborhood_size=chosen_sizes[0]
     )
@@ -417,10 +417,10 @@ def cross_couple_outcomes(cg_pair, chosen_sizes, origin_points, forbidden_bonds=
             for tuples1, tuples2 in BondOrderSortedTuplePermutations(
                 status1, status2, *cg_pair, forbidden_bonds=forbidden_bonds
             ):
-                new_chemgraph_1, new_membership_vector_1 = frag1.cross_couple(
+                new_chemgraph_1, new_membership_vector_1 = frag1.crossover(
                     frag2, tuples1, tuples2, status_id1, status_id2
                 )
-                new_chemgraph_2, new_membership_vector_2 = frag2.cross_couple(
+                new_chemgraph_2, new_membership_vector_2 = frag2.crossover(
                     frag1, tuples2, tuples1, status_id2, status_id1
                 )
                 if (new_membership_vector_1 is None) or (
@@ -468,17 +468,17 @@ class RandomTupleBondReconnector:
                 return False
         return True
 
-    def shuffle(self):
-        for tuples2 in self.tuples_correspondence.values():
-            random.shuffle(tuples2)
-
-    def current_tuples_map(self):
-        all_tuples1 = []
-        all_tuples2 = []
+    def shuffled_reconnecting_list(self):
+        output = []
         for tuples1, tuples2 in self.tuples_correspondence.items():
-            all_tuples1 += list(tuples1)
-            all_tuples2 += tuples2
-        return all_tuples1, all_tuples2
+            random.shuffle(tuples2)
+            new_tuples1 = list(tuples1)
+            random.shuffle(new_tuples1)
+            output.append([new_tuples1, tuples2])
+        random.shuffle(
+            output
+        )  # TODO double-check it is actually necessary for detailed balance
+        return output
 
     def log_num_shuffles(self):
         res = 0.0
@@ -514,7 +514,46 @@ def matching_status_reconnectors_wfrags(cg_pair, origin_points, chosen_sizes):
     return valid_reconnectors, valid_status_ids, frag1, frag2
 
 
-def cross_couple_sample_random_outcome(
+# TODO Might be better to combine it with crossover.
+def check_reconnection_multiplicity(
+    frag1: FragmentPair,
+    frag2: FragmentPair,
+    all_reconnected_tuples_lists1,
+    all_reconnected_tuples_lists2,
+):
+    temp_cgs = [deepcopy(frag1.chemgraph), deepcopy(frag2.chemgraph)]
+    log_prob = 0.0
+    for tuples_list1, tuples_list2 in zip(
+        all_reconnected_tuples_lists1[::-1], all_reconnected_tuples_lists2[::-1]
+    ):
+        for removal_order_id, bond_tuples in enumerate(
+            zip(tuples_list1[::-1], tuples_list2[::-1])
+        ):
+            equivalent_present = 1
+            for bond_tuple, temp_cg in zip(bond_tuples, temp_cg):
+                temp_cg.graph.delete_edges([bond_tuple])
+            if removal_order_id == 0:
+                continue
+            for other_bond_tuples in zip(
+                tuples_list1[-removal_order_id:], tuples_list2[-removal_order_id:]
+            ):
+                is_equivalent = True
+                for other_bond_tuple, bond_tuple, temp_cg in zip(
+                    other_bond_tuples, bond_tuples, temp_cgs
+                ):
+                    hypothetical_tuple = (bond_tuple[0], other_bond_tuple[1])
+                    if not temp_cg.uninit_atom_sets_equivalent_wcolor_check(
+                        bond_tuple, hypothetical_tuple
+                    ):
+                        is_equivalent = False
+                        break
+                if is_equivalent:
+                    equivalent_present += 1
+            log_prob += intlog(equivalent_present) - intlog(removal_order_id + 1)
+    return log_prob
+
+
+def crossover_sample_random_outcome(
     cg_pair, chosen_sizes, origin_points, forbidden_bonds=None
 ):
     """
@@ -536,18 +575,18 @@ def cross_couple_sample_random_outcome(
     ) = matching_status_reconnectors_wfrags(cg_pair, origin_points, chosen_sizes)
 
     if len(valid_reconnectors) == 0:
-        return None, None, None
+        return None, None, None, None
 
     final_reconnector_id = np.random.randint(len(valid_reconnectors))
     final_reconnector = valid_reconnectors[final_reconnector_id]
     final_status_id1, final_status_id2 = valid_status_ids[final_reconnector_id]
-    final_reconnector.shuffle()
-    frag1_bond_tuples, frag2_bond_tuples = final_reconnector.current_tuples_map()
 
-    new_chemgraph_1, new_membership_vector_1 = frag1.cross_couple(
+    final_reconnecting_list = final_reconnector.shuffled_reconnecting_list()
+
+    new_chemgraph_1, new_membership_vector_1 = frag1.crossover(
         frag2, frag1_bond_tuples, frag2_bond_tuples, final_status_id1, final_status_id2
     )
-    new_chemgraph_2, new_membership_vector_2 = frag2.cross_couple(
+    new_chemgraph_2, new_membership_vector_2 = frag2.crossover(
         frag1, frag2_bond_tuples, frag1_bond_tuples, final_status_id2, final_status_id1
     )
     if (new_membership_vector_1 is None) or (new_membership_vector_2 is None):
@@ -672,12 +711,12 @@ def possible_origin_points(cg: ChemGraph, linear_scaling_crossover_moves=False):
 
 
 # TODO would introduction of visited_tps similar to randomized_change help here?
-def randomized_cross_coupling(
+def randomized_crossover(
     cg_pair: list or tuple,
-    cross_coupling_smallest_exchange_size=2,
+    crossover_smallest_exchange_size=2,
     forbidden_bonds: list or None = None,
     nhatoms_range: list or None = None,
-    cross_coupling_max_num_affected_bonds: int = 3,
+    crossover_max_num_affected_bonds: int = 3,
     linear_scaling_crossover_moves: bool = False,
     save_equivalence_data=False,
     **dummy_kwargs,
@@ -688,8 +727,8 @@ def randomized_cross_coupling(
     internal_kwargs = {
         "nhatoms_range": nhatoms_range,
         "forbidden_bonds": forbidden_bonds,
-        "smallest_exchange_size": cross_coupling_smallest_exchange_size,
-        "max_num_affected_bonds": cross_coupling_max_num_affected_bonds,
+        "smallest_exchange_size": crossover_smallest_exchange_size,
+        "max_num_affected_bonds": crossover_max_num_affected_bonds,
     }
 
     if any(cg.nhatoms() == 1 for cg in cg_pair):
@@ -727,11 +766,11 @@ def randomized_cross_coupling(
             new_cg_pair,
             new_origin_points,
             num_reconnectors,
-        ) = cross_couple_sample_random_outcome(
+        ) = crossover_sample_random_outcome(
             cg_pair, chosen_sizes, origin_points, forbidden_bonds=forbidden_bonds
         )
     else:
-        new_cg_pairs, new_origin_points = cross_couple_outcomes(
+        new_cg_pairs, new_origin_points = crossover_outcomes(
             cg_pair, chosen_sizes, origin_points, forbidden_bonds=forbidden_bonds
         )
     if new_origin_points is None:
@@ -766,7 +805,7 @@ def randomized_cross_coupling(
         )
         tot_choice_prob_ratio *= len(valid_reconnectors)
     else:
-        inverse_cg_pairs, _ = cross_couple_outcomes(
+        inverse_cg_pairs, _ = crossover_outcomes(
             new_cg_pair,
             chosen_sizes,
             new_origin_points,

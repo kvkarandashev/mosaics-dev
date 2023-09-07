@@ -258,9 +258,9 @@ class RandomWalk:
             self.saved_candidates = SortedList()
 
         # For storing statistics on move success.
-        self.num_attempted_cross_couplings = 0
-        self.num_valid_cross_couplings = 0
-        self.num_accepted_cross_couplings = 0
+        self.num_attempted_crossovers = 0
+        self.num_valid_crossovers = 0
+        self.num_accepted_crossovers = 0
 
         self.num_attempted_simple_moves = 0
         self.num_valid_simple_moves = 0
@@ -313,8 +313,8 @@ class RandomWalk:
         bond_order_valence_changes : by how much a bond can change during steps that change bond order and valence of an atom (e.g. [-2, 2]).
         max_fragment_num : how many disconnected fragments (e.g. molecules) a chemical graph is allowed to break into.
         added_bond_orders_val_change : when creating atoms to be connected to a molecule's atom with a change of valence of the latter what the possible bond orders are.
-        cross_coupling_max_num_affected_bonds : when a molecule is broken into two fragments what is the maximum number of bonds that can be broken.
-        cross_coupling_smallest_exchange_size : do not perform a cross-coupling move if less than this number of atoms is exchanged on both sides.
+        crossover_max_num_affected_bonds : when a molecule is broken into two fragments what is the maximum number of bonds that can be broken.
+        crossover_smallest_exchange_size : do not perform a cross-coupling move if less than this number of atoms is exchanged on both sides.
         linear_scaling_elementary_mutations : O(nhatoms) scaling of elementary mutations at the cost of not accounting for graph invariance at trial step generation.
         linear_scaling_crossover_moves : O(nhatoms) scaling of crossover moves at the cost of not accounting for graph invariance and forbidden bonds at trial step generation.
         save_equivalence_data :
@@ -344,8 +344,8 @@ class RandomWalk:
                 final_nhatoms_range=None,
                 max_fragment_num=1,
                 added_bond_orders_val_change=[1, 2],
-                cross_coupling_max_num_affected_bonds=3,
-                cross_coupling_smallest_exchange_size=2,
+                crossover_max_num_affected_bonds=3,
+                crossover_smallest_exchange_size=2,
                 linear_scaling_elementary_mutations=False,
                 linear_scaling_crossover_moves=False,
                 save_equivalence_data=False,
@@ -700,7 +700,7 @@ class RandomWalk:
         old_cg_pair = [
             self.cur_tps[replica_id].egc.chemgraph for replica_id in replica_ids
         ]
-        new_cg_pair, prob_balance = randomized_cross_coupling(
+        new_cg_pair, prob_balance = randomized_crossover(
             old_cg_pair,
             visited_tp_list=self.histogram,
             **self.used_randomized_change_params
@@ -730,20 +730,20 @@ class RandomWalk:
         """
         Attempt a cross-coupled MC step.
         """
-        self.num_attempted_cross_couplings += 1
+        self.num_attempted_crossovers += 1
 
         new_pair_tps, prob_balance = self.trial_genetic_MC_step(replica_ids)
 
         if new_pair_tps is None:
             return False
 
-        self.num_valid_cross_couplings += 1
+        self.num_valid_crossovers += 1
 
         accepted = self.accept_reject_move(
             new_pair_tps, prob_balance, replica_ids=replica_ids
         )
         if accepted:
-            self.num_accepted_cross_couplings += 1
+            self.num_accepted_crossovers += 1
         return accepted
 
     # Procedures for changing entire list of Trajectory Points at once.
@@ -1111,9 +1111,9 @@ class RandomWalk:
             "cur_tps": self.cur_tps,
             "MC_step_counter": self.MC_step_counter,
             "global_MC_step_counter": self.global_MC_step_counter,
-            "num_attempted_cross_couplings": self.num_attempted_cross_couplings,
-            "num_valid_cross_couplings": self.num_valid_cross_couplings,
-            "num_accepted_cross_couplings": self.num_accepted_cross_couplings,
+            "num_attempted_crossovers": self.num_attempted_crossovers,
+            "num_valid_crossovers": self.num_valid_crossovers,
+            "num_accepted_crossovers": self.num_accepted_crossovers,
             "num_attempted_simple_moves": self.num_attempted_simple_moves,
             "num_valid_simple_moves": self.num_valid_simple_moves,
             "num_accepted_simple_moves": self.num_accepted_simple_moves,
@@ -1146,13 +1146,9 @@ class RandomWalk:
         self.cur_tps = recovered_data["cur_tps"]
         self.MC_step_counter = recovered_data["MC_step_counter"]
         self.global_MC_step_counter = recovered_data["global_MC_step_counter"]
-        self.num_attempted_cross_couplings = recovered_data[
-            "num_attempted_cross_couplings"
-        ]
-        self.num_valid_cross_couplings = recovered_data["num_valid_cross_couplings"]
-        self.num_accepted_cross_couplings = recovered_data[
-            "num_accepted_cross_couplings"
-        ]
+        self.num_attempted_crossovers = recovered_data["num_attempted_crossovers"]
+        self.num_valid_crossovers = recovered_data["num_valid_crossovers"]
+        self.num_accepted_crossovers = recovered_data["num_accepted_crossovers"]
 
         self.num_attempted_simple_moves = recovered_data["num_attempted_simple_moves"]
         self.num_valid_simple_moves = recovered_data["num_valid_simple_moves"]
@@ -1234,9 +1230,9 @@ class RandomWalk:
         Return dictionnary containing information necessary to determine data such as acceptance rate, validity ratio, etc.
         """
         return {
-            "num_attempted_cross_couplings": self.num_attempted_cross_couplings,
-            "num_valid_cross_couplings": self.num_valid_cross_couplings,
-            "num_accepted_cross_couplings": self.num_accepted_cross_couplings,
+            "num_attempted_crossovers": self.num_attempted_crossovers,
+            "num_valid_crossovers": self.num_valid_crossovers,
+            "num_accepted_crossovers": self.num_accepted_crossovers,
             "num_attempted_simple_moves": self.num_attempted_simple_moves,
             "num_valid_simple_moves": self.num_valid_simple_moves,
             "num_accepted_simple_moves": self.num_accepted_simple_moves,

@@ -72,40 +72,41 @@ class TrajectoryPoint:
     def init_possibility_info(self, **kwargs):
         # self.bond_order_change_possibilities is None - to check whether the init_* procedure has been called before.
         # self.egc.chemgraph.canonical_permutation - to check whether egc.chemgraph.changed() has been called.
-        if self.possibility_dict is None:
-            self.egc.chemgraph.init_resonance_structures()
+        if self.possibility_dict is not None:
+            return
+        self.egc.chemgraph.init_resonance_structures()
 
-            change_prob_dict = lookup_or_none(kwargs, "change_prob_dict")
-            if change_prob_dict is None:
-                return
+        change_prob_dict = lookup_or_none(kwargs, "change_prob_dict")
+        if change_prob_dict is None:
+            return
 
-            self.possibility_dict = {}
-            for change_procedure in change_prob_dict:
-                cur_subdict = {}
-                pos_label = change_possibility_label[change_procedure]
-                cur_pos_generator = possibility_generator_func[change_procedure]
-                if pos_label is None:
-                    cur_possibilities = cur_pos_generator(self.egc, **kwargs)
+        self.possibility_dict = {}
+        for change_procedure in change_prob_dict:
+            cur_subdict = {}
+            pos_label = change_possibility_label[change_procedure]
+            cur_pos_generator = possibility_generator_func[change_procedure]
+            if pos_label is None:
+                cur_possibilities = cur_pos_generator(self.egc, **kwargs)
+                if len(cur_possibilities) != 0:
+                    self.possibility_dict[change_procedure] = cur_possibilities
+            else:
+                pos_label_vals = lookup_or_none(kwargs, pos_label)
+                if pos_label_vals is None:
+                    raise Exception(
+                        "Randomized change parameter "
+                        + pos_label
+                        + " undefined, leading to problems with "
+                        + str(change_procedure)
+                        + ". Check code input!"
+                    )
+                for pos_label_val in pos_label_vals:
+                    cur_possibilities = cur_pos_generator(
+                        self.egc, pos_label_val, **kwargs
+                    )
                     if len(cur_possibilities) != 0:
-                        self.possibility_dict[change_procedure] = cur_possibilities
-                else:
-                    pos_label_vals = lookup_or_none(kwargs, pos_label)
-                    if pos_label_vals is None:
-                        raise Exception(
-                            "Randomized change parameter "
-                            + pos_label
-                            + " undefined, leading to problems with "
-                            + str(change_procedure)
-                            + ". Check code input!"
-                        )
-                    for pos_label_val in pos_label_vals:
-                        cur_possibilities = cur_pos_generator(
-                            self.egc, pos_label_val, **kwargs
-                        )
-                        if len(cur_possibilities) != 0:
-                            cur_subdict[pos_label_val] = cur_possibilities
-                    if len(cur_subdict) != 0:
-                        self.possibility_dict[change_procedure] = cur_subdict
+                        cur_subdict[pos_label_val] = cur_possibilities
+                if len(cur_subdict) != 0:
+                    self.possibility_dict[change_procedure] = cur_subdict
 
     def possibilities(self, **kwargs):
         self.init_possibility_info(**kwargs)
@@ -935,11 +936,14 @@ def randomized_change(
     visited_tp_list : list of TrajectoryPoint objects for which data is available.
     linear_scaling_elementary_mutations : whether equivalence is accounted for during bond change moves (False is preferable for large systems).
     """
+
     init_possibilities_kwargs = {
         "change_prob_dict": change_prob_dict,
         "linear_scaling_elementary_mutations": linear_scaling_elementary_mutations,
+        "exclude_equivalent": (not linear_scaling_elementary_mutations),
         **other_kwargs,
     }
+
     if delete_chosen_mod_path:
         if tp.modified_possibility_dict is None:
             tp.modified_possibility_dict = deepcopy(
