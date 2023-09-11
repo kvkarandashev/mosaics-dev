@@ -1,3 +1,15 @@
+import numpy as np
+from .modify import global_step_traj_storage_label
+
+
+class DataUnavailable(Exception):
+    """
+    Raised if data not available in a histogram is referred to.
+    """
+
+    pass
+
+
 # Some procedures for convenient RandomWalk analysis.
 def histogram_num_replicas(histogram):
     max_replica_id = 0

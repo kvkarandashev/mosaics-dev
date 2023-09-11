@@ -107,14 +107,6 @@ class InvalidStartingMolecules(Exception):
     pass
 
 
-class DataUnavailable(Exception):
-    """
-    Raised if data not available in a histogram is referred to.
-    """
-
-    pass
-
-
 class RandomWalk:
     def __init__(
         self,
