@@ -34,7 +34,7 @@ randomized_change_params = {
     "final_nhatoms_range": [1, 4],
     "possible_elements": ["F", "Cl"],
     "forbidden_bonds": None,
-    "cross_coupling_smallest_exchange_size": 0,
+    "crossover_smallest_exchange_size": 0,
     "linear_scaling_crossover_moves": True,
 }
 

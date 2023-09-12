@@ -53,7 +53,6 @@ def atom_replacement_possibilities(
     default_valences=None,
     **other_kwargs,
 ):
-
     possible_ids = []
     inserted_iac = int_atom_checked(inserted_atom)
     if replaced_atom is not None:
