@@ -22,7 +22,7 @@ For more information, please read our paper ["Evolutionary Monte Carlo of QM pro
 - [License](#license)
   
 ## Installation
-\```bash
+```bash
 # Clone the repository
 git clone https://github.com/yourgithubusername/MOSAiCS.git
 
@@ -31,13 +31,13 @@ cd MOSAiCS
 
 # Install the package
 pip install .
-\```
+```
 
 ## Usage
 To use the package in your Python script, import it like so:
-\```python
+```python
 import mosaics
-\```
+```
 
 ## Examples
 We have prepared several examples to help you get started with MOSAiCS. Each example is located in its own directory under the `examples/` folder.
