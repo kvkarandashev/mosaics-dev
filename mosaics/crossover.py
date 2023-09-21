@@ -10,7 +10,6 @@ from .valence_treatment import (
 )
 from .ext_graph_compound import (
     connection_forbidden,
-    no_forbidden_bonds,
     atom_multiplicity_in_list,
 )
 import numpy as np
@@ -18,6 +17,7 @@ import random, bisect, itertools
 from igraph.operators import disjoint_union
 from copy import deepcopy
 from .misc_procedures import log_natural_factorial, intlog
+from sortedcontainers import SortedList
 
 
 class Frag2FragMapping:
@@ -505,18 +505,33 @@ class RandomTupleBondReconnector:
         )  # TODO double-check it is actually necessary for detailed balance
 
     def check_bond_satisfaction(self, frag1, frag2, forbidden_bonds=None):
-        if forbidden_bonds is None:
-            return True
+        created_bonds1 = SortedList()
+        created_bonds2 = SortedList()
         for reconnecting_tuples_list_pair in self.reconnecting_list:
             for tuples1, tuples2 in zip(*reconnecting_tuples_list_pair):
-                nc11 = frag1.ncharge(tuples1[0])
-                nc22 = frag2.ncharge(tuples2[1])
-                if connection_forbidden(nc11, nc22, forbidden_bonds=forbidden_bonds):
+                created_bond1 = (tuples1[0], tuples2[1])
+                created_bond2 = (tuples2[0], tuples1[1])
+                if created_bond1 in created_bonds1:
                     return False
-                nc21 = frag2.ncharge(tuples2[0])
-                nc12 = frag1.ncharge(tuples1[1])
-                if connection_forbidden(nc21, nc12, forbidden_bonds=forbidden_bonds):
+                else:
+                    created_bonds1.add(created_bond1)
+                if created_bond2 in created_bonds2:
                     return False
+                else:
+                    created_bonds2.add(created_bond2)
+                if forbidden_bonds is not None:
+                    nc11 = frag1.ncharge(tuples1[0])
+                    nc22 = frag2.ncharge(tuples2[1])
+                    if connection_forbidden(
+                        nc11, nc22, forbidden_bonds=forbidden_bonds
+                    ):
+                        return False
+                    nc21 = frag2.ncharge(tuples2[0])
+                    nc12 = frag1.ncharge(tuples1[1])
+                    if connection_forbidden(
+                        nc21, nc12, forbidden_bonds=forbidden_bonds
+                    ):
+                        return False
         return True
 
     def inverse_reconnecting_list(
@@ -602,8 +617,9 @@ class FragmentPairReconnectingBlob:
         # Initialize ChemGraph associated with the blob.
         self.blob_chemgraph = deepcopy(frag1.chemgraph)
         self.blob_chemgraph.hatoms += deepcopy(frag2.chemgraph.hatoms)
+        # TODO do we need deepcopy here?
         self.blob_chemgraph.graph = disjoint_union(
-            [self.blob_chemgraph.graph, frag2.chemgraph.graph]
+            [self.blob_chemgraph.graph, deepcopy(frag2.chemgraph.graph)]
         )
         self.blob_chemgraph.changed()
         # How bonds are reconnected.

@@ -10,9 +10,11 @@ from .random_walk import (
     egc_change_func,
     inverse_procedure,
     default_minfunc_name,
+    egc_valid_wrt_change_params,
 )
 import numpy as np
 import copy
+from joblib import delayed, Parallel
 
 
 def elements_in_egc_list(egc_list, as_elements=True):
@@ -53,11 +55,35 @@ def egc_list_nhatoms_hist(egc_list):
 def genetic_move_attempt(tp_init, **randomized_change_params):
     rw = RandomWalk(init_egcs=[tp.egc for tp in tp_init], **randomized_change_params)
     pair, prob_balance = rw.trial_genetic_MC_step([0, 1])
+
     if pair is None:
         tpair = None
     else:
         tpair = tuple(pair)
+
     return tpair, prob_balance
+
+
+str_randomized_change_params = "randomized_change_params"
+
+
+def tp_not_valid(tp, **randomized_change_params):
+    if str_randomized_change_params in randomized_change_params:
+        return not egc_valid_wrt_change_params(
+            tp.egc, **randomized_change_params[str_randomized_change_params]
+        )
+    else:
+        return False
+
+
+def tps_not_valid(tps, **randomized_change_params):
+    if isinstance(tps, TrajectoryPoint):
+        return tp_not_valid(tp, **randomized_change_params)
+    else:
+        for tp in tps:
+            if tp_not_valid(tp, **randomized_change_params):
+                return True
+        return False
 
 
 trial_attempt_funcs = {TrajectoryPoint: randomized_change, tuple: genetic_move_attempt}
@@ -74,8 +100,43 @@ def calc_bin_id(x, bin_size=None):
     return output
 
 
+def serial_generate_attempts(
+    tp_init, attempt_func, num_attempts, **randomized_change_params
+):
+    return [
+        attempt_func(tp_init, **randomized_change_params) for _ in range(num_attempts)
+    ]
+
+
+def generate_attempts(
+    tp_init, attempt_func, num_attempts, nprocs=None, **randomized_change_params
+):
+    if nprocs is None:
+        return serial_generate_attempts(
+            tp_init, attempt_func, num_attempts, **randomized_change_params
+        )
+    job_num_attempts = num_attempts // nprocs
+    all_num_attempts = [job_num_attempts for _ in range(nprocs)]
+    all_num_attempts[0] += num_attempts % nprocs
+    output = Parallel(n_jobs=nprocs)(
+        delayed(serial_generate_attempts)(
+            tp_init, attempt_func, cur_num_attempts, **randomized_change_params
+        )
+        for cur_num_attempts in all_num_attempts
+    )
+    straightened_output = []
+    for l in output:
+        straightened_output += l
+    return straightened_output
+
+
 def check_one_sided_prop_probability(
-    tp_init, tp_trial, num_attempts=10000, bin_size=None, **randomized_change_params
+    tp_init,
+    tp_trial,
+    num_attempts=10000,
+    bin_size=None,
+    nprocs=None,
+    **randomized_change_params
 ):
     if isinstance(tp_trial, list):
         true_list = tp_trial
@@ -84,12 +145,18 @@ def check_one_sided_prop_probability(
     attempt_func = trial_attempt_funcs[type(tp_init)]
 
     est_balances = [[] for _ in true_list]
-    for _ in range(num_attempts):
-        tp_new, prob_balance = attempt_func(tp_init, **randomized_change_params)
+    tp_new_prob_balance_vals = generate_attempts(
+        tp_init, attempt_func, num_attempts, nprocs=nprocs, **randomized_change_params
+    )
+    for tp_new, prob_balance in tp_new_prob_balance_vals:
         if tp_new is None:
             continue
         if tp_new not in true_list:
             continue
+
+        if tps_not_valid(tp_new, **randomized_change_params):
+            raise Exception
+
         i = true_list.index(tp_new)
         est_balances[i].append(prob_balance)
 

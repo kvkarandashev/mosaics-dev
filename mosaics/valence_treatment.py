@@ -39,7 +39,21 @@ DEFAULT_ELEMENT = 1
 # To avoid equality expressions for two reals.
 irrelevant_bond_order_difference = 1.0e-8
 
+# Choice of algorithm for isomorphism determination.
+bliss = "BLISS"
+vf2 = "VF2"
 
+isomorphism_algorithm = vf2
+available_isomorphism_algorithms = [bliss, vf2]
+
+
+def change_isomorphism_algorithm(new_isomorphism_algorithm: str):
+    global isomorphism_algorithm
+    assert new_isomorphism_algorithm in available_isomorphism_algorithms
+    isomorphism_algorithm = new_isomorphism_algorithm
+
+
+# Valence-related functions.
 def avail_val_list(atom_id):
     return valences_int[int_atom_checked(atom_id)]
 
@@ -427,6 +441,9 @@ class ChemGraph:
 
         for ha in self.hatoms:
             ha.possible_valences = None
+            # KK: I used to check that HeavyAtom.changed is called only for changed heavy atoms,
+            # but the benefits are just not worth the trouble of consistently checking that throughout the code.
+            ha.changed()
 
         self.comparison_list = None
         self.log_permutation_factor = None
@@ -575,6 +592,14 @@ class ChemGraph:
                 atom_id_set, self.num_equiv_classes(atom_set_length)
             )
 
+    def automorphism_check(self, **kwargs):
+        # TODO : post 3.10 match would be better here.
+        if isomorphism_algorithm == bliss:
+            return self.graph.isomorphic_bliss(**kwargs)
+        if isomorphism_algorithm == vf2:
+            return self.graph.isomorphic_vf2(**kwargs)
+        raise Exception
+
     def uninit_atom_sets_equivalent(self, atom_set1, atom_set2):
         self.init_colors()
 
@@ -582,8 +607,8 @@ class ChemGraph:
         for atom_id1, atom_id2 in zip(atom_set1, atom_set2):
             self.temp_colors1[atom_id1] += dummy_color_addition
             self.temp_colors2[atom_id2] += dummy_color_addition
-        are_equivalent = self.graph.isomorphic_vf2(
-            self.graph, color1=self.temp_colors1, color2=self.temp_colors2
+        are_equivalent = self.automorphism_check(
+            color1=self.temp_colors1, color2=self.temp_colors2
         )
         for atom_id1, atom_id2 in zip(atom_set1, atom_set2):
             self.temp_colors1[atom_id1] = self.colors[atom_id1]
@@ -898,7 +923,7 @@ class ChemGraph:
 
     def change_hydrogen_number(self, atom_id, hydrogen_number_change):
         self.hatoms[atom_id].nhydrogens += hydrogen_number_change
-        self.hatoms[atom_id].changed()
+        #        self.hatoms[atom_id].changed()
         if self.hatoms[atom_id].nhydrogens < 0:
             raise InvalidChange
 
@@ -1525,6 +1550,7 @@ class ChemGraph:
     def init_canonical_permutation(self):
         if self.canonical_permutation is None:
             self.init_colors()
+            # TODO The inverse ordering is for better performance of Coulomb Matrix-based representations. Might no longer be needed.
             self.canonical_permutation = (
                 self.nhatoms()
                 - 1
