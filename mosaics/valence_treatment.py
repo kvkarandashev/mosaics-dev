@@ -36,6 +36,9 @@ class InvalidChange(Exception):
 # Introduced in case we, for example, started to consider F as a default addition instead.
 DEFAULT_ELEMENT = 1
 
+# Dummy equivalence class preliminarly assigned to hatoms and pairs on hatoms.
+unassigned_equivalence_class_id = -1
+
 # To avoid equality expressions for two reals.
 irrelevant_bond_order_difference = 1.0e-8
 
@@ -479,7 +482,10 @@ class ChemGraph:
 
     # Everything related to equivalences.
     def num_equiv_classes_from_arr(self, equiv_class_arr):
-        return np.amax(equiv_class_arr) + 1
+        max_class_id = np.amax(equiv_class_arr)
+        if max_class_id == unassigned_equivalence_class_id:
+            return 0
+        return max_class_id + 1
 
     def num_equiv_classes(self, atom_set_length):
         if atom_set_length == 1:
@@ -552,17 +558,40 @@ class ChemGraph:
             self.pair_equivalence_matrix[atom_id_set] = assigned_val
             self.pair_equivalence_matrix[atom_id_set[::-1]] = assigned_val
 
+    def atom_sets_iterator(self, atom_set_length):
+        return itertools.combinations(range(self.nhatoms()), atom_set_length)
+
+    # TODO Do we still need equivalence classes of bonds?
     def equiv_class_examples(self, atom_set_length, as_tuples=True):
         num_classes = self.num_equiv_classes(atom_set_length)
+        if num_classes == 0:
+            return []
+        if as_tuples:
+            output = np.empty((num_classes, atom_set_length), dtype=int)
+        else:
+            output = np.empty((num_classes,), dtype=int)
+        class_represented = np.zeros((num_classes,), dtype=bool)
         equiv_class_arr = self.equiv_arr(atom_set_length)
-        output = []
-        for equiv_class_id in range(num_classes):
-            where_output = np.where(equiv_class_arr == equiv_class_id)
-            example_tuple = tuple(where_column[0] for where_column in where_output)
-            if not as_tuples:
-                example_tuple = example_tuple[0]
-            output.append(example_tuple)
-        return output
+
+        cur_example_id = 0
+
+        for atom_set in self.atom_sets_iterator(atom_set_length):
+            cur_equiv_class = equiv_class_arr[atom_set]
+            if cur_equiv_class == unassigned_equivalence_class_id:
+                continue
+            if class_represented[cur_equiv_class]:
+                continue
+            class_represented[cur_equiv_class] = True
+            if as_tuples:
+                output[cur_example_id, :] = atom_set[:]
+            else:
+                output[cur_example_id] = atom_set[0]
+            cur_example_id += 1
+            if cur_example_id == num_classes:
+                return output
+
+        # All examples should've been found at this point.
+        raise Exception
 
     def equiv_class_members(self, equiv_class_id, atom_set_length):
         return list(zip(*np.where(self.equiv_arr(atom_set_length) == equiv_class_id)))
@@ -571,7 +600,7 @@ class ChemGraph:
         if self.equivalence_vector is None:
             return atom_id
         equiv_class = self.unchecked_equivalence_class(atom_id)
-        if equiv_class == -1:
+        if equiv_class == unassigned_equivalence_class_id:
             return atom_id
         else:
             return np.where(self.equivalence_vector == equiv_class)[0][0]
@@ -579,15 +608,20 @@ class ChemGraph:
     def check_equivalence_class(self, atom_id_set):
         atom_set_length = len(atom_id_set)
         self.init_equivalence_array(atom_set_length)
-        if self.unchecked_equivalence_class(atom_id_set) == -1:
+        if (
+            self.unchecked_equivalence_class(atom_id_set)
+            == unassigned_equivalence_class_id
+        ):
             self.init_colors()
-            for equiv_class_id, example_tuple in enumerate(
-                self.equiv_class_examples(atom_set_length)
-            ):
-                if self.atom_sets_equivalence_reasonable(atom_id_set, example_tuple):
-                    if self.uninit_atom_sets_equivalent(atom_id_set, example_tuple):
-                        self.assign_equivalence_class(atom_id_set, equiv_class_id)
-                        return
+            for example_tuple in self.equiv_class_examples(atom_set_length):
+                if not self.atom_sets_equivalence_reasonable(
+                    atom_id_set, example_tuple
+                ):
+                    continue
+                if self.uninit_atom_sets_equivalent(atom_id_set, example_tuple):
+                    equiv_class_id = self.unchecked_equivalence_class(example_tuple)
+                    self.assign_equivalence_class(atom_id_set, equiv_class_id)
+                    return
             self.assign_equivalence_class(
                 atom_id_set, self.num_equiv_classes(atom_set_length)
             )
@@ -633,7 +667,7 @@ class ChemGraph:
         if isinstance(atom_set, int) or (len(atom_set) == 1):
             return self.equivalence_vector[atom_set]
         else:
-            return self.pair_equivalence_matrix[atom_set]
+            return self.pair_equivalence_matrix[tuple(atom_set)]
 
     def equivalence_class(self, atom_set):
         self.check_equivalence_class(atom_set)
@@ -1608,7 +1642,7 @@ class ChemGraph:
                 )
                 for equiv_class_member in equiv_class_members:
                     equiv_class_id = self.equiv_arr(atom_set_length)[equiv_class_member]
-                    if equiv_class_id != -1:
+                    if equiv_class_id != unassigned_equivalence_class_id:
                         copied_equivalence_classes[
                             equiv_class_id
                         ] = other_equiv_class_id

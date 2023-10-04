@@ -2,10 +2,10 @@ ___
 ___Best candidate at iteration 1 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -48.81076431274414 496.8924796020279 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -48.81076431274414 496.8924796020279 False
+___Largest real beta minimized function mean, effective std, and equilibration: -49.24099349975586 511.9079429461396 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -49.24099349975586 511.9079429461396 False
 ___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 48.81076431274414
+___Extrema/average probability density log: 49.24099349975586
 ___Sanity check:
 ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
@@ -13,10 +13,10 @@ ___
 ___Best candidate at iteration 2 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -63.79132843017578 19.644124399865845 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -63.79132843017578 19.644124399865845 False
+___Largest real beta minimized function mean, effective std, and equilibration: -64.34126663208008 16.031251847395318 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -64.34126663208008 16.031251847395318 False
 ___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 36.79132843017578
+___Extrema/average probability density log: 36.34126663208008
 ___Sanity check:
 ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
@@ -24,10 +24,10 @@ ___
 ___Best candidate at iteration 3 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -65.00724029541016 5.868084708134494 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -65.00724029541016 5.868084708134494 False
+___Largest real beta minimized function mean, effective std, and equilibration: -65.34968948364258 4.734253845616064 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -65.34968948364258 4.734253845616064 False
 ___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 32.007240295410156
+___Extrema/average probability density log: 25.349689483642578
 ___Sanity check:
 ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
@@ -35,10 +35,10 @@ ___
 ___Best candidate at iteration 4 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -65.50672149658203 4.616450675354212 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -65.50672149658203 4.616450675354212 False
+___Largest real beta minimized function mean, effective std, and equilibration: -65.8143424987793 4.594585198428001 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -65.8143424987793 4.594585198428001 False
 ___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 26.50672149658203
+___Extrema/average probability density log: 24.814342498779297
 ___Sanity check:
 ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
@@ -46,10 +46,10 @@ ___
 ___Best candidate at iteration 5 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -65.85262680053711 2.954704989760271 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -65.85262680053711 2.954704989760271 False
+___Largest real beta minimized function mean, effective std, and equilibration: -66.10096740722656 2.917458158910515 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -66.10096740722656 2.917458158910515 False
 ___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 22.85262680053711
+___Extrema/average probability density log: 22.100967407226562
 ___Sanity check:
 ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
@@ -57,10 +57,10 @@ ___
 ___Best candidate at iteration 6 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -66.04836654663086 1.194300098146586 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -66.04836654663086 1.194300098146586 False
+___Largest real beta minimized function mean, effective std, and equilibration: -66.32727432250977 1.5132279415716055 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -66.32727432250977 1.5132279415716055 False
 ___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 21.04836654663086
+___Extrema/average probability density log: 19.327274322509766
 ___Sanity check:
 ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
@@ -68,43 +68,57 @@ ___
 ___Best candidate at iteration 7 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -66.17509841918945 1.472666403940342 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -66.17509841918945 1.472666403940342 False
+___Largest real beta minimized function mean, effective std, and equilibration: -66.48003768920898 1.8414635098682328 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -66.48003768920898 1.8414635098682328 False
 ___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 20.175098419189453
+___Extrema/average probability density log: 23.480037689208984
 ___Sanity check:
 ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 8 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 1.0 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -66.33900833129883 1.9408084824109297 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -66.33900833129883 1.9408084824109297 False
+___Beta bounds: 0.44423397347428756 1.0
+___Largest real beta minimized function mean, effective std, and equilibration: -66.51084899902344 0.2982566954875617 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -66.51084899902344 0.2982566954875617 True
 ___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 20.339008331298828
+___Extrema/average probability density log: 10.00008389711587
 ___Sanity check:
-___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
-___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
+___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
+  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
+ 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117
+ 118 119 120 121 122 123 124 125 126 127]
+___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 1035 1036 1037
+ 1038 1039 1040 1041 1042 1043 1044 1045 1046 1047 1048 1049 1050 1051
+ 1052 1053 1054 1055 1056 1057 1058 1059 1060 1061 1062 1063 1064 1065
+ 1066 1067 1068 1069 1070 1071 1072 1073 1074 1075 1076 1077 1078 1079
+ 1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 9 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 1.0 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -66.39839172363281 1.412374679947572 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -66.39839172363281 1.412374679947572 False
-___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 20.398391723632812
+___Beta bounds: 0.44423397347428756 1.0
+___Largest real beta minimized function mean, effective std, and equilibration: -69.100341796875 2.5068562903950755 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -58.95928955078125 11.86555224585463 False
+___Average tempering neighbor acceptance probability: 0.9128801085016964
+___Extrema/average probability density log: 13.753168213084546
 ___Sanity check:
-___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
-___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
+___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
+  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
+ 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117
+ 118 119 120 121 122 123 124 125 126 127]
+___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 1035 1036 1037
+ 1038 1039 1040 1041 1042 1043 1044 1045 1046 1047 1048 1049 1050 1051
+ 1052 1053 1054 1055 1056 1057 1058 1059 1060 1061 1062 1063 1064 1065
+ 1066 1067 1068 1069 1070 1071 1072 1073 1074 1075 1076 1077 1078 1079
+ 1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 10 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.44423397347428756 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -66.43794250488281 0.37401433390800787 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -66.43794250488281 0.37401433390800787 True
-___Average tempering neighbor acceptance probability: 1.0
-___Extrema/average probability density log: 9.523462382057414
+___Beta bounds: 0.44423397347428756 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -69.26971435546875 2.8082592251637246 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -57.83038330078125 6.269002617626584 False
+___Average tempering neighbor acceptance probability: 0.907612616326526
+___Extrema/average probability density log: 11.03049983659565
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -118,11 +132,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 11 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.44423397347428756 1.0
-___Largest real beta minimized function mean, effective std, and equilibration: -69.121337890625 3.015705324990778 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -59.06256103515625 9.946447782603101 False
-___Average tempering neighbor acceptance probability: 0.9110821830368662
-___Extrema/average probability density log: 11.577875047563602
+___Beta bounds: 0.44423397347428756 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -72.6842041015625 3.7290152549196334 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -54.82867431640625 4.974242024212216 False
+___Average tempering neighbor acceptance probability: 0.7734696972452025
+___Extrema/average probability density log: 13.695144488521864
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -136,11 +150,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 12 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.44423397347428756 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -69.20703125 2.8305410950249423 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -58.1658935546875 6.755723504682257 False
-___Average tempering neighbor acceptance probability: 0.9103778853964976
-___Extrema/average probability density log: 10.735310916355504
+___Beta bounds: 0.4440815982192399 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -73.006103515625 1.0481841598493007 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -54.478515625 6.577985820974191 True
+___Average tempering neighbor acceptance probability: 0.7785656002339507
+___Extrema/average probability density log: 9.094131947907677
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -154,11 +168,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 13 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.44423397347428756 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -72.24298095703125 3.5457161846300718 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -54.4356689453125 6.749106948550031 False
-___Average tempering neighbor acceptance probability: 0.7800937705473413
-___Extrema/average probability density log: 9.522452389655562
+___Beta bounds: 0.23286949640889412 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -73.19708251953125 1.1887512641843858 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -54.55718994140625 7.055364177099119 True
+___Average tempering neighbor acceptance probability: 0.7718766999759109
+___Extrema/average probability density log: 5.718620454872833
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -172,11 +186,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 14 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.4440815982192399 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -72.55303955078125 0.8839232622127529 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -54.61920166015625 4.994037864323053 True
-___Average tempering neighbor acceptance probability: 0.7795560106353976
-___Extrema/average probability density log: 10.488852821904713
+___Beta bounds: 0.23286949640889412 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -73.45556640625 1.156771155776257 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -47.8336181640625 16.840684799396794 False
+___Average tempering neighbor acceptance probability: 0.7406974897992649
+___Extrema/average probability density log: 5.782992155876
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -190,11 +204,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 15 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.4440815982192399 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -72.65362548828125 1.243434352214057 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -53.13372802734375 8.309926473588362 False
-___Average tempering neighbor acceptance probability: 0.775015311744393
-___Extrema/average probability density log: 12.049589308028997
+___Beta bounds: 0.23286949640889412 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -73.714111328125 1.192614333711703 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -44.9239501953125 8.964133054533079 False
+___Average tempering neighbor acceptance probability: 0.7324438685775776
+___Extrema/average probability density log: 5.8040277305027805
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -208,11 +222,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 16 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.23286949640889412 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -72.797119140625 1.0909545050907183 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -53.2525634765625 4.524625473962067 True
-___Average tempering neighbor acceptance probability: 0.7788590486772742
-___Extrema/average probability density log: 5.880551739820742
+___Beta bounds: 0.16168487348782168 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -73.77923583984375 0.9422000055447932 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -44.15447998046875 6.5731578022957295 True
+___Average tempering neighbor acceptance probability: 0.7335337905993049
+___Extrema/average probability density log: 3.7437291663183903
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -226,11 +240,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 17 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.23286949640889412 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -73.13330078125 0.9043538217760444 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -46.64080810546875 15.504183227802232 False
-___Average tempering neighbor acceptance probability: 0.7419378050051609
-___Extrema/average probability density log: 5.970962071037598
+___Beta bounds: 0.16168487348782168 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.04193115234375 0.8998755845858719 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -41.21014404296875 11.391914524925019 False
+___Average tempering neighbor acceptance probability: 0.712944086990735
+___Extrema/average probability density log: 4.0760989501971645
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -244,11 +258,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 18 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.23286949640889412 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -73.2171630859375 0.9596777621501539 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -44.53509521484375 7.441829655333646 False
-___Average tempering neighbor acceptance probability: 0.7400024883618818
-___Extrema/average probability density log: 5.480605770616038
+___Beta bounds: 0.16168487348782168 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.05816650390625 0.9536150313604013 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -39.17236328125 7.291175462435631 False
+___Average tempering neighbor acceptance probability: 0.7108198787604384
+___Extrema/average probability density log: 3.7466206255427514
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -262,11 +276,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 19 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.23286949640889412 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -73.30010986328125 0.904565627037394 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -43.499267578125 8.095331339472747 False
-___Average tempering neighbor acceptance probability: 0.7377932899799853
-___Extrema/average probability density log: 6.869479585349186
+___Beta bounds: 0.12661149178797368 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.1827392578125 0.9744112046460396 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -38.94677734375 11.459826414914012 True
+___Average tempering neighbor acceptance probability: 0.7011174004120121
+___Extrema/average probability density log: 3.285160186582585
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -280,11 +294,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 20 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.16168487348782168 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -73.38885498046875 1.2402873350835788 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -42.7088623046875 7.884958842671441 True
-___Average tempering neighbor acceptance probability: 0.7319477767506904
-___Extrema/average probability density log: 4.803473643200514
+___Beta bounds: 0.12661149178797368 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.270263671875 0.9722541682731987 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -37.50238037109375 7.501469007313497 False
+___Average tempering neighbor acceptance probability: 0.7029364136329106
+___Extrema/average probability density log: 3.102282931140544
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -298,11 +312,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 21 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.16168487348782168 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -73.53912353515625 0.9266295590506601 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -40.31085205078125 11.939719178605063 False
-___Average tempering neighbor acceptance probability: 0.7189185600514558
-___Extrema/average probability density log: 4.415751658675182
+___Beta bounds: 0.08122470154910184 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.3221435546875 0.9540365893946671 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -37.22271728515625 6.78149524368314 True
+___Average tempering neighbor acceptance probability: 0.7040577943182987
+___Extrema/average probability density log: 1.9674829821950865
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -316,11 +330,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 22 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.16168487348782168 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -73.65863037109375 0.8664150062166724 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -39.0521240234375 6.079787235427237 False
-___Average tempering neighbor acceptance probability: 0.7212530232666529
-___Extrema/average probability density log: 3.7271797563550675
+___Beta bounds: 0.08122470154910184 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.43157958984375 1.3268892710237667 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -35.4779052734375 10.808655468785547 False
+___Average tempering neighbor acceptance probability: 0.7001192861125377
+___Extrema/average probability density log: 2.2318846550294524
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -334,11 +348,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 23 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.12661149178797368 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -73.63177490234375 0.8877032356202379 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -38.58843994140625 5.267209479671711 True
-___Average tempering neighbor acceptance probability: 0.7133344461101637
-___Extrema/average probability density log: 2.859956078144494
+___Beta bounds: 0.08122470154910184 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.282958984375 0.9793066912152619 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -33.7220458984375 7.033422448134574 False
+___Average tempering neighbor acceptance probability: 0.6959129520276146
+___Extrema/average probability density log: 1.9268160982346811
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -352,11 +366,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 24 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.08122470154910184 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -73.667236328125 0.9533631074252923 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -37.76593017578125 8.414773002527564 True
-___Average tempering neighbor acceptance probability: 0.7166900973748359
-___Extrema/average probability density log: 2.1740546902119307
+___Beta bounds: 0.03988089172757951 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.343994140625 1.0206587246370524 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -33.65142822265625 6.665178051292334 True
+___Average tempering neighbor acceptance probability: 0.6936804029288285
+___Extrema/average probability density log: 0.9831209398779519
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -370,11 +384,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 25 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.08122470154910184 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -73.8876953125 1.2614949975748022 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -35.5028076171875 10.575285041520708 False
-___Average tempering neighbor acceptance probability: 0.7068030844924988
-___Extrema/average probability density log: 1.9090085342720118
+___Beta bounds: 0.03988089172757951 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.40325927734375 1.361295811886721 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -32.909423828125 7.291282977953853 True
+___Average tempering neighbor acceptance probability: 0.6953108691110111
+___Extrema/average probability density log: 0.953529142958263
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -388,11 +402,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 26 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.08122470154910184 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.07391357421875 0.8792586912713161 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -34.79345703125 5.78315926032419 True
-___Average tempering neighbor acceptance probability: 0.70490886619191
-___Extrema/average probability density log: 1.9326164461846598
+___Beta bounds: 0.03988089172757951 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.5736083984375 0.6494537111956785 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -32.0179443359375 7.753859451114282 True
+___Average tempering neighbor acceptance probability: 0.6913031433018554
+___Extrema/average probability density log: 0.9578570375805552
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -406,11 +420,11 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
 ___
 ___Best candidate at iteration 27 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.08122470154910184 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.11431884765625 1.2856102231464888 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -34.2864990234375 6.660609219269208 True
-___Average tempering neighbor acceptance probability: 0.6972386745888737
-___Extrema/average probability density log: 1.972663634851264
+___Beta bounds: 0.03988089172757951 3.1609734803264744
+___Largest real beta minimized function mean, effective std, and equilibration: -74.65496826171875 0.589793424164653 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -31.66961669921875 6.907167520463541 True
+___Average tempering neighbor acceptance probability: 0.6903698927518305
+___Extrema/average probability density log: 0.9040845290872715
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -425,10 +439,10 @@ ___
 ___Best candidate at iteration 28 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.27423095703125 1.1143522765816167 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -33.72991943359375 5.281482194841067 True
-___Average tempering neighbor acceptance probability: 0.6935663148826083
-___Extrema/average probability density log: 0.9862512393629169
+___Largest real beta minimized function mean, effective std, and equilibration: -74.5955810546875 0.7210596541488843 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -32.00531005859375 6.502222396486338 True
+___Average tempering neighbor acceptance probability: 0.6874953662873831
+___Extrema/average probability density log: 0.8775913878785939
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -443,10 +457,10 @@ ___
 ___Best candidate at iteration 29 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.375244140625 1.2040869100132408 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -33.1021728515625 8.424960333846807 True
-___Average tempering neighbor acceptance probability: 0.6968549551363021
-___Extrema/average probability density log: 0.9612161458925705
+___Largest real beta minimized function mean, effective std, and equilibration: -74.600830078125 0.5047042796649434 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -32.0987548828125 6.264503359582795 True
+___Average tempering neighbor acceptance probability: 0.6891262759946837
+___Extrema/average probability density log: 0.9610798342509236
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -461,10 +475,10 @@ ___
 ___Best candidate at iteration 30 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.44677734375 0.9237186939679946 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.59820556640625 6.923101363892899 True
-___Average tempering neighbor acceptance probability: 0.6915439469158057
-___Extrema/average probability density log: 0.9809983728865915
+___Largest real beta minimized function mean, effective std, and equilibration: -74.63055419921875 0.9881701501210255 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -31.89849853515625 6.373774373287889 True
+___Average tempering neighbor acceptance probability: 0.6888826485875822
+___Extrema/average probability density log: 0.9530934325322842
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -479,10 +493,10 @@ ___
 ___Best candidate at iteration 31 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.33868408203125 0.7222270618993859 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.518310546875 8.301730414483227 True
-___Average tempering neighbor acceptance probability: 0.6956379517790118
-___Extrema/average probability density log: 0.9778120882630928
+___Largest real beta minimized function mean, effective std, and equilibration: -74.7462158203125 1.0314566665252756 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -31.98345947265625 6.504609435962582 True
+___Average tempering neighbor acceptance probability: 0.683939493792035
+___Extrema/average probability density log: 0.9166008587542158
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -497,10 +511,10 @@ ___
 ___Best candidate at iteration 32 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.42376708984375 0.6984762159706895 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.345458984375 5.803120253914827 True
-___Average tempering neighbor acceptance probability: 0.6902533133951535
-___Extrema/average probability density log: 0.8911568303589283
+___Largest real beta minimized function mean, effective std, and equilibration: -74.67352294921875 0.8334935193281858 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -32.5753173828125 6.100565771537024 True
+___Average tempering neighbor acceptance probability: 0.6894244654936988
+___Extrema/average probability density log: 0.8205620048045301
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -515,10 +529,10 @@ ___
 ___Best candidate at iteration 33 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.581298828125 0.6383074265975678 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -31.8070068359375 6.793741911573605 True
-___Average tempering neighbor acceptance probability: 0.6872724035975573
-___Extrema/average probability density log: 0.9494446619817689
+___Largest real beta minimized function mean, effective std, and equilibration: -74.70904541015625 0.8098757987697764 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -32.08026123046875 8.0108196139009 True
+___Average tempering neighbor acceptance probability: 0.6871647464560187
+___Extrema/average probability density log: 0.9204613991765754
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -533,10 +547,10 @@ ___
 ___Best candidate at iteration 34 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.45611572265625 0.5779994106487715 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.36688232421875 5.82840723985533 True
-___Average tempering neighbor acceptance probability: 0.6950467681837159
-___Extrema/average probability density log: 1.0116538874384187
+___Largest real beta minimized function mean, effective std, and equilibration: -74.68438720703125 0.6586099606800726 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -31.88104248046875 5.63107698452081 True
+___Average tempering neighbor acceptance probability: 0.6893104723705344
+___Extrema/average probability density log: 0.9523972695053012
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -551,10 +565,10 @@ ___
 ___Best candidate at iteration 35 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.54278564453125 0.60774345103807 False
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.2315673828125 6.462678944454778 True
-___Average tempering neighbor acceptance probability: 0.6924899211610638
-___Extrema/average probability density log: 0.8866147317283337
+___Largest real beta minimized function mean, effective std, and equilibration: -74.72747802734375 0.7999756272894832 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -31.90582275390625 7.455732021582178 True
+___Average tempering neighbor acceptance probability: 0.6831329284294594
+___Extrema/average probability density log: 0.9932664206348215
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -569,10 +583,10 @@ ___
 ___Best candidate at iteration 36 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.532958984375 0.6356964329253267 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.35894775390625 5.553642485833813 True
-___Average tempering neighbor acceptance probability: 0.6851161447921005
-___Extrema/average probability density log: 1.0910992331540401
+___Largest real beta minimized function mean, effective std, and equilibration: -74.68206787109375 0.9862970630551358 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -31.65673828125 6.824171794343321 True
+___Average tempering neighbor acceptance probability: 0.6849270254992904
+___Extrema/average probability density log: 0.9035709262946373
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -587,10 +601,10 @@ ___
 ___Best candidate at iteration 37 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.48748779296875 0.6574041118250682 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.60455322265625 6.777588572188974 True
-___Average tempering neighbor acceptance probability: 0.6890972837354506
-___Extrema/average probability density log: 0.8217279561679036
+___Largest real beta minimized function mean, effective std, and equilibration: -74.7911376953125 1.0184900806451473 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -31.9716796875 7.968646598593844 True
+___Average tempering neighbor acceptance probability: 0.6799691706221782
+___Extrema/average probability density log: 0.9560119621454047
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -605,10 +619,10 @@ ___
 ___Best candidate at iteration 38 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.4893798828125 0.5717412740144103 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.63427734375 6.731754085045252 True
-___Average tempering neighbor acceptance probability: 0.6936238548861815
-___Extrema/average probability density log: 0.8627942723505204
+___Largest real beta minimized function mean, effective std, and equilibration: -74.6295166015625 0.9449769993157716 False
+___Smallest real beta minimized function mean, effective std, and equilibration: -32.43450927734375 6.574921378329199 True
+___Average tempering neighbor acceptance probability: 0.686608104305868
+___Extrema/average probability density log: 0.9345891271787039
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
@@ -623,82 +637,10 @@ ___
 ___Best candidate at iteration 39 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
 ___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.51373291015625 0.743758456398469 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -33.13079833984375 6.571913570593793 True
-___Average tempering neighbor acceptance probability: 0.6834884825671089
-___Extrema/average probability density log: 1.0421195393465232
-___Sanity check:
-___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
-  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
- 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117
- 118 119 120 121 122 123 124 125 126 127]
-___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 1035 1036 1037
- 1038 1039 1040 1041 1042 1043 1044 1045 1046 1047 1048 1049 1050 1051
- 1052 1053 1054 1055 1056 1057 1058 1059 1060 1061 1062 1063 1064 1065
- 1066 1067 1068 1069 1070 1071 1072 1073 1074 1075 1076 1077 1078 1079
- 1080 1081 1082 1083 1084 1085 1086 1087]
-___
-___Best candidate at iteration 40 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.51116943359375 0.7685762472654992 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.70947265625 6.032189804935968 True
-___Average tempering neighbor acceptance probability: 0.6889127999329793
-___Extrema/average probability density log: 0.8657931284667544
-___Sanity check:
-___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
-  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
- 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117
- 118 119 120 121 122 123 124 125 126 127]
-___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 1035 1036 1037
- 1038 1039 1040 1041 1042 1043 1044 1045 1046 1047 1048 1049 1050 1051
- 1052 1053 1054 1055 1056 1057 1058 1059 1060 1061 1062 1063 1064 1065
- 1066 1067 1068 1069 1070 1071 1072 1073 1074 1075 1076 1077 1078 1079
- 1080 1081 1082 1083 1084 1085 1086 1087]
-___
-___Best candidate at iteration 41 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.476318359375 0.898537273671902 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.63470458984375 6.168720743096415 True
-___Average tempering neighbor acceptance probability: 0.6866738905776465
-___Extrema/average probability density log: 0.9824539864884648
-___Sanity check:
-___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
-  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
- 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117
- 118 119 120 121 122 123 124 125 126 127]
-___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 1035 1036 1037
- 1038 1039 1040 1041 1042 1043 1044 1045 1046 1047 1048 1049 1050 1051
- 1052 1053 1054 1055 1056 1057 1058 1059 1060 1061 1062 1063 1064 1065
- 1066 1067 1068 1069 1070 1071 1072 1073 1074 1075 1076 1077 1078 1079
- 1080 1081 1082 1083 1084 1085 1086 1087]
-___
-___Best candidate at iteration 42 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.48687744140625 0.8098828640765159 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.35894775390625 7.517877491009904 True
-___Average tempering neighbor acceptance probability: 0.6827586692037441
-___Extrema/average probability density log: 0.9714565579713015
-___Sanity check:
-___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
-  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
- 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117
- 118 119 120 121 122 123 124 125 126 127]
-___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 1035 1036 1037
- 1038 1039 1040 1041 1042 1043 1044 1045 1046 1047 1048 1049 1050 1051
- 1052 1053 1054 1055 1056 1057 1058 1059 1060 1061 1062 1063 1064 1065
- 1066 1067 1068 1069 1070 1071 1072 1073 1074 1075 1076 1077 1078 1079
- 1080 1081 1082 1083 1084 1085 1086 1087]
-___
-___Best candidate at iteration 43 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
-___Beta bounds: 0.03988089172757951 3.1609734803264744
-___Largest real beta minimized function mean, effective std, and equilibration: -74.53515625 0.8388893559716323 True
-___Smallest real beta minimized function mean, effective std, and equilibration: -32.1553955078125 7.073032256480137 True
-___Average tempering neighbor acceptance probability: 0.6787940015797524
-___Extrema/average probability density log: 0.963338712883931
+___Largest real beta minimized function mean, effective std, and equilibration: -74.669677734375 0.558412749302865 True
+___Smallest real beta minimized function mean, effective std, and equilibration: -31.57830810546875 6.779174891511617 False
+___Average tempering neighbor acceptance probability: 0.6852448827690466
+___Extrema/average probability density log: 0.9802048444012893
 ___Sanity check:
 ___Largest beta ids: [ 64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81
   82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99
