@@ -40,10 +40,20 @@ class CandidateCompound:
         self.tp = tp
         self.func_val = func_val
 
+        # Random comparison factors were mainly introduced for integer minimized functions to make
+        # ordering in RandomWalk.saved_candidates consistent between different canonical ordering
+        # expressions for the benchmarks.
+        self.random_comparison_factor = None
+
     def __eq__(self, cc2):
         if self.tp == cc2.tp:
             return True
         return (self.func_val is None) and (cc2.func_val is None)
+
+    def get_random_comparison_factor(self):
+        if self.random_comparison_factor is None:
+            self.random_comparison_factor = random.random()
+        return self.random_comparison_factor
 
     def noneq_gt_wNone(self, cc2):
         if self.func_val is None:
@@ -51,9 +61,11 @@ class CandidateCompound:
         if cc2.func_val is None:
             return False
         if self.func_val == cc2.func_val:
-            return (
-                self.tp > cc2.tp
-            )  # For consistency with __eq__ in case of integer minimized function.
+            if self.tp == cc2.tp:
+                return False
+            rc1 = self.get_random_comparison_factor()
+            rc2 = cc2.get_random_comparison_factor()
+            return rc1 > rc2
         return self.func_val > cc2.func_val
 
     def __gt__(self, cc2):

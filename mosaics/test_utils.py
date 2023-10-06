@@ -543,7 +543,13 @@ def now():
 
 
 class SimulationLogIO:
-    def __init__(self, save_printed=True, filename=None, benchmark_filename=None):
+    def __init__(
+        self,
+        save_printed=True,
+        filename=None,
+        benchmark_filename=None,
+        exception_on_failure=True,
+    ):
         """
         Auxiliary class used to read and write test files in a way invariant to the canonical ordering currently used.
         """
@@ -554,6 +560,7 @@ class SimulationLogIO:
             run("rm", "-f", filename)
         self.io = None
         self.difference_encountered = False
+        self.exception_on_failure = exception_on_failure
 
         self.benchmark_filename = benchmark_filename
         if (self.benchmark_filename is not None) and (
@@ -591,6 +598,8 @@ class SimulationLogIO:
             if not same:
                 print("DIFF:", new_el, bench_el)
                 self.difference_encountered = True
+                if self.exception_on_failure:
+                    raise Exception
             if isinstance(new_el, str) and (new_el == timestamp_label):
                 break
 

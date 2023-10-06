@@ -45,7 +45,6 @@ irrelevant_bond_order_difference = 1.0e-8
 # Choice of algorithm for isomorphism determination.
 bliss = "BLISS"
 vf2 = "VF2"
-
 isomorphism_algorithm = vf2
 available_isomorphism_algorithms = [bliss, vf2]
 
