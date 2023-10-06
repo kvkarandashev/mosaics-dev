@@ -1,14 +1,8 @@
 # Script with an example of optimizing a toy problem in chemical graph space.
-# These imports were used for the original bmapqml repository.
-# from bmapqml.chemxpl.valence_treatment import ChemGraph
-# from bmapqml.chemxpl.random_walk import RandomWalk, gen_exp_beta_array
-# from bmapqml.chemxpl import ExtGraphCompound
-# from bmapqml.chemxpl.minimized_functions import OrderSlide
-# These imports are used for the MOSAiCS repository
 from mosaics.beta_choice import gen_exp_beta_array
 from mosaics import ExtGraphCompound, RandomWalk
 from mosaics.minimized_functions import OrderSlide
-
+from mosaics.test_utils import SimulationLogIO
 import random
 import numpy as np
 
@@ -77,28 +71,30 @@ rw = RandomWalk(
     debug=True,
 )
 
+sim_log = SimulationLogIO(
+    filename="toy_minimization.log", benchmark_filename="toy_minimization_benchmark.log"
+)
+sim_log.print_timestamp(comment="SIM_START")
+
 for MC_step in range(num_MC_steps):
     rw.global_random_change(**global_change_params)
     if MC_step % 200 == 0:
-        print(MC_step, rw.cur_tps)
+        step_label = "STEP" + str(MC_step)
+        sim_log.print_list(rw.cur_tps, comment=step_label)
 
 rw.make_restart()
 
-print()
-
-print("Move statistics:")
 for k, val in rw.move_statistics().items():
-    print(k, ":", val)
+    sim_log.print(val, comment=k)
 
-print(
-    "Number of calls vs histogram size:",
+sim_log.print(
     rw.min_function.call_counter,
     len(rw.histogram),
+    comment="number_of_calls_vs_histogram_size",
 )
 
-num_printed_saved_candidates = 20
+sim_log.print_list(rw.saved_candidates, comment="SAVED_CANDIDATES")
 
-for i, cur_cand in enumerate(rw.saved_candidates[:num_printed_saved_candidates]):
-    print("Best molecule", i, ":", cur_cand.tp)
-    print("Value of minimized function:", cur_cand.func_val)
-    print("Found on step:", cur_cand.tp.first_global_MC_step_encounter)
+sim_log.print_timestamp(comment="SIM_FINISH")
+
+print("BENCHMARK AGREEMENT:", (not sim_log.difference_encountered))

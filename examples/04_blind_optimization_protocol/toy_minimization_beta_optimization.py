@@ -3,6 +3,7 @@ from mosaics.optimization_protocol import OptimizationProtocol
 from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
 from mosaics.minimized_functions import OrderSlide
 from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
+from mosaics.test_utils import SimulationLogIO
 import random
 import numpy as np
 
@@ -59,6 +60,12 @@ num_subpopulations = 32
 num_exploration_replicas = 16
 num_greedy_replicas = 1
 
+# Simulation thoroughness.
+max_num_stagnating_iterations = 16
+max_num_iterations = 80
+num_internal_global_steps = 32
+num_intermediate_propagations = 8
+
 seed = 1
 random.seed(seed)
 np.random.seed(seed)
@@ -69,12 +76,12 @@ opt_protocol = OptimizationProtocol(
     num_greedy_replicas=num_greedy_replicas,
     num_processes=num_processes,
     num_subpopulations=num_subpopulations,
-    num_internal_global_steps=32,
-    num_intermediate_propagations=8,
+    num_internal_global_steps=num_internal_global_steps,
+    num_intermediate_propagations=num_intermediate_propagations,
     randomized_change_params=randomized_change_params,
     global_step_params=global_step_params,
-    max_num_stagnating_iterations=16,
-    max_num_iterations=80,
+    max_num_stagnating_iterations=max_num_stagnating_iterations,
+    max_num_iterations=max_num_iterations,
     beta_change_multiplier_bounds=(1.0, 4.0),
     init_beta_guess=1.0,
     target_largest_beta_minfunc_eff_std=target_largest_beta_minfunc_eff_std,
@@ -90,38 +97,53 @@ opt_protocol = OptimizationProtocol(
     debug=True,
 )
 
+sim_log = SimulationLogIO(
+    filename="toy_opt.log", benchmark_filename="top_opt_benchmark.log"
+)
+sim_log.print_timestamp(comment="SIM_START")
+
 for iteration_id in opt_protocol:
     cur_best_cand = opt_protocol.current_best_candidate()
-    print("___")
-    print("___Best candidate at iteration", iteration_id, ":", cur_best_cand)
-    print("___Best candidate SMILES:", canonical_SMILES_from_tp(cur_best_cand.tp))
-    print(
-        "___Beta bounds:", opt_protocol.lower_beta_value, opt_protocol.upper_beta_value
+    sim_log.print_list(
+        opt_protocol.saved_candidates(), comment="BEST_CANDS_ITER_" + str(iteration_id)
     )
-    print(
-        "___Largest real beta minimized function mean, effective std, and equilibration:",
+    sim_log.print(
+        opt_protocol.lower_beta_value,
+        opt_protocol.upper_beta_value,
+        comment="BETA_VALUES_" + str(iteration_id),
+    )
+    sim_log.print(
         opt_protocol.largest_beta_iteration_av_minfunc(),
         opt_protocol.largest_real_beta_eff_std(),
-        opt_protocol.largest_beta_equilibrated,
+        comment="largest_beta_minfunc_mean_and_effective_std" + str(iteration_id),
     )
-    print(
-        "___Smallest real beta minimized function mean, effective std, and equilibration:",
+    sim_log.print(
+        opt_protocol.largest_beta_equilibrated,
+        comment="largest_beta_equilibrated_" + str(iteration_id),
+    )
+    sim_log.print(
         opt_protocol.smallest_beta_iteration_av_minfunc(),
         opt_protocol.smallest_real_beta_eff_std(),
+        comment="smallest_beta_minfunc_mean_and_effective_std" + str(iteration_id),
+    )
+    sim_log.print(
         opt_protocol.smallest_beta_equilibrated,
+        comment="smallest_beta_equilibrated_" + str(iteration_id),
     )
-    print(
-        "___Average tempering neighbor acceptance probability:",
+    sim_log.print(
         opt_protocol.average_tempering_neighbor_acceptance_probability(),
+        comment="average_tempering_neighbor_acceptance_probability",
     )
-    print(
-        "___Extrema/average probability density log:",
+    sim_log.print(
         opt_protocol.smallest_beta_extrema_rel_prob_log(),
+        comment="extrema/average_prob_density_log",
     )
-    print("___Sanity check:")
     drw = opt_protocol.distributed_random_walk
-    print("___Largest beta ids:", drw.largest_beta_ids())
-    print("___Smallest beta ids:", drw.smallest_beta_ids())
+    sim_log.print_list(drw.largest_beta_ids(), comment="largest_beta_ids")
+    sim_log.print_list(drw.smallest_beta_ids(), comment="smallest_beta_ids")
+
+sim_log.print_list(opt_protocol.saved_candidates(), comment="FINAL_BEST_CANDIDATES")
+sim_log.print_timestamp(comment="SIM_FINISH")
 
 print("Final best candidates:")
 for cand_id, candidate in enumerate(opt_protocol.saved_candidates()):

@@ -3,12 +3,13 @@ from mosaics.beta_choice import gen_exp_beta_array
 from mosaics import ExtGraphCompound
 from mosaics.minimized_functions import OrderSlide
 from mosaics.distributed_random_walk import DistributedRandomWalk
-import sys
-import random
+from mosaics.test_utils import SimulationLogIO
+import sys, random
 import numpy as np
 
-random.seed(1)
-np.random.seed(1)
+seed = 1
+random.seed(seed)
+np.random.seed(seed)
 
 possible_elements = ["C", "N", "O", "F", "P", "S"]
 
@@ -51,7 +52,7 @@ else:
     num_replicas = nbetas
 
 num_propagations = 10
-
+num_internal_global_steps = 200
 
 randomized_change_params = {
     "max_fragment_num": 1,
@@ -88,23 +89,30 @@ drw = DistributedRandomWalk(
     min_function=min_func,
     num_processes=NCPUs,
     num_subpopulations=num_subpopulations,
-    num_internal_global_steps=200,
+    num_internal_global_steps=num_internal_global_steps,
     global_step_params=global_step_params,
     num_saved_candidates=num_saved_candidates,
     greedy_delete_checked_paths=True,
     debug=True,
     randomized_change_params=randomized_change_params,
-    subpopulation_propagation_seed=1,
+    subpopulation_propagation_seed=seed + 1,
     cloned_betas=cloned_betas,
     num_beta_subpopulation_clones=num_beta_subpopulation_clones,
 )
 
+sim_log = SimulationLogIO(
+    filename="parallelized_toy_minimization.log",
+    benchmark_filename="parallelized_toy_minimization_benchmark.log",
+)
+sim_log.print_timestamp(comment="SIM_START")
 
 for propagation_step in range(num_propagations):
     drw.propagate()
-    print(propagation_step, drw.saved_candidates[0])
+    sim_log.print_list(
+        drw.current_trajectory_points, comment="STEP" + str(propagation_step)
+    )
+    sim_log.print(drw.saved_candidates[0], comment="BEST_AT_" + str(propagation_step))
 
+sim_log.print_list(drw.saved_candidates, comment="FINAL_BEST")
 
-for i, cur_cand in enumerate(drw.saved_candidates):
-    print("Best molecule", i, ":", cur_cand.tp)
-    print("Value of minimized function:", cur_cand.func_val)
+sim_log.print_timestamp(comment="SIM_FINISH")

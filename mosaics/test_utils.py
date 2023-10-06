@@ -1,19 +1,24 @@
 # Utils that mainly appear in tests or analysis of data.
 from .data import NUCLEAR_CHARGE
 from sortedcontainers import SortedDict
+from .valence_treatment import ChemGraph, str2ChemGraph
 from .random_walk import (
     randomized_change,
     random_modification_path_choice,
     TrajectoryPoint,
+    str2TrajectoryPoint,
     RandomWalk,
     full_change_list,
     egc_change_func,
     inverse_procedure,
     default_minfunc_name,
     egc_valid_wrt_change_params,
+    str2CandidateCompound,
+    CandidateCompound,
 )
+from .utils import run
 import numpy as np
-import copy
+import copy, datetime
 from joblib import delayed, Parallel
 
 
@@ -478,3 +483,190 @@ def print_to_separate_file_wprefix(
         )
     with open(filename, "w") as f:
         f.write(printed_string)
+
+
+# Relative float difference that should be ignored when comparing tests.
+negligible_float_relative_difference = 1e-6
+
+
+def set_negligible_float_relative_difference(new_negligible_float_relative_difference):
+    global negligible_float_relative_difference
+    negligible_float_relative_difference = new_negligible_float_relative_difference
+
+
+# How floats are written. Important to ensure enough data is saved to check whether difference is negligible.
+# NOTE: I keep saving as much as possible in float because I like to keep everything human-readable just in case.
+# I'm not %100 sure it's the best course of action.
+test_float_str_format = "{:.8e}"
+
+
+def set_test_float_str_format(new_test_float_str_format):
+    global test_float_str_format
+    test_float_str_format = new_test_float_str_format
+
+
+# Labels for some data classes that can be written by SimulationLogIO.
+timestamp_label = "TIME"
+int_label = "INT"
+float_label = "FLT"
+bool_label = "BOOL"
+chemgraph_label = "CHEMGRAPH"
+trajectory_point_label = "TRAJECTORYPOINT"
+candidate_compound_label = "CANDIDATECOMPOUND"
+
+
+data_str_labels = {
+    datetime.datetime: timestamp_label,
+    ChemGraph: chemgraph_label,
+    TrajectoryPoint: trajectory_point_label,
+    CandidateCompound: candidate_compound_label,
+    int: int_label,
+    float: float_label,
+    bool: bool_label,
+    np.float64: float_label,
+    np.int64: int_label,
+    np.bool_: bool_label,
+}
+
+data_str_label_conv_functions = {
+    chemgraph_label: str2ChemGraph,
+    trajectory_point_label: str2TrajectoryPoint,
+    candidate_compound_label: str2CandidateCompound,
+    int_label: int,
+    float_label: str,
+    bool_label: bool,
+}
+
+
+def now():
+    return datetime.datetime.now()
+
+
+class SimulationLogIO:
+    def __init__(self, save_printed=True, filename=None, benchmark_filename=None):
+        """
+        Auxiliary class used to read and write test files in a way invariant to the canonical ordering currently used.
+        """
+        self.entry_list = []
+        self.save_printed = save_printed
+        self.filename = filename
+        if filename is not None:
+            run("rm", "-f", filename)
+        self.io = None
+        self.difference_encountered = False
+
+        self.benchmark_filename = benchmark_filename
+        if (self.benchmark_filename is not None) and (
+            os.path.isfile(self.benchmark_filename)
+        ):
+            self.benchmark_entry_list = self.import_from(self.benchmark_filename)
+            print("(BENCHMARK IMPORTED)")
+            self.current_list_id = -1
+        else:
+            self.benchmark_entry_list = None
+            self.current_entry_id = None
+
+    def print_timestamp(self, comment=None):
+        self.print(now(), comment=comment)
+
+    def check_benchmark_agreement(self, new_list):
+        if self.benchmark_entry_list is None:
+            return
+        self.current_list_id += 1
+        if self.current_list_id > len(self.benchmark_entry_list):
+            print("DIFF: BENCHMARK_ENDED")
+            self.difference_encountered = True
+        cur_benchmark = self.benchmark_entry_list[self.current_list_id]
+        if len(new_list) != len(cur_benchmark):
+            print("DIFF: DIFERENT_LENGTHS")
+            self.difference_encountered = True
+        for new_el, bench_el in zip(new_list, cur_benchmark):
+            if isinstance(new_el, float):
+                same = (
+                    2 * (new_el - bench_el) / (abs(new_el) + abs(bench_el))
+                    < negligible_float_relative_difference
+                )
+            else:
+                same = new_el == bench_el
+            if not same:
+                print("DIFF:", new_el, bench_el)
+                self.difference_encountered = True
+            if isinstance(new_el, str) and (new_el == timestamp_label):
+                break
+
+    def print_list_unchecked(self, printed_data, comment=None):
+        if comment is None:
+            new_list = ["###"]
+        else:
+            new_list = [comment]
+        data_str_label = data_str_labels[type(printed_data[0])]
+        if self.save_printed:
+            new_list.append(data_str_label)
+
+        new_list += list(printed_data)
+
+        self.entry_list.append(new_list)
+        self.check_benchmark_agreement(new_list)
+
+        printed_ios = [None]
+        if self.filename is not None:
+            self.io = open(self.filename, "a")
+            printed_ios.append(self.io)
+        for printed_io in printed_ios:
+            if isinstance(printed_data[0], float):
+                printed_list = new_list[:2] + [
+                    test_float_str_format.format(entry) for entry in printed_data
+                ]
+            else:
+                printed_list = new_list
+            print(*printed_list, file=printed_io)
+        if self.filename is not None:
+            self.io.close()
+
+    def print_list(self, data, comment=None):
+        printed_data = None
+        if isinstance(data[0], CandidateCompound):
+            mvals_comment = "MINFUNC_VAL"
+            if comment is not None:
+                mvals_comment = comment + ":" + mvals_comment
+            printed_data = [cand.tp for cand in data]
+            mvals = [cand.func_val for cand in data]
+            self.print_list_unchecked(mvals, comment=mvals_comment)
+        if isinstance(data[0], TrajectoryPoint):
+            nenc_comment = "FIRST_GLOBAL_MC_STEP_ENCOUNTER"
+            if comment is not None:
+                nenc_comment = comment + ":" + nenc_comment
+            printed_data = [tp.chemgraph() for tp in data]
+            # TODO do I need a more sophisticated check?
+            if data[0].first_global_MC_step_encounter is not None:
+                nencs = [tp.first_global_MC_step_encounter for tp in data]
+                self.print_list_unchecked(nencs, comment=nenc_comment)
+
+        if printed_data is None:
+            self.print_list_unchecked(data, comment=comment)
+        else:
+            self.print_list(printed_data, comment=comment)
+
+    def print(self, *data, comment=None):
+        self.print_list(data, comment=comment)
+
+    def import_from(self, filename):
+        combined_lists = []
+        input_file = open(filename, "r")
+        for line in input_file.readlines():
+            spl_line = line.strip().split()
+            label = spl_line[1]
+            new_list = spl_line[:2]
+            # Timestamps are irrelevant for benchmark comparison.
+            if label == timestamp_label:
+                new_list.append("DUMMY")
+            else:
+                str_converter = data_str_label_conv_functions[label]
+                for data_line in spl_line[2:]:
+                    new_list.append(str_converter(data_line))
+            combined_lists.append(new_list)
+        input_file.close()
+        return combined_lists
+
+    def __eq__(self, other_sli):
+        return self.entry_list == other_sli.entry_list

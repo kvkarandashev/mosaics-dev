@@ -81,6 +81,17 @@ class CandidateCompound:
         return str(self)
 
 
+def str2CandidateCompound(str_in):
+    stripped_string = str_in.strip()
+    spl_stripped_string = stripped_string.split(",ChemGraph:")
+    chemgraph_str = spl_stripped_string[1][:-1]
+    chemgraph = str2ChemGraph(chemgraph_str)
+    func_val_str = spl_stripped_string[0].split(",func_val:")[1]
+    func_val = eval(func_val_str)
+    tp = TrajectoryPoint(cg=chemgraph, func_val=func_val)
+    return CandidateCompound(tp, func_val)
+
+
 def tidy_forbidden_bonds(forbidden_bonds):
     if forbidden_bonds is None:
         return None

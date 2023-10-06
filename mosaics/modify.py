@@ -8,7 +8,7 @@ from .misc_procedures import (
     llenlog,
     intlog,
 )
-from .valence_treatment import canonically_permuted_ChemGraph, ChemGraph
+from .valence_treatment import canonically_permuted_ChemGraph, ChemGraph, str2ChemGraph
 from .ext_graph_compound import ExtGraphCompound, log_atom_multiplicity_in_list
 from sortedcontainers import SortedList
 
@@ -300,6 +300,10 @@ class TrajectoryPoint:
 
     def __repr__(self):
         return str(self)
+
+
+def str2TrajectoryPoint(str_in):
+    return TrajectoryPoint(cg=str2ChemGraph(str_in))
 
 
 # Minimal set of procedures that allow to claim that our MC chains are Markovian.
