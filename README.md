@@ -1,9 +1,9 @@
-# mosaics
+## mosaics
 Evolutionary Monte Carlo algorithm for optimization in chemical space.
 
 [![DOI](https://img.shields.io/badge/arXiv-2307.15563-b31b1b.svg)](https://arxiv.org/abs/2307.15563)
 
-## Description
+## :clipboard: Description
 
 MOSAiCS is an Evolutionary Monte Carlo algorithm designed for optimizing target functions over the space of organic molecules. The algorithm combines the benefits of both genetic algorithms and Monte Carlo techniques, providing a powerful tool for complex optimization tasks in applied science.
 
