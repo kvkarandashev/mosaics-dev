@@ -98,7 +98,7 @@ opt_protocol = OptimizationProtocol(
 )
 
 sim_log = SimulationLogIO(
-    filename="toy_opt.log", benchmark_filename="top_opt_benchmark.log"
+    filename="toy_opt.log", benchmark_filename="toy_opt_benchmark.log"
 )
 sim_log.print_timestamp(comment="SIM_START")
 
