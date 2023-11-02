@@ -93,7 +93,7 @@ opt_protocol = OptimizationProtocol(
     subpopulation_propagation_seed=seed,
     greedy_delete_checked_paths=True,
     init_egc=SMILES_to_egc(init_SMILES),  # saved_candidates_max_difference=None,
-    num_saved_candidates=40,
+    saved_candidates_max_difference=0.5,
     debug=True,
 )
 
@@ -105,7 +105,9 @@ sim_log.print_timestamp(comment="SIM_START")
 for iteration_id in opt_protocol:
     cur_best_cand = opt_protocol.current_best_candidate()
     sim_log.print_list(
-        opt_protocol.saved_candidates(), comment="BEST_CANDS_ITER_" + str(iteration_id)
+        opt_protocol.saved_candidates(),
+        comment="BEST_CANDS_ITER_" + str(iteration_id),
+        sorted_comparison=True,
     )
     sim_log.print(
         opt_protocol.lower_beta_value,
@@ -142,7 +144,11 @@ for iteration_id in opt_protocol:
     sim_log.print_list(drw.largest_beta_ids(), comment="largest_beta_ids")
     sim_log.print_list(drw.smallest_beta_ids(), comment="smallest_beta_ids")
 
-sim_log.print_list(opt_protocol.saved_candidates(), comment="FINAL_BEST_CANDIDATES")
+sim_log.print_list(
+    opt_protocol.saved_candidates(),
+    comment="FINAL_BEST_CANDIDATES",
+    sorted_comparison=True,
+)
 sim_log.print_timestamp(comment="SIM_FINISH")
 
 print("Final best candidates:")

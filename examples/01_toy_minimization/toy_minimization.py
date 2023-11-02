@@ -67,7 +67,7 @@ rw = RandomWalk(
     keep_histogram=True,
     keep_full_trajectory=True,
     restart_file="larger_mols_restart.pkl",
-    num_saved_candidates=100,
+    saved_candidates_max_difference=0.5,
     debug=True,
 )
 

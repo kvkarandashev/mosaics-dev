@@ -500,16 +500,36 @@ class DistributedRandomWalk:
             if new_minfunc_val > self.saved_candidates[-1].func_val:
                 return
         if self.saved_candidates_max_difference is not None:
-            if (
-                new_minfunc_val - self.saved_candidates[-1]
-                > self.saved_candidates_max_difference
-            ):
-                return
+            if len(self.saved_candidates) != 0:
+                if (
+                    new_minfunc_val - self.saved_candidates[0].func_val
+                    > self.saved_candidates_max_difference
+                ):
+                    return
+                new_lower_minfunc_bound = (
+                    new_minfunc_val < self.saved_candidates[0].func_val
+                )
+            else:
+                new_lower_minfunc_bound = None
         self.saved_candidates.add(deepcopy(new_candidate))
         if (self.num_saved_candidates is not None) and (
             starting_num_candidates >= self.num_saved_candidates
         ):
             del self.saved_candidates[self.num_saved_candidates :]
+
+        if self.saved_candidates_max_difference is not None:
+            if new_lower_minfunc_bound is not None:
+                # Delete tail candidates with too large minimized function values.
+                new_upper_bound = (
+                    new_lower_minfunc_bound + self.saved_candidates_max_difference
+                )
+                deleted_indices_bound = None
+                for i, cand in enumerate(self.saved_candidates):
+                    if cand.func_val > new_upper_bound:
+                        deleted_indices_bound = i
+                        break
+                if deleted_indices_bound is not None:
+                    del self.saved_candidates[deleted_indices_bound:]
 
     def update_temporary_data(
         self, subpopulation_indices, cur_random_walk, cur_intermediate_results

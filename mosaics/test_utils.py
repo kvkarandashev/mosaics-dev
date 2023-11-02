@@ -495,8 +495,6 @@ def set_negligible_float_relative_difference(new_negligible_float_relative_diffe
 
 
 # How floats are written. Important to ensure enough data is saved to check whether difference is negligible.
-# NOTE: I keep saving as much as possible in float because I like to keep everything human-readable just in case.
-# I'm not %100 sure it's the best course of action.
 test_float_str_format = "{:.8e}"
 
 
@@ -528,18 +526,101 @@ data_str_labels = {
     np.bool_: bool_label,
 }
 
+
+def tp2tuple(tp: TrajectoryPoint) -> tuple:
+    use_first_encounter = tp.first_global_MC_step_encounter
+    if use_first_encounter is None:
+        use_first_encounter = -1
+    return (int(use_first_encounter), tp.chemgraph())
+
+
+def cc2tuple(cc: CandidateCompound) -> tuple:
+    return (float(cc.func_val), *tp2tuple(cc.tp))
+
+
+data_comp_obj_creator = {
+    np.float64: float,
+    np.int64: int,
+    np.bool_: bool,
+    TrajectoryPoint: tp2tuple,
+    CandidateCompound: cc2tuple,
+}
+
+tuple_str_delimiter = "!"
+
+
+def str2TrajectoryPoint_comp_obj(str_in=None, split_str=None):
+    if split_str is None:
+        split_str = str_in.split(tuple_str_delimiter)
+    return (int(split_str[0]), str2ChemGraph(split_str[1]))
+
+
+def str2CandidateCompound_comp_obj(str_in):
+    split_str = str_in.split(tuple_str_delimiter)
+    func_val = float(split_str[0])
+    return (func_val, *str2TrajectoryPoint_comp_obj(split_str=split_str[1:]))
+
+
+def obj2comparison_obj(obj):
+    """
+    For some objects it is more convenient to convert them to something else.
+    """
+    cur_type = type(obj)
+    if cur_type in data_comp_obj_creator:
+        return data_comp_obj_creator[cur_type](obj)
+    else:
+        return obj
+
+
+def print_test(obj):
+    comp_obj = obj2comparison_obj(obj)
+    if isinstance(comp_obj, tuple):
+        return tuple_str_delimiter.join(print_test(el) for el in comp_obj)
+    if isinstance(comp_obj, float):
+        return test_float_str_format.format(comp_obj)
+    return str(comp_obj)
+
+
+def str2bool(str_in):
+    return str(True) == str_in
+
+
 data_str_label_conv_functions = {
     chemgraph_label: str2ChemGraph,
-    trajectory_point_label: str2TrajectoryPoint,
-    candidate_compound_label: str2CandidateCompound,
+    trajectory_point_label: str2TrajectoryPoint_comp_obj,
+    candidate_compound_label: str2CandidateCompound_comp_obj,
     int_label: int,
-    float_label: str,
-    bool_label: bool,
+    float_label: float,
+    bool_label: str2bool,
 }
+
+
+def compared_objects_identical(obj1, obj2):
+    if type(obj1) != type(obj2):
+        return False
+    if isinstance(obj1, float):
+        try:
+            rel_diff = 2 * (obj1 - obj2) / (abs(obj1) + abs(obj2))
+        except ZeroDivisionError:
+            rel_diff = 0.0
+        return rel_diff < negligible_float_relative_difference
+    if isinstance(obj1, tuple):
+        if len(obj1) != len(obj2):
+            return False
+        for el1, el2 in zip(obj1, obj2):
+            if not compared_objects_identical(el1, el2):
+                return False
+        return True
+    return obj1 == obj2
 
 
 def now():
     return datetime.datetime.now()
+
+
+# NOTE: The SimulationLogIO class was designed with saving tests output in plain text (rather than binary) form
+# because I like to keep things human-readable and independent from, for example, changes in definitions of ChemGraph or TrajectoryPoint classes.
+# I'm not %100 sure it's the best course of action.
 
 
 class SimulationLogIO:
@@ -576,7 +657,12 @@ class SimulationLogIO:
     def print_timestamp(self, comment=None):
         self.print(now(), comment=comment)
 
-    def check_benchmark_agreement(self, new_list):
+    def difference_was_encountered(self):
+        self.difference_encountered = True
+        if self.exception_on_failure:
+            raise Exception
+
+    def check_benchmark_agreement(self, new_list, sorted_comparison=False):
         if self.benchmark_entry_list is None:
             return
         self.current_list_id += 1
@@ -584,26 +670,24 @@ class SimulationLogIO:
             print("DIFF: BENCHMARK_ENDED")
             self.difference_encountered = True
         cur_benchmark = self.benchmark_entry_list[self.current_list_id]
-        if len(new_list) != len(cur_benchmark):
-            print("DIFF: DIFERENT_LENGTHS")
-            self.difference_encountered = True
-        for new_el, bench_el in zip(new_list, cur_benchmark):
-            if isinstance(new_el, float):
-                same = (
-                    2 * (new_el - bench_el) / (abs(new_el) + abs(bench_el))
-                    < negligible_float_relative_difference
-                )
-            else:
-                same = new_el == bench_el
-            if not same:
+
+        checked_new_list = [obj2comparison_obj(el) for el in new_list]
+
+        if sorted_comparison:
+            checked_new_list[2:] = sorted(checked_new_list[2:])
+            cur_benchmark[2:] = sorted(cur_benchmark[2:])
+
+        if len(checked_new_list) != len(cur_benchmark):
+            print("DIFF: DIFFERENT_LENGTHS")
+            self.difference_was_encountered()
+        for new_el, bench_el in zip(checked_new_list, cur_benchmark):
+            if not compared_objects_identical(new_el, bench_el):
                 print("DIFF:", new_el, bench_el)
-                self.difference_encountered = True
-                if self.exception_on_failure:
-                    raise Exception
+                self.difference_was_encountered()
             if isinstance(new_el, str) and (new_el == timestamp_label):
                 break
 
-    def print_list_unchecked(self, printed_data, comment=None):
+    def print_list(self, printed_data, comment=None, sorted_comparison=False):
         if comment is None:
             new_list = ["###"]
         else:
@@ -615,49 +699,20 @@ class SimulationLogIO:
         new_list += list(printed_data)
 
         self.entry_list.append(new_list)
-        self.check_benchmark_agreement(new_list)
+        self.check_benchmark_agreement(new_list, sorted_comparison=sorted_comparison)
 
         printed_ios = [None]
         if self.filename is not None:
             self.io = open(self.filename, "a")
             printed_ios.append(self.io)
+        printed_list = [print_test(el) for el in new_list]
         for printed_io in printed_ios:
-            if isinstance(printed_data[0], float):
-                printed_list = new_list[:2] + [
-                    test_float_str_format.format(entry) for entry in printed_data
-                ]
-            else:
-                printed_list = new_list
             print(*printed_list, file=printed_io)
         if self.filename is not None:
             self.io.close()
 
-    def print_list(self, data, comment=None):
-        printed_data = None
-        if isinstance(data[0], CandidateCompound):
-            mvals_comment = "MINFUNC_VAL"
-            if comment is not None:
-                mvals_comment = comment + ":" + mvals_comment
-            printed_data = [cand.tp for cand in data]
-            mvals = [cand.func_val for cand in data]
-            self.print_list_unchecked(mvals, comment=mvals_comment)
-        if isinstance(data[0], TrajectoryPoint):
-            nenc_comment = "FIRST_GLOBAL_MC_STEP_ENCOUNTER"
-            if comment is not None:
-                nenc_comment = comment + ":" + nenc_comment
-            printed_data = [tp.chemgraph() for tp in data]
-            # TODO do I need a more sophisticated check?
-            if data[0].first_global_MC_step_encounter is not None:
-                nencs = [tp.first_global_MC_step_encounter for tp in data]
-                self.print_list_unchecked(nencs, comment=nenc_comment)
-
-        if printed_data is None:
-            self.print_list_unchecked(data, comment=comment)
-        else:
-            self.print_list(printed_data, comment=comment)
-
-    def print(self, *data, comment=None):
-        self.print_list(data, comment=comment)
+    def print(self, *data, comment=None, sorted_comparison=False):
+        self.print_list(data, comment=comment, sorted_comparison=sorted_comparison)
 
     def import_from(self, filename):
         combined_lists = []

@@ -20,7 +20,7 @@ from .valence_treatment import (
     default_valence,
 )
 from .trajectory_analysis import *
-import random, os
+import random, os, operator
 from copy import deepcopy
 import numpy as np
 from scipy.special import expit
@@ -33,52 +33,21 @@ class CandidateCompound:
     def __init__(self, tp: TrajectoryPoint, func_val: float):
         """
         Auxiliary class for more convenient maintenance of candidate compound list.
-        NOTE: The comparison operators are not strictly transitive (?), but work well enough for maintaining a candidate list.
+        NOTE: The comparison operators are not strictly transitive, but work well enough for maintaining a candidate list.
         tp : Trajectory point object.
         func_val : value of the minimized function.
         """
         self.tp = tp
         self.func_val = func_val
 
-        # Random comparison factors were mainly introduced for integer minimized functions to make
-        # ordering in RandomWalk.saved_candidates consistent between different canonical ordering
-        # expressions for the benchmarks.
-        self.random_comparison_factor = None
-
     def __eq__(self, cc2):
-        if self.tp == cc2.tp:
-            return True
-        return (self.func_val is None) and (cc2.func_val is None)
-
-    def get_random_comparison_factor(self):
-        if self.random_comparison_factor is None:
-            self.random_comparison_factor = random.random()
-        return self.random_comparison_factor
-
-    def noneq_gt_wNone(self, cc2):
-        if self.func_val is None:
-            return True
-        if cc2.func_val is None:
-            return False
-        if self.func_val == cc2.func_val:
-            if self.tp == cc2.tp:
-                return False
-            rc1 = self.get_random_comparison_factor()
-            rc2 = cc2.get_random_comparison_factor()
-            return rc1 > rc2
-        return self.func_val > cc2.func_val
+        return compare_candidates(self, cc2, operator.eq)
 
     def __gt__(self, cc2):
-        if self == cc2:
-            return False
-        else:
-            return self.noneq_gt_wNone(cc2)
+        return compare_candidates(self, cc2, operator.gt)
 
     def __lt__(self, cc2):
-        if self == cc2:
-            return False
-        else:
-            return not self.noneq_gt_wNone(cc2)
+        return compare_candidates(self, cc2, operator.lt)
 
     def __str__(self):
         return (
@@ -91,6 +60,17 @@ class CandidateCompound:
 
     def __repr__(self):
         return str(self)
+
+
+def compare_candidates(
+    cand1: CandidateCompound, cand2: CandidateCompound, comparison_operator
+) -> bool:
+    """
+    Perform comparison on two CandidateCompound objects.
+    """
+    if (cand1.tp == cand2.tp) or (cand1.func_val == cand2.func_val):
+        return comparison_operator(cand1.tp, cand2.tp)
+    return comparison_operator(cand1.func_val, cand2.func_val)
 
 
 def str2CandidateCompound(str_in):
@@ -1058,11 +1038,17 @@ class RandomWalk:
             if min_func_val > self.saved_candidates[-1].func_val:
                 return
         if self.saved_candidates_max_difference is not None:
-            if (
-                min_func_val - self.saved_candidates[0].func_val
-                > self.saved_candidates_max_difference
-            ):
-                return
+            if len(self.saved_candidates) != 0:
+                if (
+                    min_func_val - self.saved_candidates[0].func_val
+                    > self.saved_candidates_max_difference
+                ):
+                    return
+                new_lower_minfunc_bound = (
+                    min_func_val < self.saved_candidates[0].func_val
+                )
+            else:
+                new_lower_minfunc_bound = None
 
         new_cand_compound = CandidateCompound(tp=deepcopy(tp_in), func_val=min_func_val)
 
@@ -1075,6 +1061,20 @@ class RandomWalk:
             len(self.saved_candidates) > self.num_saved_candidates
         ):
             del self.saved_candidates[self.num_saved_candidates :]
+
+        if self.saved_candidates_max_difference is not None:
+            if new_lower_minfunc_bound is not None:
+                # Delete tail candidates with too large minimized function values.
+                new_upper_bound = (
+                    new_lower_minfunc_bound + self.saved_candidates_max_difference
+                )
+                deleted_indices_bound = None
+                for i, cand in enumerate(self.saved_candidates):
+                    if cand.func_val > new_upper_bound:
+                        deleted_indices_bound = i
+                        break
+                if deleted_indices_bound is not None:
+                    del self.saved_candidates[deleted_indices_bound:]
 
     # Some properties for more convenient trajectory analysis.
     def ordered_trajectory(self):

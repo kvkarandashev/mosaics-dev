@@ -82,7 +82,7 @@ init_egcs = [
 ]
 
 min_func = OrderSlide(possible_elements=possible_elements)
-num_saved_candidates = 40
+# num_saved_candidates = 40
 drw = DistributedRandomWalk(
     betas=betas,
     init_egcs=init_egcs,
@@ -91,7 +91,7 @@ drw = DistributedRandomWalk(
     num_subpopulations=num_subpopulations,
     num_internal_global_steps=num_internal_global_steps,
     global_step_params=global_step_params,
-    num_saved_candidates=num_saved_candidates,
+    saved_candidates_max_difference=0.5,
     greedy_delete_checked_paths=True,
     debug=True,
     randomized_change_params=randomized_change_params,
@@ -111,8 +111,12 @@ for propagation_step in range(num_propagations):
     sim_log.print_list(
         drw.current_trajectory_points, comment="STEP" + str(propagation_step)
     )
-    sim_log.print(drw.saved_candidates[0], comment="BEST_AT_" + str(propagation_step))
+    sim_log.print_list(
+        drw.saved_candidates,
+        comment="BEST_AT_" + str(propagation_step),
+        sorted_comparison=True,
+    )
 
-sim_log.print_list(drw.saved_candidates, comment="FINAL_BEST")
+sim_log.print_list(drw.saved_candidates, comment="FINAL_BEST", sorted_comparison=True)
 
 sim_log.print_timestamp(comment="SIM_FINISH")
