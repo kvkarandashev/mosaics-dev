@@ -184,7 +184,7 @@ class DistributedRandomWalk:
         global_step_params={},
         save_logs=False,
         saved_candidates_max_difference=None,
-        num_saved_candidates=1,
+        num_saved_candidates=None,
         previous_saved_candidates=None,
         synchronization_signal_file=None,
         synchronization_check_frequency=None,
@@ -500,17 +500,15 @@ class DistributedRandomWalk:
             if new_minfunc_val > self.saved_candidates[-1].func_val:
                 return
         if self.saved_candidates_max_difference is not None:
+            new_lower_minfunc_bound = None
             if len(self.saved_candidates) != 0:
                 if (
                     new_minfunc_val - self.saved_candidates[0].func_val
                     > self.saved_candidates_max_difference
                 ):
                     return
-                new_lower_minfunc_bound = (
-                    new_minfunc_val < self.saved_candidates[0].func_val
-                )
-            else:
-                new_lower_minfunc_bound = None
+                if new_minfunc_val < self.saved_candidates[0].func_val:
+                    new_lower_minfunc_bound = new_minfunc_val
         self.saved_candidates.add(deepcopy(new_candidate))
         if (self.num_saved_candidates is not None) and (
             starting_num_candidates >= self.num_saved_candidates

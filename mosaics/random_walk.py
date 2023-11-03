@@ -1038,17 +1038,15 @@ class RandomWalk:
             if min_func_val > self.saved_candidates[-1].func_val:
                 return
         if self.saved_candidates_max_difference is not None:
+            new_lower_minfunc_bound = None
             if len(self.saved_candidates) != 0:
                 if (
                     min_func_val - self.saved_candidates[0].func_val
                     > self.saved_candidates_max_difference
                 ):
                     return
-                new_lower_minfunc_bound = (
-                    min_func_val < self.saved_candidates[0].func_val
-                )
-            else:
-                new_lower_minfunc_bound = None
+                if min_func_val < self.saved_candidates[0].func_val:
+                    new_lower_minfunc_bound = min_func_val
 
         new_cand_compound = CandidateCompound(tp=deepcopy(tp_in), func_val=min_func_val)
 

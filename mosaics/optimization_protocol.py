@@ -44,7 +44,7 @@ class OptimizationProtocol:
         init_egcs=None,
         init_egc=None,
         saved_candidates_max_difference=None,
-        num_saved_candidates=1,
+        num_saved_candidates=None,
         terminated_worker_max_restart_number=0,
         terminated_worker_num_extra_rng_calls=1,
         debug=False,
