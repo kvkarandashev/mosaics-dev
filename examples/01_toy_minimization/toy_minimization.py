@@ -93,7 +93,9 @@ sim_log.print(
     comment="number_of_calls_vs_histogram_size",
 )
 
-sim_log.print_list(rw.saved_candidates, comment="SAVED_CANDIDATES")
+sim_log.print_list(
+    rw.saved_candidates, comment="SAVED_CANDIDATES", sorted_comparison=True
+)
 
 sim_log.print_timestamp(comment="SIM_FINISH")
 

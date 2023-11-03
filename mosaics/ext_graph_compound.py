@@ -47,9 +47,16 @@ class ExtGraphCompound:
         self.init_imported_chemgraph_mapping()
         # Create nuclear_charges and adjacency_matrix consistent with chemgraph.
         self.nuclear_charges = self.chemgraph.full_ncharges()
-        self.adjacency_matrix = self.chemgraph.full_adjmat()
+        self.adjacency_matrix = (
+            None  # Done to not initialize anything non-linear scaling without need.
+        )
         # In case we want to attach more data to the same entry.
         self.additional_data = additional_data
+
+    def get_adjacency_matrix(self):
+        if self.adjacency_matrix is None:
+            self.adjacency_matrix = self.chemgraph.full_adjmat()
+        return self.adjacency_matrix
 
     def original_hydrogen_hatom(self, hydrogen_id):
         adj_mat_row = self.original_adjacency_matrix[hydrogen_id]

@@ -1,10 +1,11 @@
-# TODO: Perhaps in the future everything related to graph manipulation should
-# be included into ExtGraphCompound instead.
-# TODO Perhaps defining "canonically_permuted" inside a ChemGraph can simplify some expressions.
-# TODO I have rewritten the way resonance structures are treated, as a result some subroutines used for representation generation
-# may not work.
+# TODO Currently, assigning equivalence classes to all nodes scales as O(nhatoms**2).
+# TODO I think that smarter coding can bring that down to O(log(nhatoms)), but for now we have more important methodological problems.
 
-import itertools, copy, random
+# TODO Should be possible to optimize further by comparing HeavyAtom neighborhood representations instead of colors
+# (should prevent).
+# However, it is also probably excessive unless
+
+import itertools, copy, random, operator
 import numpy as np
 from igraph import Graph
 from igraph.operators import disjoint_union
@@ -49,19 +50,42 @@ isomorphism_algorithm = vf2
 available_isomorphism_algorithms = [bliss, vf2]
 
 
-def change_isomorphism_algorithm(new_isomorphism_algorithm: str):
+def set_isomorphism_algorithm(new_isomorphism_algorithm: str):
+    """
+    Set algorithm for finding isomorphisms (VF2 or BLISS).
+    """
     global isomorphism_algorithm
     assert new_isomorphism_algorithm in available_isomorphism_algorithms
     isomorphism_algorithm = new_isomorphism_algorithm
 
 
-# Valence-related functions.
+# How large is the neighborhood of a HeavyAtom used to define its color.
+color_defining_neighborhood_radius = 0
+
+
+def set_color_defining_neighborhood_radius(new_color_defining_neighborhood_radius):
+    """
+    Set how large is the radius of the neighborhood of a HeavyAtom used to generate its integer list representation.
+    The latter is used to determine whether two HeavyAtom objects inside ChemGraph should be assigned the same color.
+    Larger neighborhoods are more expensive to process, but also decrease how often isomorphism algorithms used here
+    will have to deal with similarly-colored nodes. Optimal color_defining_neighborhood_radius value is probably
+    application-dependent.
+    """
+    global color_defining_neighborhood_radius
+    color_defining_neighborhood_radius = new_color_defining_neighborhood_radius
+
+
 def avail_val_list(atom_id):
+    """
+    Valence-related functions.
+    """
     return valences_int[int_atom_checked(atom_id)]
 
 
-# Default valence for a given element.
 def default_valence(atom_id):
+    """
+    Default valence for a given element.
+    """
     val_list = avail_val_list(atom_id)
     if isinstance(val_list, tuple):
         return val_list[0]
@@ -69,9 +93,11 @@ def default_valence(atom_id):
         return val_list
 
 
-# Color obj_list in a way that each equal obj1 and obj2 were the same color.
-# Used for defining canonical permutation of a graph.
 def list2colors(obj_list):
+    """
+    Color obj_list in a way that each equal obj1 and obj2 were the same color.
+    Used for defining canonical permutation of a graph.
+    """
     ids_objs = list(enumerate(obj_list))
     ids_objs.sort(key=lambda x: x[1])
     num_obj = len(ids_objs)
@@ -85,6 +111,38 @@ def list2colors(obj_list):
             prev_obj = cur_obj
         colors[ids_objs[i][0]] = cur_color
     return colors
+
+
+def canonical_permutation_with_inverse(graph, colors):
+    """
+    Return canonical permutation in terms of both forward and inverse arrays.
+    """
+    canonical_permutation = np.array(graph.canonical_permutation(color=colors))
+    inv_canonical_permutation = np.zeros(len(colors), dtype=int)
+    for pos_counter, pos in enumerate(canonical_permutation):
+        inv_canonical_permutation[pos] = pos_counter
+    return canonical_permutation, inv_canonical_permutation
+
+
+def ha_graph_comparison_list(
+    graph, ha_trivial_comparison_lists, canonical_permutation, inv_canonical_permutation
+):
+    """
+    Create an integer list uniquely representing a graph with HeavyAtom objects as nodes with a known canonical permutation.
+    Used to define instances of ChemGraph along with node neighborhoods.
+    """
+    # TODO get rid of inv_canonical_permutaiton here?
+    comparison_list = []
+    for perm_hatom_id, hatom_id in enumerate(inv_canonical_permutation):
+        comparison_list += list(ha_trivial_comparison_lists[hatom_id])
+        perm_neighs = []
+        for neigh_id in graph.neighbors(hatom_id):
+            perm_id = canonical_permutation[neigh_id]
+            if perm_id > perm_hatom_id:
+                perm_neighs.append(perm_id)
+        comparison_list.append(len(perm_neighs))
+        comparison_list += sorted(perm_neighs)
+    return comparison_list
 
 
 class HeavyAtom:
@@ -107,10 +165,6 @@ class HeavyAtom:
         self.valence = valence
         self.nhydrogens = nhydrogens
         self.possible_valences = possible_valences
-        self.changed()
-
-    def changed(self):
-        self.comparison_list = None
 
     # Valence-related.
     def avail_val_list(self):
@@ -192,26 +246,7 @@ class HeavyAtom:
 
     # Procedures for ordering.
     def get_comparison_list(self):
-        if self.comparison_list is None:
-            #           This early draft was written to keep more similar hatoms closer to each other for representation purposes, but I am no longer sure it is useful.
-            #           Commented out after an update that made .valence_val_id() dependent on resonance structure.
-            #            if self.ncharge == 0:
-            #                s = -1
-            #                p = -1
-            #                per = -1
-            #            else:
-            #                s = s_int[self.ncharge]
-            #                p = p_int[self.ncharge]
-            #                per = period_int[self.ncharge]
-            #            self.comparison_list = [
-            #                self.valence - self.nhydrogens,
-            #                s,
-            #                p,
-            #                per,
-            #                self.valence_val_id(),
-            #            ]
-            self.comparison_list = [self.ncharge, self.nhydrogens]
-        return self.comparison_list
+        return [self.ncharge, self.nhydrogens]
 
     def __lt__(self, ha2):
         return self.get_comparison_list() < ha2.get_comparison_list()
@@ -294,33 +329,11 @@ def adj_mat2bond_orders(adj_mat):
     return bos
 
 
-# Old draft. I'm no longer sure things should be done this way.
-# class ValenceConfigurationCharacter:
-#    def __init__(self, valence_values):
-#        """
-#        An auxiliary class introduced for comparisons of valence configurations and sorting them according to relevance.
-#        """
-#        self.sorted_valence_values = sorted(valence_values, reverse=True)
-#
-#    def __eq__(self, other_vcc):
-#        return self.sorted_valence_values == other_vcc.sorted_valence_values
-#
-#    def __gt__(self, other_vcc):
-#        if len(self.sorted_valence_values) != len(other_vcc.sorted_valence_values):
-#            return len(self.sorted_valence_values) > len(
-#                other_vcc.sorted_valence_values
-#            )
-#        for s1, s2 in zip(self.sorted_valence_values, other_vcc.sorted_valence_values):
-#            if s1 != s2:
-#                return s1 > s2
-# Must be equal then.
-#        return False
-#
-#    def __lt__(self, other_vcc):
-#        return not self > other_vcc
-
-
 def ValenceConfigurationCharacter(valence_values):
+    """
+    Measure of how realistic valence values for a resonance structure are.
+    The final draft set it to be the sum of valences, separate class is kept for now in case a better measure is agreed upon.
+    """
     return sum(valence_values)
 
 
@@ -427,32 +440,132 @@ class ChemGraph:
                     self.hatoms[e[0]].valence += self.bond_orders[e]
                     self.hatoms[e[1]].valence += self.bond_orders[e]
 
-    # If was modified (say, atoms added/removed), some data becomes outdated.
     def changed(self):
+        """
+        Initialize (or re-initialize) temporary data.
+        """
+        # Canonical ordering of HeavyAtom members.
         self.canonical_permutation = None
         self.inv_canonical_permutation = None
+        # List storing neighborhood-based representations of atoms.
+        self.ha_comparison_lists = [None for _ in range(self.nhatoms())]
+        # Colors calculated from self.ha_comparison_lists.
         self.colors = None
+        # HeavyAtom object representations.
+        self.ha_trivial_comparison_lists = [
+            ha.get_comparison_list() for ha in self.hatoms
+        ]
+        # Colors calculated from ha_trivial_comparison_lists.
+        self.trivial_colors = list2colors(self.ha_trivial_comparison_lists)
+
+        # Related to storing equivalence classes of HeavyAtom members and their pairs.
         # TODO some of these lines might be excessive.
         self.equivalence_vector = None
         self.pair_equivalence_matrix = None
-
+        # Information on resonance structures.
         self.resonance_structure_orders = None
         self.resonance_structure_map = None
         self.resonance_structure_inverse_map = None
         self.resonance_structure_valence_vals = None
-
         for ha in self.hatoms:
             ha.possible_valences = None
-            # KK: I used to check that HeavyAtom.changed is called only for changed heavy atoms,
-            # but the benefits are just not worth the trouble of consistently checking that throughout the code.
-            ha.changed()
 
+        # Comparison list based on stochimetry of different HeavyAtom neighborhoods.
+        self.stochiometry_comparison_list = None
+        # Comparison list based on proper canonical ordering.
         self.comparison_list = None
+        # Number of automorphisms.
+        # TODO Is it used anymore?
         self.log_permutation_factor = None
-
-        # For checking vertex equivalence.
+        # Temporary color arrays used to check vertex equivalence.
         self.temp_colors1 = None
         self.temp_colors2 = None
+
+    def init_ha_comparison_list(self, central_ha_id):
+        """
+        Check that a neighborhood-based representation has been assigned to HeavyAtom with index ha_id.
+        """
+        if self.ha_comparison_lists[central_ha_id] is not None:
+            return
+        if color_defining_neighborhood_radius == 0:
+            self.ha_comparison_lists[central_ha_id] = self.ha_trivial_comparison_lists[
+                central_ha_id
+            ]
+            return
+        # Isolate neighborhood of interest.
+        neighborhood_ids = sorted(
+            self.graph.neighborhood(central_ha_id, color_defining_neighborhood_radius)
+        )
+        neighborhood_subgraph = self.graph.subgraph(neighborhood_ids)
+        # Initiate colors of the neighborhood.
+        neighborhood_size = len(neighborhood_ids)
+        neigh_trivial_comparison_lists = np.zeros((neighborhood_size, 2), dtype=int)
+        neigh_trivial_colors = np.zeros(neighborhood_size, dtype=int)
+        central_ha_id_subgraph = 0
+        for subgraph_hatom_id, hatom_id in enumerate(neighborhood_ids):
+            neigh_trivial_comparison_lists[
+                subgraph_hatom_id, :
+            ] = self.ha_trivial_comparison_lists[hatom_id][:]
+            if hatom_id == central_ha_id:
+                central_ha_id_subgraph = subgraph_hatom_id
+            neigh_trivial_colors[subgraph_hatom_id] = self.trivial_colors[hatom_id]
+        # Get canonical permutation.
+        (
+            neigh_canonical_permutation,
+            neigh_inv_canonical_permutation,
+        ) = canonical_permutation_with_inverse(
+            neighborhood_subgraph, neigh_trivial_colors
+        )
+        # Use canonical permutation to create comparison list the same way it is done for the global ChemGraph.
+        self.ha_comparison_lists[central_ha_id] = ha_graph_comparison_list(
+            neighborhood_subgraph,
+            neigh_trivial_comparison_lists,
+            neigh_canonical_permutation,
+            neigh_inv_canonical_permutation,
+        )
+        self.ha_comparison_lists[central_ha_id].append(
+            neigh_canonical_permutation[central_ha_id_subgraph]
+        )
+
+    def init_all_ha_comparison_lists(self):
+        """
+        Check all neighborhood-based representations are initialized.
+        """
+        for ha_id in range(self.nhatoms()):
+            self.init_ha_comparison_list(ha_id)
+
+    def init_colors(self):
+        """
+        Initialize 'proper' colors based on neighborhoods of HeavyAtom instances.
+        """
+        if self.colors is not None:
+            return
+        self.init_all_ha_comparison_lists()
+
+        self.colors = list2colors(self.ha_comparison_lists)
+        self.temp_colors1 = np.copy(self.colors)
+        self.temp_colors2 = np.copy(self.colors)
+
+    def init_stochiometry_comparison_list(self):
+        if self.stochiometry_comparison_list is not None:
+            return
+        self.stochiometry_comparison_list = []
+        self.init_all_ha_comparison_lists()
+        comp_list_nums = {}
+        for comp_list in self.ha_comparison_lists:
+            comp_tuple = tuple(comp_list)
+            if comp_tuple not in comp_list_nums:
+                comp_list_nums[comp_tuple] = 0
+            comp_list_nums[comp_tuple] += 1
+        ordered_comp_list_nums = sorted(list(comp_list_nums.items()))
+        for (comp_tuple, num) in ordered_comp_list_nums:
+            self.stochiometry_comparison_list.append(num)
+            self.stochiometry_comparison_list.append(len(comp_tuple))
+            self.stochiometry_comparison_list += list(comp_tuple)
+
+    def get_stochiometry_comparison_list(self):
+        self.init_stochiometry_comparison_list()
+        return self.stochiometry_comparison_list
 
     # Checking graph's state.
     def valences_reasonable(self):
@@ -494,13 +607,15 @@ class ChemGraph:
 
     def init_equivalence_vector(self):
         if self.equivalence_vector is None:
-            self.equivalence_vector = -np.ones((self.nhatoms(),), dtype=int)
+            self.equivalence_vector = np.repeat(
+                unassigned_equivalence_class_id, self.nhatoms()
+            )
 
     def init_pair_equivalence_matrix(self):
         if self.pair_equivalence_matrix is None:
-            self.pair_equivalence_matrix = -np.ones(
-                (self.nhatoms(), self.nhatoms()), dtype=int
-            )
+            self.pair_equivalence_matrix = np.repeat(
+                unassigned_equivalence_class_id, self.nhatoms() ** 2
+            ).reshape((self.nhatoms(), self.nhatoms()))
 
     def init_equivalence_array(self, atom_set_length):
         if atom_set_length == 1:
@@ -956,7 +1071,6 @@ class ChemGraph:
 
     def change_hydrogen_number(self, atom_id, hydrogen_number_change):
         self.hatoms[atom_id].nhydrogens += hydrogen_number_change
-        #        self.hatoms[atom_id].changed()
         if self.hatoms[atom_id].nhydrogens < 0:
             raise InvalidChange
 
@@ -1573,25 +1687,14 @@ class ChemGraph:
         else:
             return np.array(self.graph.shortest_paths(weights=weights))
 
-    # Procedures used for sorting.
-    def init_colors(self):
-        if self.colors is None:
-            self.colors = list2colors(self.hatoms)
-            self.temp_colors1 = np.copy(self.colors)
-            self.temp_colors2 = np.copy(self.colors)
-
     def init_canonical_permutation(self):
-        if self.canonical_permutation is None:
-            self.init_colors()
-            # TODO The inverse ordering is for better performance of Coulomb Matrix-based representations. Might no longer be needed.
-            self.canonical_permutation = (
-                self.nhatoms()
-                - 1
-                - np.array(self.graph.canonical_permutation(color=self.colors))
-            )
-            self.inv_canonical_permutation = np.zeros(self.nhatoms(), dtype=int)
-            for pos_counter, pos in enumerate(self.canonical_permutation):
-                self.inv_canonical_permutation[pos] = pos_counter
+        if self.canonical_permutation is not None:
+            return
+        self.init_colors()
+        (
+            self.canonical_permutation,
+            self.inv_canonical_permutation,
+        ) = canonical_permutation_with_inverse(self.graph, self.colors)
 
     def get_inv_canonical_permutation(self):
         self.init_canonical_permutation()
@@ -1600,16 +1703,12 @@ class ChemGraph:
     def get_comparison_list(self):
         if self.comparison_list is None:
             self.init_canonical_permutation()
-            self.comparison_list = []
-            for perm_hatom_id, hatom_id in enumerate(self.inv_canonical_permutation):
-                self.comparison_list += self.hatoms[hatom_id].get_comparison_list()
-                perm_neighs = []
-                for neigh_id in self.neighbors(hatom_id):
-                    perm_id = self.canonical_permutation[neigh_id]
-                    if perm_id > perm_hatom_id:
-                        perm_neighs.append(perm_id)
-                self.comparison_list += sorted(perm_neighs)
-                self.comparison_list.append(len(perm_neighs))
+            self.comparison_list = ha_graph_comparison_list(
+                self.graph,
+                self.ha_trivial_comparison_lists,
+                self.canonical_permutation,
+                self.inv_canonical_permutation,
+            )
         return self.comparison_list
 
     def copy_extra_data_to(self, other_cg, linear_storage=False):
@@ -1682,17 +1781,17 @@ class ChemGraph:
         )
 
     def __hash__(self):
-        # TODO replaced comparison_list with comparison_tuple?
+        # TODO replace comparison_list with comparison_tuple?
         return hash(tuple(self.get_comparison_list()))
 
-    def __lt__(self, ch2):
-        return self.get_comparison_list() < ch2.get_comparison_list()
+    def __lt__(self, cg2):
+        return cg_two_level_comparison(self, cg2, operator.lt)
 
-    def __gt__(self, ch2):
-        return self.get_comparison_list() > ch2.get_comparison_list()
+    def __gt__(self, cg2):
+        return cg_two_level_comparison(self, cg2, operator.gt)
 
-    def __eq__(self, ch2):
-        return self.get_comparison_list() == ch2.get_comparison_list()
+    def __eq__(self, cg2):
+        return cg_two_level_comparison(self, cg2, operator.eq)
 
     def __str__(self):
         """
@@ -1726,6 +1825,36 @@ class ChemGraph:
 
     def __repr__(self):
         return str(self)
+
+
+# TODO toggle comparison being two-level?
+using_two_level_comparison = True
+
+
+def set_using_two_level_comparison(new_using_two_level_comparison: bool):
+    """
+    Use ChemGraph comparison with "trivial" and "complex" colors or not.
+    """
+    global using_two_level_comparison
+    using_two_level_comparison = new_using_two_level_comparison
+
+
+def cg_brute_comparison(cg1: ChemGraph, cg2: ChemGraph, comp_operator) -> bool:
+    return comp_operator(cg1.get_comparison_list(), cg2.get_comparison_list())
+
+
+def cg_two_level_comparison(cg1: ChemGraph, cg2: ChemGraph, comp_operator) -> bool:
+    """
+    Perform comparison operation on two chemical graphs.
+    """
+    if not using_two_level_comparison:
+        return cg_brute_comparison(cg1, cg2, comp_operator)
+    cg1_stoch = cg1.get_stochiometry_comparison_list()
+    cg2_stoch = cg2.get_stochiometry_comparison_list()
+    if cg1_stoch == cg2_stoch:
+        return cg_brute_comparison(cg1, cg2, comp_operator)
+    else:
+        return comp_operator(cg1_stoch, cg2_stoch)
 
 
 def canonically_permuted_ChemGraph(cg: ChemGraph) -> ChemGraph:

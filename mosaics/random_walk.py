@@ -73,6 +73,71 @@ def compare_candidates(
     return comparison_operator(cand1.func_val, cand2.func_val)
 
 
+def maintain_sorted_CandidateCompound_list(
+    obj,
+    trajectory_point: TrajectoryPoint = None,
+    min_func_val=None,
+    candidate: CandidateCompound = None,
+):
+    """
+    A subroutine shared between RandomWalk and DistributedRandomWalk objects for maintaining their saved CandidateCompound lists.
+    """
+    if (obj.num_saved_candidates is None) and (
+        obj.saved_candidates_max_difference is None
+    ):
+        return
+    if candidate is not None:
+        min_func_val = candidate.func_val
+
+    if min_func_val is None:
+        return
+
+    if candidate is None:
+        candidate = CandidateCompound(
+            tp=deepcopy(trajectory_point), func_val=min_func_val
+        )
+
+    if (obj.num_saved_candidates is not None) and (
+        len(obj.saved_candidates) >= obj.num_saved_candidates
+    ):
+        if min_func_val > obj.saved_candidates[-1].func_val:
+            return
+    if obj.saved_candidates_max_difference is not None:
+        new_lower_minfunc_bound = None
+        if len(obj.saved_candidates) != 0:
+            if (
+                min_func_val - obj.saved_candidates[0].func_val
+                > obj.saved_candidates_max_difference
+            ):
+                return
+            if min_func_val < obj.saved_candidates[0].func_val:
+                new_lower_minfunc_bound = min_func_val
+
+    if candidate in obj.saved_candidates:
+        return
+
+    obj.saved_candidates.add(candidate)
+
+    if (obj.num_saved_candidates is not None) and (
+        len(obj.saved_candidates) > obj.num_saved_candidates
+    ):
+        del obj.saved_candidates[obj.num_saved_candidates :]
+
+    if obj.saved_candidates_max_difference is not None:
+        if new_lower_minfunc_bound is not None:
+            # Delete tail candidates with too large minimized function values.
+            new_upper_bound = (
+                new_lower_minfunc_bound + obj.saved_candidates_max_difference
+            )
+            deleted_indices_bound = None
+            for i, cand in enumerate(obj.saved_candidates):
+                if cand.func_val > new_upper_bound:
+                    deleted_indices_bound = i
+                    break
+            if deleted_indices_bound is not None:
+                del obj.saved_candidates[deleted_indices_bound:]
+
+
 def str2CandidateCompound(str_in):
     stripped_string = str_in.strip()
     spl_stripped_string = stripped_string.split(",ChemGraph:")
@@ -1025,54 +1090,9 @@ class RandomWalk:
                 tp.visit_step_ids = None
 
     def update_saved_candidates(self, tp_in):
-        if (self.num_saved_candidates is None) and (
-            self.saved_candidates_max_difference is None
-        ):
-            return
-        min_func_val = tp_in.calculated_data[self.min_function_name]
-        if min_func_val is None:
-            return
-        if (self.num_saved_candidates is not None) and (
-            len(self.saved_candidates) >= self.num_saved_candidates
-        ):
-            if min_func_val > self.saved_candidates[-1].func_val:
-                return
-        if self.saved_candidates_max_difference is not None:
-            new_lower_minfunc_bound = None
-            if len(self.saved_candidates) != 0:
-                if (
-                    min_func_val - self.saved_candidates[0].func_val
-                    > self.saved_candidates_max_difference
-                ):
-                    return
-                if min_func_val < self.saved_candidates[0].func_val:
-                    new_lower_minfunc_bound = min_func_val
-
-        new_cand_compound = CandidateCompound(tp=deepcopy(tp_in), func_val=min_func_val)
-
-        if new_cand_compound in self.saved_candidates:
-            return
-
-        self.saved_candidates.add(new_cand_compound)
-
-        if (self.num_saved_candidates is not None) and (
-            len(self.saved_candidates) > self.num_saved_candidates
-        ):
-            del self.saved_candidates[self.num_saved_candidates :]
-
-        if self.saved_candidates_max_difference is not None:
-            if new_lower_minfunc_bound is not None:
-                # Delete tail candidates with too large minimized function values.
-                new_upper_bound = (
-                    new_lower_minfunc_bound + self.saved_candidates_max_difference
-                )
-                deleted_indices_bound = None
-                for i, cand in enumerate(self.saved_candidates):
-                    if cand.func_val > new_upper_bound:
-                        deleted_indices_bound = i
-                        break
-                if deleted_indices_bound is not None:
-                    del self.saved_candidates[deleted_indices_bound:]
+        maintain_sorted_CandidateCompound_list(
+            self, tp_in, tp_in.calculated_data[self.min_function_name]
+        )
 
     # Some properties for more convenient trajectory analysis.
     def ordered_trajectory(self):

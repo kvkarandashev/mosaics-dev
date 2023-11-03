@@ -894,10 +894,11 @@ def valence_bond_change_possibilities(
             continue
         resonance_struct_ids = cg.possible_res_struct_ids(mod_val_ha_id)
         if bond_order_change < 0:
-            #           TODO the two lines are apparently equivalent, the former is better but messes up tests due to change of order of equivalence class calls.
-            #            possible_second_atoms=hatoms_with_changeable_nhydrogens(egc, bond_order_change, origin_point=mod_val_ha_id, not_protonated=not_protonated)
             possible_second_atoms = hatoms_with_changeable_nhydrogens(
-                egc, bond_order_change, not_protonated=not_protonated
+                egc,
+                bond_order_change,
+                origin_point=mod_val_ha_id,
+                not_protonated=not_protonated,
             )
         for other_ha_id in possible_second_atoms:
             if other_ha_id == mod_val_ha_id:
