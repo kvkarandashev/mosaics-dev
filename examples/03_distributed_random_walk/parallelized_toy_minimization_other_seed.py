@@ -3,9 +3,12 @@ from mosaics.beta_choice import gen_exp_beta_array
 from mosaics import ExtGraphCompound
 from mosaics.minimized_functions import OrderSlide
 from mosaics.distributed_random_walk import DistributedRandomWalk
+from mosaics.valence_treatment import set_color_defining_neighborhood_radius
 from mosaics.test_utils import SimulationLogIO
 import sys, random
 import numpy as np
+
+set_color_defining_neighborhood_radius(1)
 
 seed = 2
 random.seed(seed)

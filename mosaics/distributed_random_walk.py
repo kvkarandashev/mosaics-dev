@@ -10,6 +10,11 @@ from .random_walk import (
     default_minfunc_name,
     CandidateCompound,
     maintain_sorted_CandidateCompound_list,
+    Metropolis_acceptance_probability,
+)
+from .valence_treatment import (
+    set_misc_global_variables,
+    misc_global_variables_current_kwargs,
 )
 from sortedcontainers import SortedList
 from loky import get_reusable_executor
@@ -90,7 +95,9 @@ class SubpopulationPropagationIntermediateResults:
                 minfunc_1 = rw.cur_tps[beta_id1].calculated_data[rw.min_function_name]
                 minfunc_2 = rw.cur_tps[beta_id2].calculated_data[rw.min_function_name]
                 # acceptance probability of swapping the two trajectory points
-                acc_prob = min(1, np.exp((beta1 - beta2) * (minfunc_1 - minfunc_2)))
+                acc_prob = Metropolis_acceptance_probability(
+                    (beta1 - beta2) * (minfunc_1 - minfunc_2)
+                )
                 self.sum_tempering_neighbors_acceptance_probability[
                     exploration_replica_id
                 ] += (acc_prob / self.num_beta_subpopulation_clones)
@@ -130,8 +137,10 @@ def gen_subpopulation_propagation_result(
     synchronization_signal_file=None,
     synchronization_check_frequency=None,
     extra_intermediate_results_kwargs={},
+    misc_global_variables_needed_kwargs={},
     num_extra_rng_calls=0,
 ):
+    set_misc_global_variables(**misc_global_variables_needed_kwargs)
     # Create the random walk for propagation.
     rw = RandomWalk(init_tps=init_tps, betas=betas, **misc_random_walk_kwargs)
     # Initialize the two random number generators.
@@ -582,6 +591,7 @@ class DistributedRandomWalk:
             self.synchronization_signal_file,
             self.synchronization_signal_file,
             self.extra_intermediate_results_kwargs,
+            misc_global_variables_current_kwargs(),
         ]:
             input_list.append(repeat(other_arg, self.num_incomplete_calculations()))
         input_list.append(

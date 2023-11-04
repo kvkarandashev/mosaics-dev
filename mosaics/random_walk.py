@@ -175,6 +175,17 @@ class InvalidStartingMolecules(Exception):
     pass
 
 
+# TODO: The expression appears in distributed_random_walk once, but not in RandomWalk class itself, the latter using alternative expression.
+# Using  Metropolis_acceptance_probability in RandomWalk instead might be better for readability, not sure.
+def Metropolis_acceptance_probability(log_prob_balance):
+    """
+    Metropolis acceptance probability for a given balance of logarithm of proposition probability + effective potential function.
+    """
+    if log_prob_balance > 0.0:
+        return 1.0
+    return np.exp(log_prob_balance)
+
+
 class RandomWalk:
     def __init__(
         self,

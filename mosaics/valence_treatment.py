@@ -43,6 +43,7 @@ unassigned_equivalence_class_id = -1
 # To avoid equality expressions for two reals.
 irrelevant_bond_order_difference = 1.0e-8
 
+
 # Choice of algorithm for isomorphism determination.
 bliss = "BLISS"
 vf2 = "VF2"
@@ -73,6 +74,27 @@ def set_color_defining_neighborhood_radius(new_color_defining_neighborhood_radiu
     """
     global color_defining_neighborhood_radius
     color_defining_neighborhood_radius = new_color_defining_neighborhood_radius
+
+
+def set_misc_global_variables(
+    isomorphism_algorithm=vf2,
+    color_defining_neighborhood_radius=0,
+    using_two_level_comparison=True,
+):
+    """
+    Set all global variables in the module.
+    """
+    set_isomorphism_algorithm(isomorphism_algorithm)
+    set_color_defining_neighborhood_radius(color_defining_neighborhood_radius)
+    set_using_two_level_comparison(using_two_level_comparison)
+
+
+def misc_global_variables_current_kwargs():
+    return {
+        "isomorphism_algorithm": isomorphism_algorithm,
+        "color_defining_neighborhood_radius": color_defining_neighborhood_radius,
+        "using_two_level_comparison": using_two_level_comparison,
+    }
 
 
 def avail_val_list(atom_id):
@@ -131,7 +153,6 @@ def ha_graph_comparison_list(
     Create an integer list uniquely representing a graph with HeavyAtom objects as nodes with a known canonical permutation.
     Used to define instances of ChemGraph along with node neighborhoods.
     """
-    # TODO get rid of inv_canonical_permutaiton here?
     comparison_list = []
     for perm_hatom_id, hatom_id in enumerate(inv_canonical_permutation):
         comparison_list += list(ha_trivial_comparison_lists[hatom_id])
@@ -498,17 +519,16 @@ class ChemGraph:
         )
         neighborhood_subgraph = self.graph.subgraph(neighborhood_ids)
         # Initiate colors of the neighborhood.
-        neighborhood_size = len(neighborhood_ids)
-        neigh_trivial_comparison_lists = np.zeros((neighborhood_size, 2), dtype=int)
-        neigh_trivial_colors = np.zeros(neighborhood_size, dtype=int)
+        neigh_trivial_comparison_lists = []
         central_ha_id_subgraph = 0
         for subgraph_hatom_id, hatom_id in enumerate(neighborhood_ids):
-            neigh_trivial_comparison_lists[
-                subgraph_hatom_id, :
-            ] = self.ha_trivial_comparison_lists[hatom_id][:]
+            neigh_trivial_comparison_lists.append(
+                self.ha_trivial_comparison_lists[hatom_id]
+            )
             if hatom_id == central_ha_id:
                 central_ha_id_subgraph = subgraph_hatom_id
-            neigh_trivial_colors[subgraph_hatom_id] = self.trivial_colors[hatom_id]
+        neigh_trivial_colors = list2colors(neigh_trivial_comparison_lists)
+        neigh_trivial_colors[central_ha_id_subgraph] = max(neigh_trivial_colors) + 1
         # Get canonical permutation.
         (
             neigh_canonical_permutation,
