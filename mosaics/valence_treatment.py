@@ -280,24 +280,18 @@ class HeavyAtom:
 
     # Procedures for printing.
     def __str__(self):
-        return (
-            "C:"
-            + str(self.ncharge)
-            + ",V:"
-            + str(self.valence)
-            + ",H:"
-            + str(self.nhydrogens)
-        )
+        output = str(self.ncharge)
+        if self.nhydrogens != 0:
+            output += "#" + str(self.nhydrogens)
+        return output
 
     def __repr__(self):
         return str(self)
 
 
 def str2HeavyAtom(ha_str: str):
-    fields = ha_str.split(",")
-    return HeavyAtom(
-        int(fields[0][2:]), valence=int(fields[1][2:]), nhydrogens=int(fields[2][2:])
-    )
+    fields = ha_str.split("#")
+    return HeavyAtom(int(fields[0]), nhydrogens=int(fields[1]))
 
 
 # TODO check that the function is not duplicated elsewhere
@@ -1831,10 +1825,7 @@ class ChemGraph:
                 canonical_neighbor_id = self.canonical_permutation[neigh_id]
                 if canonical_neighbor_id > hatom_canon_id:
                     canonical_neighbor_list.append(canonical_neighbor_id)
-            hatom_string = str(self.hatoms[hatom_id].ncharge)
-            nhydrogens = self.hatoms[hatom_id].nhydrogens
-            if nhydrogens != 0:
-                hatom_string += "#" + str(nhydrogens)
+            hatom_string = str(self.hatoms[hatom_id])
             if len(canonical_neighbor_list) != 0:
                 canonical_neighbor_list.sort()
                 hatom_string += "@" + "@".join(
