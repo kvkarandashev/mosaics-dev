@@ -782,6 +782,7 @@ class ChemGraph:
         return sorted(self.colors[atom_id] for atom_id in atom_set)
 
     def uninit_atom_sets_equivalent_wcolor_check(self, atom_set1, atom_set2):
+        self.init_colors()
         if self.sorted_atom_set_color_list(
             atom_set1
         ) != self.sorted_atom_set_color_list(atom_set2):
