@@ -584,6 +584,11 @@ def matching_status_reconnectors_wfrags(cg_pair, origin_points, chosen_sizes):
     return valid_reconnectors, valid_status_ids, frag1, frag2
 
 
+# TODO: Check this function is used everywhere?
+def get_exchanged_tuples(t1, t2):
+    return (t1[0], t2[1]), (t2[0], t1[1])
+
+
 # TODO might be used to replace FragmentPair.crossover?
 class FragmentPairReconnectingBlob:
     def __init__(
@@ -614,6 +619,10 @@ class FragmentPairReconnectingBlob:
         self.membership_vector = np.append(
             np.copy(frag1.membership_vector), frag2_membership_vector_addition
         )
+        # The "resolved" membership vector version makes "red" and "blue" fragment nodes distinguishable.
+        self.resolved_membership_vector = np.copy(self.membership_vector)
+        self.resolved_membership_vector[frag1.chemgraph.nhatoms() :] += 2
+
         # Initialize ChemGraph associated with the blob.
         self.blob_chemgraph = deepcopy(frag1.chemgraph)
         self.blob_chemgraph.hatoms += deepcopy(frag2.chemgraph.hatoms)
@@ -636,6 +645,7 @@ class FragmentPairReconnectingBlob:
             self.forward_reconnection.append(
                 [exchanged_tuple_list1, exchanged_tuple_true_list2]
             )
+        self.backward_reconnection = []
 
         # Logarithm of probability ratio of the forward and backward reconnection being proposed.
         self.log_prob_balance = 0.0
@@ -657,6 +667,35 @@ class FragmentPairReconnectingBlob:
                 affected_status_id2, frag2.core_membership_vector_value
             )
         )
+
+        self.init_chemgraph_colors()
+
+    def init_chemgraph_colors(self):
+        """
+        Initialize colors of the underlying ChemGraph as if the "red" and "blue" fragments are properly disconnected and distinguished from each other.
+        Only differs from calling self.blob_chemgraph.init_colors if color_defining_neighborhood_radius != 0.
+        """
+        all_deleted_bonds = []
+        for [exchanged_tuple_list1, exchanged_tuple_list2] in self.forward_reconnection:
+            all_deleted_bonds += exchanged_tuple_list1
+            all_deleted_bonds += exchanged_tuple_list2
+
+        self.blob_chemgraph.graph.delete_edges(all_deleted_bonds)
+        self.blob_chemgraph.colors = None
+        self.blob_chemgraph.init_colors()
+        self.blob_chemgraph.graph.add_edges(all_deleted_bonds)
+
+        # Shift the colors to make fragment nodes distinguishable.
+        frag_sorted_colors = sorted_by_membership(
+            self.resolved_membership_vector, self.blob_chemgraph.colors
+        )
+        color_shift = np.zeros((4,), dtype=int)
+        for frag_id, frag_colors in enumerate(frag_sorted_colors[:3]):
+            max_color = max(frag_colors)
+            color_shift[frag_id + 1] = color_shift[frag_id] + max_color + 1
+        for node_id in range(self.blob_chemgraph.nhatoms()):
+            frag_id = self.resolved_membership_vector[node_id]
+            self.blob_chemgraph.colors[node_id] += color_shift[frag_id]
 
     def log_prob_bond_choice(self, chosen_bond, other_bond_choices):
         equivalence_counter = 1
@@ -681,25 +720,42 @@ class FragmentPairReconnectingBlob:
                 exchanged_tuple2, exchanged_tuple_list2[exchange_id + 1 :]
             )
             # Making the necessary bond changes.
-            self.blob_chemgraph.graph.delete_edges([exchanged_tuple1, exchanged_tuple2])
-            new_bond1 = (exchanged_tuple1[0], exchanged_tuple2[1])
-            new_bond2 = (exchanged_tuple2[0], exchanged_tuple1[1])
+            new_bond1, new_bond2 = get_exchanged_tuples(
+                exchanged_tuple1, exchanged_tuple2
+            )
             self.blob_chemgraph.graph.add_edges([new_bond1, new_bond2])
-            # Contribution from backward shift choice.
-            self.log_prob_balance -= self.log_prob_bond_choice(
-                new_bond1, backward_exchanged_tuples1
-            )
-            self.log_prob_balance -= self.log_prob_bond_choice(
-                new_bond2, backward_exchanged_tuples2
-            )
             # Updating the lists of created bonds.
             backward_exchanged_tuples1.append(new_bond1)
             backward_exchanged_tuples2.append(new_bond2)
+
+        self.backward_reconnection.append(
+            [backward_exchanged_tuples1, backward_exchanged_tuples2]
+        )
+
+    def disconnect_extra_tuples(self, backward_tuple_list1, backward_tuple_list2):
+        # Not %100 how useful it is, but making sure forward and backward connections are marked in same order.
+        final_exchanged_tuple_list1 = backward_tuple_list1[::-1]
+        final_exchanged_tuple_list2 = backward_tuple_list2[::-1]
+        for exchange_id, (exchanged_tuple1, exchanged_tuple2) in enumerate(
+            zip(final_exchanged_tuple_list1, final_exchanged_tuple_list2)
+        ):
+            broken_bond1, broken_bond2 = get_exchanged_tuples(
+                exchanged_tuple1, exchanged_tuple2
+            )
+            self.blob_chemgraph.graph.delete_edges([broken_bond1, broken_bond2])
+            self.log_prob_balance -= self.log_prob_bond_choice(
+                exchanged_tuple1, final_exchanged_tuple_list1[:exchange_id]
+            )
+            self.log_prob_balance -= self.log_prob_bond_choice(
+                exchanged_tuple2, final_exchanged_tuple_list2[:exchange_id]
+            )
 
     def reconnect_all_tuples(self):
         self.log_prob_balance = 0.0
         for [exchanged_tuple_list1, exchanged_tuple_list2] in self.forward_reconnection:
             self.reconnect_tuples(exchanged_tuple_list1, exchanged_tuple_list2)
+        for [backward_tuple_list1, backward_tuple_list2] in self.backward_reconnection:
+            self.disconnect_extra_tuples(backward_tuple_list1, backward_tuple_list2)
 
     def chemgraphs_origin_points(self):
 
