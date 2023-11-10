@@ -490,7 +490,6 @@ class ChemGraph:
         # Comparison list based on proper canonical ordering.
         self.comparison_list = None
         # Number of automorphisms.
-        # TODO Is it used anymore?
         self.log_permutation_factor = None
         # Temporary color arrays used to check vertex equivalence.
         self.temp_colors1 = None
@@ -548,6 +547,10 @@ class ChemGraph:
         for ha_id in range(self.nhatoms()):
             self.init_ha_comparison_list(ha_id)
 
+    def reinit_temp_colors(self):
+        self.temp_colors1 = np.copy(self.colors)
+        self.temp_colors2 = np.copy(self.colors)
+
     def init_colors(self):
         """
         Initialize 'proper' colors based on neighborhoods of HeavyAtom instances.
@@ -557,8 +560,7 @@ class ChemGraph:
         self.init_all_ha_comparison_lists()
 
         self.colors = list2colors(self.ha_comparison_lists)
-        self.temp_colors1 = np.copy(self.colors)
-        self.temp_colors2 = np.copy(self.colors)
+        self.reinit_temp_colors()
 
     def init_stochiometry_comparison_list(self):
         if self.stochiometry_comparison_list is not None:
@@ -808,12 +810,10 @@ class ChemGraph:
         return self.equivalence_class(atom_set1) == self.equivalence_class(atom_set2)
 
     def init_log_permutation_factor(self):
-        # TODO Is there a better name for this?
-        self.check_all_atom_equivalence_classes()
-        self.log_permutation_factor = log_natural_factorial(self.nhatoms())
-        for equiv_class_id in range(self.num_equiv_classes(1)):
-            multiplicity = sum(self.equivalence_vector == equiv_class_id)
-            self.log_permutation_factor -= log_natural_factorial(multiplicity)
+        self.init_colors()
+        self.log_permutation_factor = np.log(
+            self.graph.count_isomorphisms_vf2(color1=self.colors)
+        )
 
     def get_log_permutation_factor(self):
         """
