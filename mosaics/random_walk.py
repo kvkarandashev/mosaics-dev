@@ -764,9 +764,9 @@ class RandomWalk:
 
         return accepted
 
-    def trial_genetic_MC_step(self, replica_ids):
+    def trial_crossover_MC_step(self, replica_ids):
         """
-        Trial move part of the genetic step.
+        Trial move part of the crossover step.
         """
         old_cg_pair = [
             self.cur_tps[replica_id].egc.chemgraph for replica_id in replica_ids
@@ -797,13 +797,13 @@ class RandomWalk:
             prob_balance += np.log(new_pair_shuffle_prob / old_pair_shuffle_prob)
         return new_pair_tps, prob_balance
 
-    def genetic_MC_step(self, replica_ids):
+    def crossover_MC_step(self, replica_ids):
         """
         Attempt a cross-coupled MC step.
         """
         self.num_attempted_crossovers += 1
 
-        new_pair_tps, prob_balance = self.trial_genetic_MC_step(replica_ids)
+        new_pair_tps, prob_balance = self.trial_crossover_MC_step(replica_ids)
 
         if new_pair_tps is None:
             return False
@@ -827,19 +827,19 @@ class RandomWalk:
     def random_changed_replica_pair(self):
         return random.sample(range(self.num_replicas), 2)
 
-    def genetic_MC_step_all(
-        self, num_genetic_tries=1, randomized_change_params=None, **dummy_kwargs
+    def crossover_MC_step_all(
+        self, num_crossover_attempts=1, randomized_change_params=None, **dummy_kwargs
     ):
         self.init_randomized_change_params(
             randomized_change_params=randomized_change_params
         )
-        for _ in range(num_genetic_tries):
+        for _ in range(num_crossover_attempts):
             changed_replica_ids = self.random_changed_replica_pair()
             # The swap before is to avoid situations where the pair's
-            # initial ordering's probability is 0 in genetic move,
+            # initial ordering's probability is 0 in crossover move,
             # the second is for detailed balance concerns.
             self.parallel_tempering_swap(changed_replica_ids)
-            self.genetic_MC_step(changed_replica_ids)
+            self.crossover_MC_step(changed_replica_ids)
             self.parallel_tempering_swap(changed_replica_ids)
 
     def parallel_tempering_swap(self, replica_ids):
@@ -854,9 +854,9 @@ class RandomWalk:
 
         return accepted
 
-    def parallel_tempering(self, num_parallel_tempering_tries=1, **dummy_kwargs):
+    def parallel_tempering(self, num_parallel_tempering_attempts=1, **dummy_kwargs):
         if (self.min_function is not None) and (not self.all_betas_same):
-            for _ in range(num_parallel_tempering_tries):
+            for _ in range(num_parallel_tempering_attempts):
                 invalid_choice = True
                 while invalid_choice:
                     replica_ids = self.random_changed_replica_pair()
@@ -866,13 +866,13 @@ class RandomWalk:
     def global_change_dict(self):
         return {
             "simple": self.MC_step_all,
-            "genetic": self.genetic_MC_step_all,
+            "crossover": self.crossover_MC_step_all,
             "tempering": self.parallel_tempering,
         }
 
     def global_random_change(
         self,
-        prob_dict={"simple": 0.5, "genetic": 0.25, "tempering": 0.25},
+        prob_dict={"simple": 0.5, "crossover": 0.25, "tempering": 0.25},
         **other_kwargs
     ):
 

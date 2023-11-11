@@ -40,9 +40,9 @@ randomized_change_params = {
     "not_protonated": [16],  # S not protonated
 }
 global_change_params = {
-    "num_parallel_tempering_tries": 5,
-    "num_genetic_tries": 5,
-    "prob_dict": {"simple": 0.5, "genetic": 0.25, "tempering": 0.25},
+    "num_parallel_tempering_attempts": 5,
+    "num_crossover_attempts": 5,
+    "prob_dict": {"simple": 0.5, "crossover": 0.25, "tempering": 0.25},
 }
 
 # All replicas are initialized in methane.

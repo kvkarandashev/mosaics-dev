@@ -57,9 +57,9 @@ def egc_list_nhatoms_hist(egc_list):
 
 
 # For numerically verifying that detailed balance is satisfied for individual moves.
-def genetic_move_attempt(tp_init, **randomized_change_params):
+def crossover_move_attempt(tp_init, **randomized_change_params):
     rw = RandomWalk(init_egcs=[tp.egc for tp in tp_init], **randomized_change_params)
-    pair, prob_balance = rw.trial_genetic_MC_step([0, 1])
+    pair, prob_balance = rw.trial_crossover_MC_step([0, 1])
 
     if pair is None:
         tpair = None
@@ -91,7 +91,10 @@ def tps_not_valid(tps, **randomized_change_params):
         return False
 
 
-trial_attempt_funcs = {TrajectoryPoint: randomized_change, tuple: genetic_move_attempt}
+trial_attempt_funcs = {
+    TrajectoryPoint: randomized_change,
+    tuple: crossover_move_attempt,
+}
 
 
 def calc_bin_id(x, bin_size=None):

@@ -562,6 +562,11 @@ class ChemGraph:
         self.colors = list2colors(self.ha_comparison_lists)
         self.reinit_temp_colors()
 
+    def overwrite_colors(self, new_colors):
+        assert len(new_colors) == self.nhatoms()
+        self.colors = np.array(new_colors)
+        self.reinit_temp_colors()
+
     def init_stochiometry_comparison_list(self):
         if self.stochiometry_comparison_list is not None:
             return

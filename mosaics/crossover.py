@@ -693,12 +693,13 @@ class FragmentPairReconnectingBlob:
         for frag_id, frag_colors in enumerate(frag_sorted_colors[:3]):
             max_color = max(frag_colors)
             color_shift[frag_id + 1] = color_shift[frag_id] + max_color + 1
+        new_colors = np.copy(self.blob_chemgraph.colors)
         for node_id in range(self.blob_chemgraph.nhatoms()):
             frag_id = self.resolved_membership_vector[node_id]
-            self.blob_chemgraph.colors[node_id] += color_shift[frag_id]
+            new_colors[node_id] += color_shift[frag_id]
 
         # Updated temp_colors accordingly.
-        self.blob_chemgraph.reinit_temp_colors()
+        self.blob_chemgraph.overwrite_colors(new_colors)
 
     def log_prob_bond_choice(self, chosen_bond, other_bond_choices):
         equivalence_counter = 1
