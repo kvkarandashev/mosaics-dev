@@ -1,5 +1,5 @@
-from bmapqml.chemxpl.valence_treatment import str2ChemGraph
-from bmapqml.chemxpl.rdkit_draw_utils import draw_chemgraph_to_file
+from mosaics.valence_treatment import str2ChemGraph
+from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
 import sys, os
 
 chemgraph_str = sys.argv[1]
