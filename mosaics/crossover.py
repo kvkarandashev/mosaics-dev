@@ -16,7 +16,7 @@ import numpy as np
 import random, bisect, itertools
 from igraph.operators import disjoint_union
 from copy import deepcopy
-from .misc_procedures import log_natural_factorial, intlog
+from .misc_procedures import intlog
 from sortedcontainers import SortedList
 
 
@@ -99,6 +99,15 @@ class FragmentPairAffectedBondStatus:
         return str(self)
 
 
+def bond_list_to_atom_tuple(bond_list):
+    output = SortedList()
+    for bt in bond_list:
+        for atom_id in bt:
+            if atom_id not in output:
+                output.add(atom_id)
+    return tuple(output)
+
+
 class FragmentPair:
     def __init__(
         self,
@@ -133,6 +142,9 @@ class FragmentPair:
             (self.origin_point, neigh)
             for neigh in self.chemgraph.neighbors(origin_point)
         ]
+
+        self.bond_list_equivalence_class_examples = []
+        self.bond_list_equivalence_class_dict = {}
 
         while self.core_size() < neighborhood_size:
             self.expand_core(update_affected_status=False)
@@ -176,30 +188,37 @@ class FragmentPair:
         self.affected_resonance_structures = []
         resonance_structure_orders_iterators = []
 
-        resonance_structure_affected_bonds = {}
+        resonance_structure_affected_bonds = (
+            {}
+        )  # lists of bonds affected by different resonance structure regions
+
         saved_all_bond_orders = {}
 
-        default_bond_order_dict = {}
+        default_bond_order_dict = (
+            {}
+        )  # orders of bonds not affected by resonance structures
+
+        cg = self.chemgraph
 
         for bond_tuple in self.affected_bonds:
             bond_stuple = sorted_tuple(*bond_tuple)
-            if bond_stuple in self.chemgraph.resonance_structure_map:
-                rsr_id = self.chemgraph.resonance_structure_map[bond_stuple]
+            if bond_stuple in cg.resonance_structure_map:
+                rsr_id = cg.resonance_structure_map[bond_stuple]
                 if rsr_id not in saved_all_bond_orders:
                     saved_all_bond_orders[rsr_id] = {}
                     self.affected_resonance_structures.append(rsr_id)
                     resonance_structure_orders_iterators.append(
-                        range(len(self.chemgraph.resonance_structure_orders[rsr_id]))
+                        range(len(cg.resonance_structure_orders[rsr_id]))
                     )
                 if rsr_id not in resonance_structure_affected_bonds:
                     resonance_structure_affected_bonds[rsr_id] = []
                 resonance_structure_affected_bonds[rsr_id].append(bond_tuple)
-                saved_all_bond_orders[rsr_id][
-                    bond_tuple
-                ] = self.chemgraph.aa_all_bond_orders(*bond_stuple, unsorted=True)
+                saved_all_bond_orders[rsr_id][bond_tuple] = cg.aa_all_bond_orders(
+                    *bond_stuple, unsorted=True
+                )
 
             else:
-                cur_bo = self.chemgraph.bond_orders[bond_stuple]
+                cur_bo = cg.bond_orders[bond_stuple]
                 if cur_bo in default_bond_order_dict:
                     default_bond_order_dict[cur_bo].append(bond_tuple)
                 else:
@@ -221,12 +240,10 @@ class FragmentPair:
             for res_reg_id, rso_id in zip(
                 self.affected_resonance_structures, resonance_structure_orders_ids
             ):
-                ha_ids = self.chemgraph.resonance_structure_inverse_map[res_reg_id]
-                val_pos = self.chemgraph.resonance_structure_valence_vals[res_reg_id][
-                    rso_id
-                ]
+                ha_ids = cg.resonance_structure_inverse_map[res_reg_id]
+                val_pos = cg.resonance_structure_valence_vals[res_reg_id][rso_id]
                 for ha_id in ha_ids:
-                    poss_valences = self.chemgraph.hatoms[ha_id].possible_valences
+                    poss_valences = cg.hatoms[ha_id].possible_valences
                     if poss_valences is not None:
                         new_status.valences[ha_id] = poss_valences[val_pos]
                 for btuple, bos in saved_all_bond_orders[res_reg_id].items():
@@ -238,6 +255,48 @@ class FragmentPair:
 
             if new_status not in self.affected_status:
                 self.affected_status.append(new_status)
+
+    def assign_equivalence_class_to_atom_tuple(self, atom_tuple):
+        found_equivalence_class = None
+        for equiv_cl_id, other_at in enumerate(
+            self.bond_list_equivalence_class_examples
+        ):
+            if self.chemgraph.uninit_atom_sets_equivalent_wcolor_check(
+                other_at, atom_tuple
+            ):
+                found_equivalence_class = equiv_cl_id
+                break
+        if found_equivalence_class is None:
+            found_equivalence_class = len(self.bond_list_equivalence_class_examples)
+            self.bond_list_equivalence_class_examples.append(atom_tuple)
+        self.bond_list_equivalence_class_dict[atom_tuple] = found_equivalence_class
+
+    def get_bond_list_equivalence_class(self, bond_list):
+        atom_list = bond_list_to_atom_tuple(bond_list)
+        if atom_list not in self.bond_list_equivalence_class_dict:
+            self.assign_equivalence_class_to_atom_tuple(atom_list)
+        return self.bond_list_equivalence_class_dict[atom_list]
+
+    def equivalence_status_representation(self, status: FragmentPairAffectedBondStatus):
+        equiv_rep = {}
+        for bo, bt_list in status.bond_tuple_dict.items():
+            equiv_rep[bo] = self.get_bond_list_equivalence_class(bt_list)
+        return equiv_rep
+
+    # TODO For now it is only used in linear-scaling implementation of crossover moves, but perhaps should be used in the original version too.
+    def get_equiv_checked_affected_statuses(self):
+        """
+        Get members of self.affected_status that are not symmetrically equivalent.
+        """
+        checked_status_list = []
+        checked_status_equivalence_rep_list = []
+        for status in self.affected_status:
+            equiv_rep = self.equivalence_status_representation(status)
+            if equiv_rep in checked_status_equivalence_rep_list:
+                continue
+            checked_status_list.append(status)
+            checked_status_equivalence_rep_list.append(equiv_rep)
+        return checked_status_list
 
     def get_sorted_vertices(self, frag_id):
         if self.sorted_vertices is None:
@@ -512,9 +571,7 @@ class RandomTupleBondReconnector:
             new_tuples1 = list(tuples1)
             random.shuffle(new_tuples1)
             self.reconnecting_list.append([new_tuples1, tuples2])
-        random.shuffle(
-            self.reconnecting_list
-        )  # TODO double-check it is actually necessary for detailed balance
+        random.shuffle(self.reconnecting_list)
 
     def check_bond_satisfaction(self, frag1, frag2, forbidden_bonds=None):
         created_bonds1 = SortedList()
@@ -562,11 +619,16 @@ class RandomTupleBondReconnector:
             output.append([new_tuples1, new_tuples2])
         return output
 
-    def log_num_shuffles(self):
-        res = 0.0
-        for tuples1 in self.tuples_correspondence.keys():
-            res += log_natural_factorial(len(tuples1))
-        return res
+    def equivalence_representation(self, frag1: FragmentPair, frag2: FragmentPair):
+        output = SortedList()
+        for tuple_list1, tuple_list2 in self.tuples_correspondence.items():
+            output.add(
+                (
+                    frag1.get_bond_list_equivalence_class(tuple_list1),
+                    frag2.get_bond_list_equivalence_class(tuple_list2),
+                )
+            )
+        return list(output)
 
     def __str__(self):
         return (
@@ -581,15 +643,22 @@ class RandomTupleBondReconnector:
 
 def matching_status_reconnectors(frag1, frag2):
     valid_reconnectors = []
+    valid_reconnector_equiv_reps = []
     valid_status_ids = []
-    for status_id1, status1 in enumerate(frag1.affected_status):
-        for status_id2, status2 in enumerate(frag2.affected_status):
+    for status_id1, status1 in enumerate(frag1.get_equiv_checked_affected_statuses()):
+        for status_id2, status2 in enumerate(
+            frag2.get_equiv_checked_affected_statuses()
+        ):
             if not bo_tuple_dicts_shapes_match(
                 status1.bond_tuple_dict, status2.bond_tuple_dict
             ):
                 continue
             cur_reconnector = RandomTupleBondReconnector(status1, status2)
-            if cur_reconnector not in valid_reconnectors:
+            cur_reconnector_equiv_rep = cur_reconnector.equivalence_representation(
+                frag1, frag2
+            )
+            if cur_reconnector_equiv_rep not in valid_reconnector_equiv_reps:
+                valid_reconnector_equiv_reps.append(cur_reconnector_equiv_rep)
                 valid_reconnectors.append(cur_reconnector)
                 valid_status_ids.append((status_id1, status_id2))
     return valid_reconnectors, valid_status_ids
@@ -780,7 +849,9 @@ class FragmentPairReconnectingBlob:
         self.log_prob_balance = 0.0
         for [exchanged_tuple_list1, exchanged_tuple_list2] in self.forward_reconnection:
             self.reconnect_tuples(exchanged_tuple_list1, exchanged_tuple_list2)
-        for [backward_tuple_list1, backward_tuple_list2] in self.backward_reconnection:
+        for [backward_tuple_list1, backward_tuple_list2] in self.backward_reconnection[
+            ::-1
+        ]:
             self.disconnect_extra_tuples(backward_tuple_list1, backward_tuple_list2)
 
     def chemgraphs_origin_points(self):

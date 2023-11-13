@@ -56,8 +56,8 @@ minimized_function = ChargeSum()
 
 ln2 = np.log(2.0)
 
-betas = [ln2, ln2 / 2.0]
-# betas = [ln2, ln2]
+# betas = [ln2, ln2 / 2.0]
+betas = [ln2, ln2]
 
 num_attempts = 200000  # 4000 40000
 

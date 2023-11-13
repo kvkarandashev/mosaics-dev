@@ -22,7 +22,6 @@ from .misc_procedures import (
     int_atom_checked,
     sorted_by_membership,
     sorted_tuple,
-    log_natural_factorial,
 )
 
 
@@ -789,6 +788,8 @@ class ChemGraph:
         return sorted(self.colors[atom_id] for atom_id in atom_set)
 
     def uninit_atom_sets_equivalent_wcolor_check(self, atom_set1, atom_set2):
+        if len(atom_set1) != len(atom_set2):
+            return False
         self.init_colors()
         if self.sorted_atom_set_color_list(
             atom_set1
