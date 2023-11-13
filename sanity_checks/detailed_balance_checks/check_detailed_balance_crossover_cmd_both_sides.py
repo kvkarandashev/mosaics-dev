@@ -9,7 +9,7 @@ import sys
 
 
 def get_tps(chemgraph_strings):
-    cgs = [str2ChemGraph(cg_str) for cg_str in chemgraph_strings]
+    cgs = [str2ChemGraph(cg_str, shuffle=True) for cg_str in chemgraph_strings]
     tps = tuple([TrajectoryPoint(cg=cg) for cg in cgs])
     return tps
 

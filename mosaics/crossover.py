@@ -86,6 +86,18 @@ class FragmentPairAffectedBondStatus:
             self.valences == other_fpabs.valences
         )
 
+    def __str__(self):
+        return (
+            "<FragmentPairAffectedBondStatus:"
+            + str(self.bond_tuple_dict)
+            + ":"
+            + str(self.valences)
+            + ">"
+        )
+
+    def __repr__(self):
+        return str(self)
+
 
 class FragmentPair:
     def __init__(
@@ -555,6 +567,16 @@ class RandomTupleBondReconnector:
         for tuples1 in self.tuples_correspondence.keys():
             res += log_natural_factorial(len(tuples1))
         return res
+
+    def __str__(self):
+        return (
+            "<RandomTupleBondReconnector,tuples_correspondence:"
+            + str(self.tuples_correspondence)
+            + ">"
+        )
+
+    def __repr__(self):
+        return str(self)
 
 
 def matching_status_reconnectors(frag1, frag2):
