@@ -1117,7 +1117,7 @@ def randomized_crossover(
 
     if linear_scaling_crossover_moves:
         valid_reconnectors, _, _, _ = matching_status_reconnectors_wfrags(
-            cg_pair, origin_points, chosen_sizes
+            new_cg_pair, new_origin_points, chosen_sizes
         )
         tot_choice_prob_ratio *= len(valid_reconnectors)
     else:

@@ -1,4 +1,4 @@
-from mosaics.valence_treatment import str2ChemGraph
+from mosaics.valence_treatment import str2ChemGraph, InvalidAdjMat
 from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
 import sys, os
 
@@ -9,7 +9,11 @@ if len(sys.argv) > 2:
 else:
     filename_prefix = "chemgraph_visualization_"
 
-cg = str2ChemGraph(chemgraph_str)
+try:
+    cg = str2ChemGraph(chemgraph_str)
+except InvalidAdjMat:
+    print("Invalid string")
+    quit()
 
 i = 0
 
