@@ -949,7 +949,7 @@ def frag_swap_size_compliant(
     return True
 
 
-def frag_size_status_list(cg, origin_point, max_num_affected_bonds=3):
+def frag_size_status_list(cg, origin_point, max_num_affected_bonds=None):
     """
     Map all possible ways a ChemGraph can be broken into FragmentPair satisfying input constraints.
     """
@@ -1033,8 +1033,8 @@ def randomized_crossover(
     crossover_smallest_exchange_size=2,
     forbidden_bonds: list or None = None,
     nhatoms_range: list or None = None,
-    crossover_max_num_affected_bonds: int = 3,
-    linear_scaling_crossover_moves: bool = False,
+    crossover_max_num_affected_bonds: int or None = None,
+    linear_scaling_crossover_moves: bool = True,
     **dummy_kwargs,
 ):
     """

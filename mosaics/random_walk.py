@@ -416,10 +416,10 @@ class RandomWalk:
                 final_nhatoms_range=None,
                 max_fragment_num=1,
                 added_bond_orders_val_change=[1, 2],
-                crossover_max_num_affected_bonds=3,
+                crossover_max_num_affected_bonds=None,
                 crossover_smallest_exchange_size=2,
-                linear_scaling_elementary_mutations=False,
-                linear_scaling_crossover_moves=False,
+                linear_scaling_elementary_mutations=True,
+                linear_scaling_crossover_moves=True,
                 save_equivalence_data=False,
             )
 
