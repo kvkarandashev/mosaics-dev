@@ -22,6 +22,9 @@ from .misc_procedures import (
     int_atom_checked,
     sorted_by_membership,
     sorted_tuple,
+    VERBOSITY,
+    VERBOSITY_MUTED,
+    set_verbosity,
 )
 
 
@@ -79,6 +82,7 @@ def set_misc_global_variables(
     isomorphism_algorithm=vf2,
     color_defining_neighborhood_radius=0,
     using_two_level_comparison=True,
+    VERBOSITY=VERBOSITY_MUTED,
 ):
     """
     Set all global variables in the module.
@@ -86,6 +90,7 @@ def set_misc_global_variables(
     set_isomorphism_algorithm(isomorphism_algorithm)
     set_color_defining_neighborhood_radius(color_defining_neighborhood_radius)
     set_using_two_level_comparison(using_two_level_comparison)
+    set_verbosity(VERBOSITY)
 
 
 def misc_global_variables_current_kwargs():
@@ -93,6 +98,7 @@ def misc_global_variables_current_kwargs():
         "isomorphism_algorithm": isomorphism_algorithm,
         "color_defining_neighborhood_radius": color_defining_neighborhood_radius,
         "using_two_level_comparison": using_two_level_comparison,
+        "VERBOSITY": VERBOSITY,
     }
 
 
@@ -1369,9 +1375,10 @@ class ChemGraph:
                         self.hatoms[ha_id].possible_valences = []
                     self.hatoms[ha_id].possible_valences.append(ha_val)
         if min_found_vcc is None:
-            print("Invalid molecule:")
-            print("HeavyAtom list:", self.hatoms)
-            print("Graph:", self.graph)
+            if VERBOSITY != VERBOSITY_MUTED:
+                print("Invalid molecule:")
+                print("HeavyAtom list:", self.hatoms)
+                print("Graph:", self.graph)
             raise InvalidAdjMat
         for ha_id, ha_val in zip(IteratedValenceIds, saved_heavy_atom_valences_list):
             ha = self.hatoms[ha_id]

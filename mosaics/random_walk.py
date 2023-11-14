@@ -19,6 +19,7 @@ from .valence_treatment import (
     int_atom_checked,
     default_valence,
 )
+from .misc_procedures import VERBOSITY, VERBOSITY_MUTED
 from .trajectory_analysis import *
 import random, os, operator
 from copy import deepcopy
@@ -445,11 +446,12 @@ class RandomWalk:
             for change_func in cur_change_dict:
                 inv_change_func = inverse_procedure[change_func]
                 if inv_change_func not in cur_change_dict:
-                    print(
-                        "WARNING, inverse not found in randomized_change_params for:",
-                        change_func,
-                        " adding inverse.",
-                    )
+                    if VERBOSITY != VERBOSITY_MUTED:
+                        print(
+                            "WARNING, inverse not found in randomized_change_params for:",
+                            change_func,
+                            " adding inverse.",
+                        )
                     if isinstance(cur_change_dict, dict):
                         cur_change_dict[inv_change_func] = cur_change_dict[change_func]
                     else:
@@ -579,12 +581,13 @@ class RandomWalk:
         """
         for new_tp in new_tps:
             if not self.egc_valid_wrt_change_params(new_tp.egc):
-                print("INCONSISTENT TRAJECTORY POINTS")
-                print("INITIAL:")
-                print(*[self.cur_tps[replica_id] for replica_id in replica_ids])
-                print("PROPOSED:")
-                print(*new_tps)
-                quit()
+                if VERBOSITY != VERBOSITY_MUTED:
+                    print("INCONSISTENT TRAJECTORY POINTS")
+                    print("INITIAL:")
+                    print(*[self.cur_tps[replica_id] for replica_id in replica_ids])
+                    print("PROPOSED:")
+                    print(*new_tps)
+                raise InvalidChange
 
     def acceptance_rule(self, new_tps, prob_balance, replica_ids=[0]):
 

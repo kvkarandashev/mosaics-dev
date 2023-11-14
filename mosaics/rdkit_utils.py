@@ -2,7 +2,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem.rdmolops import GetAdjacencyMatrix
 from rdkit.Chem.rdmolfiles import MolToSmiles
-from .misc_procedures import int_atom_checked
+from .misc_procedures import int_atom_checked, VERBOSITY, VERBOSITY_MUTED
 from .valence_treatment import (
     ChemGraph,
     default_valence,
@@ -223,7 +223,8 @@ def RDKit_FF_optimize_coords(
     try:
         AllChem.EmbedMolecule(mol)
     except:
-        print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
+        if VERBOSITY != VERBOSITY_MUTED:
+            print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
         raise FFInconsistent
     for _ in range(num_attempts):
         try:
@@ -257,7 +258,9 @@ def RDKit_FF_min_en_conf(mol, ff_type, num_attempts=1, corresponding_cg=None):
         try:
             AllChem.EmbedMolecule(cur_mol, randomSeed=seed)
         except:
-            print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
+            if VERBOSITY != VERBOSITY_MUTED:
+                print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
+            raise RdKitFailure
 
         args = (cur_mol,)
 

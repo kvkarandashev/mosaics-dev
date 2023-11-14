@@ -6,7 +6,8 @@ from .misc_procedures import (
     random_choice_from_nested_dict,
     str_atom_corr,
     llenlog,
-    intlog,
+    VERBOSITY,
+    VERBOSITY_MUTED,
 )
 from .valence_treatment import canonically_permuted_ChemGraph, ChemGraph, str2ChemGraph
 from .ext_graph_compound import ExtGraphCompound, log_atom_multiplicity_in_list
@@ -130,15 +131,6 @@ class TrajectoryPoint:
                     kwargs = kwargs_dict[quant_name]
                 func = func_dict[quant_name]
                 calc_val = func(self, *args, **kwargs)
-                # TODO make this hard approach on exceptions optional?
-                # try:
-                #    calc_val = func(self, *args, **kwargs)
-                # except:
-                #    print("Exception encountered while evaluating function ", func)
-                #    print("Trajectory point:", self)
-                #    print("Arguments:", args, kwargs)
-                #    print("Previously calculated data:", self.calculated_data)
-                #    quit()
                 self.calculated_data[quant_name] = calc_val
             output[quant_name] = self.calculated_data[quant_name]
         return output
@@ -1035,10 +1027,11 @@ def randomized_change(
             **other_kwargs,
         )
     except KeyError:
-        print("NON-INVERTIBLE OPERATION")
-        print(old_egc, cur_change_procedure)
-        print(new_egc)
-        quit()
+        if VERBOSITY != VERBOSITY_MUTED:
+            print("NON-INVERTIBLE OPERATION")
+            print(old_egc, cur_change_procedure)
+            print(new_egc)
+        raise InvalidChange
 
     total_inverse_prob += inverse_prob
 

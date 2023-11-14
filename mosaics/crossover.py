@@ -7,6 +7,7 @@ from .valence_treatment import (
     sorted_by_membership,
     sorted_tuple,
     max_bo,
+    InvalidChange,
 )
 from .ext_graph_compound import (
     connection_forbidden,
@@ -16,7 +17,7 @@ import numpy as np
 import random, bisect, itertools
 from igraph.operators import disjoint_union
 from copy import deepcopy
-from .misc_procedures import intlog
+from .misc_procedures import intlog, VERBOSITY, VERBOSITY_MUTED
 from sortedcontainers import SortedList
 
 
@@ -1130,13 +1131,13 @@ def randomized_crossover(
         #    log_tot_choice_prob_ratio += llenlog(inverse_cg_pairs)
         tot_choice_prob_ratio *= len(inverse_cg_pairs)
 
-    try:
-        log_tot_choice_prob_ratio = np.log(tot_choice_prob_ratio)
-    except:
-        print("NONINVERTIBLE CROSS-COUPLING PROPOSED:")
-        print("INITIAL CHEMGRAPHS:", cg_pair)
-        print("PROPOSED CHEMGRAPHS:", new_cg_pair)
-        quit()
+    log_tot_choice_prob_ratio = np.log(tot_choice_prob_ratio)
+    if np.isinf(log_tot_choice_prob_ratio):
+        if VERBOSITY != VERBOSITY_MUTED:
+            print("NONINVERTIBLE CROSS-COUPLING PROPOSED:")
+            print("INITIAL CHEMGRAPHS:", cg_pair)
+            print("PROPOSED CHEMGRAPHS:", new_cg_pair)
+        raise InvalidChange
 
     if linear_scaling_crossover_moves:
         log_tot_choice_prob_ratio += reconnection_prob_balance

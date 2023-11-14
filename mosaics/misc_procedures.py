@@ -4,6 +4,24 @@ import os, copy
 import numpy as np
 import random
 
+# Related to verbosity.
+
+VERBOSITY_MUTED = 0
+VERBOSITY_FULL = 1
+
+VERBOSITY_OPTIONS = [VERBOSITY_MUTED, VERBOSITY_FULL]
+
+VERBOSITY = VERBOSITY_MUTED
+
+
+def set_verbosity(verbosity_value: int):
+    assert verbosity_value in VERBOSITY_OPTIONS
+    global VERBOSITY
+    VERBOSITY = verbosity_value
+
+
+# End of procedures related to verbosity.
+
 
 def canonical_atomtype(atomtype):
     return atomtype[0].upper() + atomtype[1:].lower()
