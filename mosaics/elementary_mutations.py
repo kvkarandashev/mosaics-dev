@@ -163,7 +163,10 @@ def atom_removal_possibilities(
 
 
 def hatoms_with_changeable_nhydrogens(
-    egc, bond_order_change, not_protonated=None, origin_point=None
+    egc: ExtGraphCompound,
+    bond_order_change: int,
+    not_protonated: list or None = None,
+    origin_point: int or None = None,
 ):
     cg = egc.chemgraph
     if origin_point is None:
@@ -740,14 +743,14 @@ def valence_change_remove_atoms_possibilities(
 
 
 def polyvalent_hatom_indices(
-    egc: ExtGraphCompound, bond_order_change: int, origin_point=None
+    egc: ExtGraphCompound, bond_order_change: int, origin_point: int or None = None
 ):
     cg = egc.chemgraph
 
     if bond_order_change > 0:
         checked_hatom_ids = range(cg.nhatoms())
     else:
-        checked_hatom_ids = cg.neighbors(origin_point)
+        checked_hatom_ids = sorted(cg.neighbors(origin_point))
     output = []
     for ha_id in checked_hatom_ids:
         ha = cg.hatoms[ha_id]

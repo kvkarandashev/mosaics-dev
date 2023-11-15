@@ -607,8 +607,8 @@ def get_valence_changed_atom_res_struct_list(
     origin_point = None
     if bond_order_change < 0:
         origin_point = pres_val_atom_id
-    else:
-        found_without_sigma_bond_creation = False
+
+    found_without_sigma_bond_alteration = False
 
     possible_changed_val_atoms = polyvalent_hatom_indices(
         egc, bond_order_change, origin_point=origin_point
@@ -633,7 +633,7 @@ def get_valence_changed_atom_res_struct_list(
             ):
                 continue
             are_neighbors = cg.are_neighbors(pres_val_atom_id, changed_val_atom_id)
-            if found_without_sigma_bond_creation and are_neighbors:
+            if found_without_sigma_bond_alteration and are_neighbors:
                 continue
 
         resonance_struct_ids = cg.possible_res_struct_ids(changed_val_atom_id)
@@ -676,13 +676,18 @@ def get_valence_changed_atom_res_struct_list(
                 if cur_full_disconnection in full_disconnections:
                     continue
                 else:
+                    if not cur_full_disconnection:
+                        if found_without_sigma_bond_alteration:
+                            continue
+                        found_without_sigma_bond_alteration = True
                     full_disconnections.append(cur_full_disconnection)
             else:
                 if cur_bo + bond_order_change > max_bo(
                     changed_val_atom_nc, pres_val_ha_nc
                 ):
                     continue
-                found_without_sigma_bond_creation = are_neighbors
+                if not found_without_sigma_bond_alteration:
+                    found_without_sigma_bond_alteration = are_neighbors
             output.append((changed_val_atom_id, resonance_struct_id))
             if (
                 bond_order_change > 0
@@ -758,7 +763,10 @@ special_bond_change_functions = {
 
 
 def inv_prob_bond_change_parameters_linear_scaling(
-    new_egc, inv_poss_dict, inv_mod_path, **other_kwargs
+    new_egc: ExtGraphCompound,
+    inv_poss_dict: dict or list,
+    inv_mod_path: list,
+    **other_kwargs,
 ):
     inv_bo_change = inv_mod_path[0]
     first_changed_atom = inv_mod_path[1][0]
@@ -790,7 +798,10 @@ def inv_prob_bond_change_parameters_linear_scaling(
 
 
 def inv_prob_bond_valence_change_parameters_linear_scaling(
-    new_egc: ExtGraphCompound, inv_poss_dict, inv_mod_path, **other_kwargs
+    new_egc: ExtGraphCompound,
+    inv_poss_dict: list or dict,
+    inv_mod_path: list,
+    **other_kwargs,
 ):
     inv_bo_change = inv_mod_path[0]
     pres_val_changed_atom = inv_mod_path[1][1]
