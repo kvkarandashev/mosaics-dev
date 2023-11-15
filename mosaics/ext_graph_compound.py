@@ -324,14 +324,17 @@ def atom_multiplicity_in_list(
             other_atom_tuple = (other_atom_id,)
         else:
             other_atom_tuple = (other_atom_id, special_atom_id)
-        if save_equivalence_data:
-            are_equivalent = cg.atom_sets_equivalent(
-                compared_atom_tuple, other_atom_tuple
-            )
+        if other_atom_id == atom_id:
+            are_equivalent = True
         else:
-            are_equivalent = cg.uninit_atom_sets_equivalent_wcolor_check(
-                compared_atom_tuple, other_atom_tuple
-            )
+            if save_equivalence_data:
+                are_equivalent = cg.atom_sets_equivalent(
+                    compared_atom_tuple, other_atom_tuple
+                )
+            else:
+                are_equivalent = cg.uninit_atom_sets_equivalent_wcolor_check(
+                    compared_atom_tuple, other_atom_tuple
+                )
         if are_equivalent:
             count += 1
     return count
