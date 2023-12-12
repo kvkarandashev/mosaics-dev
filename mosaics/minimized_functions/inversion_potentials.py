@@ -19,6 +19,26 @@ from rdkit.Chem import AllChem
 from rdkit import Chem
 import pdb
 
+from rdkit.Chem import Descriptors
+
+from rdkit import Chem
+from rdkit.Chem import Descriptors
+import numpy as np
+
+def compute_molecule_properties(mol):
+    # List of RDKit descriptor functions to use
+    descriptor_functions = [func for name, func in Descriptors.descList]
+
+    # Calculate each descriptor
+    properties = [func(mol) for func in descriptor_functions]
+
+    # If there are more custom properties, compute and add them to the properties list
+    # ...
+
+    # Convert to a numpy array for consistency
+    properties_vector = np.array(properties)
+
+    return properties_vector
 
 
 class potential_inv_ECFP:
@@ -74,6 +94,7 @@ class potential_inv_ECFP:
 
         X_test   = chemspace_potentials.extended_get_single_FP(rdkit_mol, nBits=self.nBits)
         distance = chemspace_potentials.tanimoto_distance(X_test , self.X_target)
+       #distance =  np.linalg.norm(compute_molecule_properties(rdkit_mol) - self.X_target)
         V = self.potential(distance)
 
         if self.verbose:

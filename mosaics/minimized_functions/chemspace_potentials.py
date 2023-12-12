@@ -1625,6 +1625,30 @@ class Analyze_Chemspace:
                     )
                     D = D[np.argsort(D)]
 
+                elif params["rep_name"] == "inv_props":
+                    from mosaics.minimized_functions import inversion_potentials
+                    SMILES = np.array(
+                        [
+                            Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi)))
+                            for smi in SMILES
+                        ]
+                    )
+                    explored_rdkit = np.array(
+                        [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES]
+                    )
+                    X_ALL = np.array([inversion_potentials.compute_molecule_properties(rdkit_mol) for rdkit_mol in explored_rdkit])
+                    #get_all_FP(explored_rdkit, nBits=params["nBits"])
+                    D =  np.array([norm(X_I - X) for X in X_ALL])
+                    #np.array([tanimoto_distance(X_I, X) for X in X_ALL])
+                    SMILES = SMILES[np.argsort(D)]
+                    SMILES = np.array(
+                        [
+                            Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi)))
+                            for smi in SMILES
+                        ]
+                    )
+                    D = D[np.argsort(D)]
+
                 elif params["rep_name"] == "ECFP":
                     SMILES = np.array(
                         [
