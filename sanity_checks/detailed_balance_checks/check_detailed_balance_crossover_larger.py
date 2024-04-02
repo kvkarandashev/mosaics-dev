@@ -1,11 +1,13 @@
 # Check that probability balance is well calculated for larger molecules.
 import random
+
 import numpy as np
-from mosaics.random_walk import TrajectoryPoint, randomized_change
-from mosaics.test_utils import check_prop_probability
-from mosaics.modify import randomized_cross_coupling
-from mosaics.valence_treatment import str2ChemGraph
+
 from mosaics.minimized_functions.toy_problems import ChargeSum
+from mosaics.modify import randomized_cross_coupling
+from mosaics.random_walk import TrajectoryPoint
+from mosaics.test_utils import check_prop_probability
+from mosaics.valence_treatment import str2ChemGraph
 
 random.seed(1)
 np.random.seed(1)

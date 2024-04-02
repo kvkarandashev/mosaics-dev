@@ -1,11 +1,13 @@
 # Perform optimization in QM9* in a way that SHOULDN'T depend much on the initial choice of beta.
+import random
+
+import numpy as np
+
+from mosaics.minimized_functions import OrderSlide
 from mosaics.optimization_protocol import OptimizationProtocol
 from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.minimized_functions import OrderSlide
-from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
+from mosaics.rdkit_utils import SMILES_to_egc
 from mosaics.test_utils import SimulationLogIO
-import random
-import numpy as np
 
 max_nhatoms = 9  # Not 15 to cut down on the CPU time.
 
@@ -97,9 +99,7 @@ opt_protocol = OptimizationProtocol(
     debug=True,
 )
 
-sim_log = SimulationLogIO(
-    filename="toy_opt.log", benchmark_filename="toy_opt_benchmark.log"
-)
+sim_log = SimulationLogIO(filename="toy_opt.log", benchmark_filename="toy_opt_benchmark.log")
 sim_log.print_timestamp(comment="SIM_START")
 
 for iteration_id in opt_protocol:

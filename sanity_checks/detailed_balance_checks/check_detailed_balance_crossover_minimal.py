@@ -1,11 +1,13 @@
 # Check that in the simplest system of A-B diatomic molecules detailed balance is satisfied.
 # Used to verify that the ordering part of the trial genetic step works correctly.
 import random
+
 import numpy as np
+
+from mosaics.minimized_functions.toy_problems import Diatomic_barrier
 from mosaics.random_walk import TrajectoryPoint
 from mosaics.test_utils import check_prop_probability
 from mosaics.valence_treatment import str2ChemGraph
-from mosaics.minimized_functions.toy_problems import Diatomic_barrier
 
 random.seed(1)
 np.random.seed(1)

@@ -1,6 +1,7 @@
 # A simple script checking boss's ability to find minima of functions in many dimensions.
-import numpy as np
 import sys
+
+import numpy as np
 from boss.bo.bo_main import BOMain
 
 
@@ -27,9 +28,7 @@ def main():
     #    print(rf.min_vec)
     bounds = np.array([[0.0, 1.0] for _ in range(ndims)])
     iterpts = int(1.5 * ndims ** (1.5))  # recommended value from boss manual.
-    bo = BOMain(
-        rf, bounds, yrange=[0.0, ndims], kernel="rbf", initpts=5, iterpts=iterpts
-    )
+    bo = BOMain(rf, bounds, yrange=[0.0, ndims], kernel="rbf", initpts=5, iterpts=iterpts)
     res = bo.run()
     print("Predicted global min: ", res.select("mu_glmin", -1))
     print("Different of predicted minimum location and the true result:")

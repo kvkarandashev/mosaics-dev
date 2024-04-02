@@ -5,12 +5,13 @@
 # from bmapqml.chemxpl import ExtGraphCompound
 # from bmapqml.chemxpl.minimized_functions import OrderSlide
 # These imports are used for the MOSAiCS repository
-from mosaics.beta_choice import gen_exp_beta_array
-from mosaics import ExtGraphCompound, RandomWalk
-from mosaics.rdkit_utils import chemgraph_to_canonical_rdkit
-
 import random
+
 import numpy as np
+
+from mosaics import ExtGraphCompound, RandomWalk
+from mosaics.beta_choice import gen_exp_beta_array
+from mosaics.rdkit_utils import chemgraph_to_canonical_rdkit
 
 SMILES_print_prefix = "test_"
 

@@ -1,22 +1,24 @@
 # Check that probability balance is well calculated for larger molecules.
 import random
-import numpy as np
-from mosaics.random_walk import TrajectoryPoint, randomized_change
-from mosaics.test_utils import check_prop_probability
-from mosaics.modify import randomized_cross_coupling
-from mosaics.valence_treatment import str2ChemGraph
-from mosaics.minimized_functions.toy_problems import ChargeSum
 import sys
+
+import numpy as np
+
+from mosaics.minimized_functions.toy_problems import ChargeSum
+from mosaics.modify import randomized_cross_coupling
+from mosaics.random_walk import TrajectoryPoint
+from mosaics.test_utils import check_prop_probability
+from mosaics.valence_treatment import str2ChemGraph
 
 chemgraph_strings = [
     sys.argv[1],
     sys.argv[2],
 ]
 
-if len(sys.argv)>3:
-    seed=int(sys.argv[3])
+if len(sys.argv) > 3:
+    seed = int(sys.argv[3])
 else:
-    seed=1
+    seed = 1
 
 random.seed(seed)
 np.random.seed(seed)
@@ -58,7 +60,7 @@ ln2 = np.log(2.0)
 betas = [ln2, ln2 / 2.0]
 # betas = [ln2, ln2]
 
-num_attempts = 400 #40000
+num_attempts = 400  # 40000
 
 
 print("BETAS:", betas)

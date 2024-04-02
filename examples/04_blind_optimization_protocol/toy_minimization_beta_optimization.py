@@ -1,10 +1,12 @@
 # Perform optimization in QM9* in a way that SHOULDN'T depend much on the initial choice of beta.
+import random
+
+import numpy as np
+
+from mosaics.minimized_functions import OrderSlide
 from mosaics.optimization_protocol import OptimizationProtocol
 from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.minimized_functions import OrderSlide
 from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
-import random
-import numpy as np
 
 max_nhatoms = 9  # Not 15 to cut down on the CPU time.
 
@@ -94,9 +96,7 @@ for iteration_id in opt_protocol:
     print("___")
     print("___Best candidate at iteration", iteration_id, ":", cur_best_cand)
     print("___Best candidate SMILES:", canonical_SMILES_from_tp(cur_best_cand.tp))
-    print(
-        "___Beta bounds:", opt_protocol.lower_beta_value, opt_protocol.upper_beta_value
-    )
+    print("___Beta bounds:", opt_protocol.lower_beta_value, opt_protocol.upper_beta_value)
     print(
         "___Largest real beta minimized function mean, effective std, and equilibration:",
         opt_protocol.largest_beta_iteration_av_minfunc(),

@@ -1,11 +1,9 @@
 # This script makes an example optimization run similar to the ones whose results are presented in the original MOSAiCS paper.
-from mosaics.random_walk import RandomWalk
 from mosaics.beta_choice import gen_exp_beta_array
-from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
+from mosaics.minimized_functions.morfeus_quantity_estimates import LinComb_Morfeus_xTB_code
+from mosaics.random_walk import RandomWalk
 from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.minimized_functions.morfeus_quantity_estimates import (
-    LinComb_Morfeus_xTB_code,
-)
+from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
 
 # SMILES of the molecule from which we will start optimization.
 init_SMILES = "C"

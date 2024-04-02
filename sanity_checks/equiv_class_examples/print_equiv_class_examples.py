@@ -1,7 +1,9 @@
-import sys
-from mosaics.valence_treatment import str2ChemGraph
 import random
+import sys
+
 import numpy as np
+
+from mosaics.valence_treatment import str2ChemGraph
 
 
 def shuffled_atom_ids(chemgraph):

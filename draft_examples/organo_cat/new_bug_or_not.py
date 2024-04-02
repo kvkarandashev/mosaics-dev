@@ -1,22 +1,15 @@
 # This script makes an example optimization run similar to the ones whose results are presented in the original MOSAiCS paper.
-from mosaics.random_walk import RandomWalk
-from mosaics.beta_choice import gen_exp_beta_array
-from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
-from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.minimized_functions.chemspace_potentials import (
-    potential_ECFP,
-    initialize_from_smiles,
-)
-import rdkit
 import os
-from rdkit import Chem
-import pdb
-import random, numpy
-
-from rdkit.Chem import RDConfig
-import rdkit.Chem.Crippen as Crippen
-from rdkit.Contrib.SA_Score import sascorer
+import random
 import sys
+
+import numpy
+from rdkit.Chem import RDConfig
+
+from mosaics.beta_choice import gen_exp_beta_array
+from mosaics.minimized_functions.chemspace_potentials import initialize_from_smiles, potential_ECFP
+from mosaics.random_walk import RandomWalk
+from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
 
 random.seed(2)
 numpy.random.seed(2)

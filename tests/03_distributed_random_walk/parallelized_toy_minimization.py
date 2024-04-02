@@ -1,11 +1,14 @@
 # The same example script as in 01_toy_minimization, but capitalizing on distributed parallelism.
-from mosaics.beta_choice import gen_exp_beta_array
-from mosaics import ExtGraphCompound
-from mosaics.minimized_functions import OrderSlide
-from mosaics.distributed_random_walk import DistributedRandomWalk
-from mosaics.test_utils import SimulationLogIO
-import sys, random
+import random
+import sys
+
 import numpy as np
+
+from mosaics import ExtGraphCompound
+from mosaics.beta_choice import gen_exp_beta_array
+from mosaics.distributed_random_walk import DistributedRandomWalk
+from mosaics.minimized_functions import OrderSlide
+from mosaics.test_utils import SimulationLogIO
 
 seed = 1
 random.seed(seed)
@@ -40,9 +43,7 @@ if cloned_betas:
 else:
     num_exploration_betas = 256
     num_greedy_betas = 16
-betas = gen_exp_beta_array(
-    num_greedy_betas, 8.0, num_exploration_betas, max_real_beta=0.125
-)
+betas = gen_exp_beta_array(num_greedy_betas, 8.0, num_exploration_betas, max_real_beta=0.125)
 
 nbetas = len(betas)
 num_beta_subpopulation_clones = 2
@@ -108,9 +109,7 @@ sim_log.print_timestamp(comment="SIM_START")
 
 for propagation_step in range(num_propagations):
     drw.propagate()
-    sim_log.print_list(
-        drw.current_trajectory_points, comment="STEP" + str(propagation_step)
-    )
+    sim_log.print_list(drw.current_trajectory_points, comment="STEP" + str(propagation_step))
     sim_log.print_list(
         drw.saved_candidates,
         comment="BEST_AT_" + str(propagation_step),

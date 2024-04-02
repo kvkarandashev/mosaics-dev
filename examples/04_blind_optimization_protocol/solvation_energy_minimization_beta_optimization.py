@@ -1,12 +1,12 @@
 # Perform optimization in QM9* in a way that SHOULDN'T depend much on the initial choice of beta.
+import random
+
+import numpy as np
+
+from mosaics.minimized_functions.morfeus_quantity_estimates import LinComb_Morfeus_xTB_code
 from mosaics.optimization_protocol import OptimizationProtocol
 from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.minimized_functions.morfeus_quantity_estimates import (
-    LinComb_Morfeus_xTB_code,
-)
 from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
-import random
-import numpy as np
 
 max_nhatoms = 15
 
@@ -115,9 +115,7 @@ for iteration_id in opt_protocol:
     print("___")
     print("___Best candidate at iteration", iteration_id, ":", cur_best_cand)
     print("___Best candidate SMILES:", canonical_SMILES_from_tp(cur_best_cand.tp))
-    print(
-        "___Beta bounds:", opt_protocol.lower_beta_value, opt_protocol.upper_beta_value
-    )
+    print("___Beta bounds:", opt_protocol.lower_beta_value, opt_protocol.upper_beta_value)
     print(
         "___Largest real beta minimized function mean and effective std:",
         opt_protocol.largest_beta_iteration_av_minfunc(),
@@ -135,8 +133,6 @@ for iteration_id in opt_protocol:
 
 print("Final best candidates:")
 for cand_id, candidate in enumerate(opt_protocol.saved_candidates()):
-    print(
-        "Candidate", cand_id, ":", candidate, canonical_SMILES_from_tp(cur_best_cand.tp)
-    )
+    print("Candidate", cand_id, ":", candidate, canonical_SMILES_from_tp(cur_best_cand.tp))
     png_filename = "best_candidate_" + str(cand_id) + ".png"
     draw_chemgraph_to_file(candidate.tp.chemgraph(), png_filename, file_format="PNG")

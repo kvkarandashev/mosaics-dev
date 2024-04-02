@@ -1,6 +1,7 @@
-from mosaics.valence_treatment import str2ChemGraph
 import sys
-from mosaics.crossover import crossover_outcomes, FragmentPair
+
+from mosaics.crossover import FragmentPair, crossover_outcomes
+from mosaics.valence_treatment import str2ChemGraph
 
 cg1 = str2ChemGraph(sys.argv[1])
 cg2 = str2ChemGraph(sys.argv[2])

@@ -10,7 +10,7 @@ Evolutionary Monte Carlo algorithm for optimization in chemical space.
 MOSAiCS is an Evolutionary Monte Carlo algorithm designed for optimizing target functions over the space of organic molecules. The algorithm combines the benefits of both genetic algorithms and Monte Carlo techniques, providing a powerful tool for complex optimization tasks in applied science.
 
 For more information, please read our paper ["Evolutionary Monte Carlo of QM properties in chemical space: Electrolyte design"](https://arxiv.org/abs/2307.15563) published on arXiv.
-  
+
 ## :package: Dependencies
 
 MOSAiCS has the following dependencies:

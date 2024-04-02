@@ -1,7 +1,9 @@
+import os
+import sys
+
 from rdkit import Chem
-from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.Chem import rdAbbreviations
-import sys, os
+from rdkit.Chem.Draw import rdMolDraw2D
 
 # Tried using "*" : "R", didn't work.
 # Ended up with python visualize_SMILES.py '[Li+].C(#N)C1=C(N=C([N-]1)[*])C#N |$;;;;;;;;R;;$|'

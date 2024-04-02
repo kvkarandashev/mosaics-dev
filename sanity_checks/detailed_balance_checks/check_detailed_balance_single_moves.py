@@ -1,7 +1,10 @@
 # Randomly generate several molecules and then check that detailed balance is satisfied for each individual step.
-import random, sys
+import random
+import sys
+
 import numpy as np
-from mosaics.modify import TrajectoryPoint, change_bond_order_valence
+
+from mosaics.modify import TrajectoryPoint
 from mosaics.test_utils import all_procedure_prop_probability_checks
 from mosaics.valence_treatment import str2ChemGraph
 
@@ -51,9 +54,5 @@ randomized_change_params = {
 
 
 all_procedure_prop_probability_checks(
-    init_tp,
-    num_attempts=num_attempts,
-    print_dicts=True,
-    bin_size=None,
-    **randomized_change_params
+    init_tp, num_attempts=num_attempts, print_dicts=True, bin_size=None, **randomized_change_params
 )

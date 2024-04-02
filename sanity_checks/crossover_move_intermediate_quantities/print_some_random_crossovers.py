@@ -1,12 +1,14 @@
-from mosaics.valence_treatment import str2ChemGraph
-import sys, random
-from mosaics.crossover import (
-    FragmentPair,
-    matching_status_reconnectors,
-    crossover_sample_random_outcome,
-)
+import random
+import sys
+
 import numpy as np
 
+from mosaics.crossover import (
+    FragmentPair,
+    crossover_sample_random_outcome,
+    matching_status_reconnectors,
+)
+from mosaics.valence_treatment import str2ChemGraph
 
 cg1 = str2ChemGraph(sys.argv[1])
 cg2 = str2ChemGraph(sys.argv[2])

@@ -1,16 +1,17 @@
 # Demonstrates that setting add_heavy_atom_chain and remove_heavy_atom probabilities differently does not affect detailed balance.
-from mosaics.valence_treatment import str2ChemGraph
-from mosaics.random_walk import RandomWalk
+import random
+
+import numpy as np
+
+from mosaics.ext_graph_compound import ExtGraphCompound
 from mosaics.modify import (
+    TrajectoryPoint,
     change_bond_order,
     change_bond_order_valence,
     change_valence,
-    TrajectoryPoint,
 )
-import random
-import numpy as np
-from mosaics.ext_graph_compound import ExtGraphCompound
-
+from mosaics.random_walk import RandomWalk
+from mosaics.valence_treatment import str2ChemGraph
 
 random.seed(1)
 np.random.seed(1)
@@ -38,9 +39,7 @@ randomized_change_params = {
     },
 }
 
-init_str = (
-    "16@1@4:6#2@2:6#2@3:6#2@4:6#2"  # "16@1@2:6#2@2:6#2" "16@1@4:6#2@2:6#2@3:6#2@4:6#2"
-)
+init_str = "16@1@4:6#2@2:6#2@3:6#2@4:6#2"  # "16@1@2:6#2@2:6#2" "16@1@4:6#2@2:6#2@3:6#2@4:6#2"
 
 available_strs = [
     init_str,
@@ -49,9 +48,7 @@ available_strs = [
 ]
 
 num_replicas = 1
-init_egcs = [
-    ExtGraphCompound(chemgraph=str2ChemGraph(init_str)) for _ in range(num_replicas)
-]
+init_egcs = [ExtGraphCompound(chemgraph=str2ChemGraph(init_str)) for _ in range(num_replicas)]
 
 restricted_tps = [
     TrajectoryPoint(cg=str2ChemGraph(chemgraph_str)) for chemgraph_str in available_strs

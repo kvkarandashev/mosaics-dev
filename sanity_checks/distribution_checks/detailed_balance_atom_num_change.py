@@ -1,10 +1,11 @@
 # Demonstrates that setting add_heavy_atom_chain and remove_heavy_atom probabilities differently does not affect detailed balance.
-from mosaics.valence_treatment import str2ChemGraph
-from mosaics.random_walk import RandomWalk
-from mosaics.modify import add_heavy_atom_chain, remove_heavy_atom
-import random
-from mosaics.ext_graph_compound import ExtGraphCompound
 import math
+import random
+
+from mosaics.ext_graph_compound import ExtGraphCompound
+from mosaics.modify import add_heavy_atom_chain, remove_heavy_atom
+from mosaics.random_walk import RandomWalk
+from mosaics.valence_treatment import str2ChemGraph
 
 random.seed(1)
 
@@ -36,9 +37,7 @@ init_str = "6#4"
 num_replicas = 1
 
 rw = RandomWalk(
-    init_egcs=[
-        ExtGraphCompound(chemgraph=str2ChemGraph(init_str)) for _ in range(num_replicas)
-    ],
+    init_egcs=[ExtGraphCompound(chemgraph=str2ChemGraph(init_str)) for _ in range(num_replicas)],
     bias_coeff=bias_coeff,
     randomized_change_params=randomized_change_params,
     visit_num_count_acceptance=True,

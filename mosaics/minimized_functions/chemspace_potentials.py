@@ -1,49 +1,43 @@
 # Standard library imports
-import glob
-import random
-import tempfile
-import os
-import shutil
 import copy
+import glob
+import os
+import random
+import shutil
+
+# from rdkit.Contrib.SA_Score import sascorer
+import sys
+import tempfile
 import time
 
 # Third party imports
 import numpy as np
+import rdkit.Chem.Crippen as Crippen
 from numpy.linalg import norm
 from rdkit import Chem
 from rdkit.Chem import RDConfig
-import rdkit.Chem.Crippen as Crippen
-
-# from rdkit.Contrib.SA_Score import sascorer
-import sys
 
 sys.path.append(os.path.join(RDConfig.RDContribDir, "SA_Score"))
+import pandas as pd
 import sascorer
 from joblib import Parallel, delayed
-import pandas as pd
-from tqdm import tqdm
 from rdkit.Chem import AllChem
-from mosaics.misc_procedures import str_atom_corr
-from mosaics.minimized_functions import chemspace_sampler_default_params
-import pdb
+from tqdm import tqdm
 
 # Local application/library specific imports
 from mosaics import RandomWalk
-from mosaics.random_walk import TrajectoryPoint, ordered_trajectory_from_restart
 from mosaics.beta_choice import gen_exp_beta_array
-from mosaics.utils import loadpkl
 from mosaics.data import *
-from mosaics.rdkit_utils import (
-    chemgraph_to_canonical_rdkit,
-    RdKitFailure,
-    SMILES_to_egc,
-)
+from mosaics.minimized_functions import chemspace_sampler_default_params
 from mosaics.minimized_functions.morfeus_quantity_estimates import (
     morfeus_coord_info_from_tp,
     morfeus_FF_xTB_code_quants,
 )
-from tqdm import tqdm
 from mosaics.minimized_functions.representations import *
+from mosaics.misc_procedures import str_atom_corr
+from mosaics.random_walk import TrajectoryPoint, ordered_trajectory_from_restart
+from mosaics.rdkit_utils import RdKitFailure, SMILES_to_egc, chemgraph_to_canonical_rdkit
+from mosaics.utils import loadpkl
 
 # /home/jan/executables/mosaics/examples/03_chemspacesampler/representations.py
 
@@ -106,9 +100,7 @@ def get_boltzmann_weights(energies, T=300):
     return boltzmann_weights
 
 
-def fml_rep_SOAP(
-    COORDINATES, NUC_CHARGES, WEIGHTS, possible_elements=["C", "O", "N", "F"]
-):
+def fml_rep_SOAP(COORDINATES, NUC_CHARGES, WEIGHTS, possible_elements=["C", "O", "N", "F"]):
     """
     Calculate the FML (Free Energy Machine Learning) representation, which is the Boltzmann-weighted SOAP representation.
 
@@ -285,7 +277,6 @@ class potential_SOAP:
 
 class potential_MolDescriptors:
     def __init__(self, X_init, params):
-
         self.X_init = X_init
         self.gamma = params["min_d"]
         self.sigma = params["max_d"]
@@ -296,9 +287,7 @@ class potential_MolDescriptors:
         self.mmff_check = params["mmff_check"]
         self.verbose = params["verbose"]
 
-        self.canonical_rdkit_output = {
-            "canonical_rdkit": trajectory_point_to_canonical_rdkit
-        }
+        self.canonical_rdkit_output = {"canonical_rdkit": trajectory_point_to_canonical_rdkit}
 
         self.potential = self.flat_parabola_potential
         # self.norm_init = norm(X_init)
@@ -325,9 +314,9 @@ class potential_MolDescriptors:
             return 0
 
     def __call__(self, trajectory_point_in):
-        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
-            self.canonical_rdkit_output
-        )["canonical_rdkit"]
+        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(self.canonical_rdkit_output)[
+            "canonical_rdkit"
+        ]
 
         if rdkit_mol is None:
             raise RdKitFailure
@@ -446,9 +435,7 @@ class potential_BoB:
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
-                    X_test = fml_rep_bob(
-                        coords, symbols, output["rdkit_Boltzmann"], self.params
-                    )
+                    X_test = fml_rep_bob(coords, symbols, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
 
@@ -534,7 +521,6 @@ class potential_CM:
             return 0
 
     def __call__(self, trajectory_point_in):
-
         try:
             output = trajectory_point_in.calc_or_lookup(
                 self.morfeus_output,
@@ -553,7 +539,6 @@ class potential_CM:
                 return None
 
             if self.ensemble:
-
                 if coords.shape[1] == charges.shape[0]:
                     X_test = fml_rep_CM(
                         coords,
@@ -590,7 +575,6 @@ class potential_MBDF:
     """
 
     def __init__(self, X_init, params):
-
         self.params = params
         self.X_init = X_init
         self.gamma = params["min_d"]
@@ -637,7 +621,6 @@ class potential_MBDF:
             return 0
 
     def __call__(self, trajectory_point_in):
-
         try:
             output = trajectory_point_in.calc_or_lookup(
                 self.morfeus_output,
@@ -655,15 +638,11 @@ class potential_MBDF:
                 return None
 
             if self.ensemble:
-
                 if coords.shape[1] == charges.shape[0]:
-                    X_test = fml_rep_MBDF(
-                        coords, charges, output["rdkit_Boltzmann"], self.params
-                    )
+                    X_test = fml_rep_MBDF(coords, charges, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
             else:
-
                 if coords.shape[0] == charges.shape[0]:
                     X_test = global_MBDF_bagged_wrapper(charges, coords, self.params)
                 else:
@@ -685,7 +664,6 @@ class potential_MBDF:
 
 class potential_atomic_energy:
     def __init__(self, X_init, params):
-
         self.params = params
         self.X_init = X_init
         self.gamma = params["min_d"]
@@ -729,7 +707,6 @@ class potential_atomic_energy:
             return 0
 
     def __call__(self, trajectory_point_in):
-
         try:
             output = trajectory_point_in.calc_or_lookup(
                 self.morfeus_output,
@@ -848,7 +825,6 @@ class potential_BoB_cliffs:
         """
 
         try:
-
             output = trajectory_point_in.calc_or_lookup(
                 self.morfeus_output,
                 kwargs_dict=self.morfeus_args,
@@ -879,9 +855,7 @@ class potential_BoB_cliffs:
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
-                    X_test = fml_rep_bob(
-                        coords, symbols, output["rdkit_Boltzmann"], self.params
-                    )
+                    X_test = fml_rep_bob(coords, symbols, output["rdkit_Boltzmann"], self.params)
                 else:
                     return None
 
@@ -921,9 +895,7 @@ class potential_ECFP:
         self.synth_cut_hard = params["synth_cut_hard"]
         self.verbose = params["verbose"]
 
-        self.canonical_rdkit_output = {
-            "canonical_rdkit": trajectory_point_to_canonical_rdkit
-        }
+        self.canonical_rdkit_output = {"canonical_rdkit": trajectory_point_to_canonical_rdkit}
 
         self.potential = self.flat_parabola_potential
 
@@ -949,10 +921,9 @@ class potential_ECFP:
             return 0
 
     def __call__(self, trajectory_point_in):
-
-        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
-            self.canonical_rdkit_output
-        )["canonical_rdkit"]
+        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(self.canonical_rdkit_output)[
+            "canonical_rdkit"
+        ]
 
         if rdkit_mol is None:
             raise RdKitFailure
@@ -985,9 +956,9 @@ class potential_ECFP:
         Evaluate the function on a list of trajectory points
         """
 
-        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(
-            self.canonical_rdkit_output
-        )["canonical_rdkit"]
+        rdkit_mol, canon_SMILES = trajectory_point_in.calc_or_lookup(self.canonical_rdkit_output)[
+            "canonical_rdkit"
+        ]
 
         X_test = extended_get_single_FP(rdkit_mol, nBits=self.nBits)
         d = norm(X_test - self.X_init)
@@ -1141,7 +1112,6 @@ def initialize_fml_from_smiles(smiles, ensemble=True):
 
 
 def compute_values(smi, **kwargs):
-
     quantities = [
         "solvation_energy",
         "HOMO_LUMO_gap",
@@ -1174,9 +1144,7 @@ def compute_values(smi, **kwargs):
 
 
 def compute_values_parallel(SMILES, njobs=10):
-    PROPERTIES = [
-        Parallel(n_jobs=njobs)(delayed(compute_values)(smi) for smi in SMILES)
-    ]
+    PROPERTIES = [Parallel(n_jobs=njobs)(delayed(compute_values)(smi) for smi in SMILES)]
     return PROPERTIES[0]
 
 
@@ -1190,7 +1158,6 @@ def initialize_from_smiles(SMILES, nBits=2048):
 
 class Analyze_Chemspace:
     def __init__(self, path, rep_type="2d", full_traj=False, verbose=False):
-
         """
         mode : either optimization of dipole and gap = "optimization" or
                sampling locally in chemical space = "sampling"
@@ -1213,7 +1180,6 @@ class Analyze_Chemspace:
 
         if self.full_traj:
             for run in tqdm(self.results, disable=not self.verbose):
-
                 restart_data = loadpkl(run, compress=True)
 
                 HISTOGRAM = self.to_dataframe(restart_data["histogram"])
@@ -1278,7 +1244,6 @@ class Analyze_Chemspace:
 
             return SMILES, VALUES
         if self.rep_type == "3d":
-
             SMILES = []
             VALUES = []
 
@@ -1307,13 +1272,10 @@ class Analyze_Chemspace:
         return df
 
     def process_smiles_to_3d(self, smi, params):
-        init_egc, output, curr_rdkit = initialize_fml_from_smiles(
-            smi, ensemble=params["ensemble"]
-        )
+        init_egc, output, curr_rdkit = initialize_fml_from_smiles(smi, ensemble=params["ensemble"])
         return init_egc, output, curr_rdkit
 
     def reevaluate_3d(self, TP_ALL, params):
-
         if params["rep_name"] == "BoB":
             X = []
             if params["ensemble"]:
@@ -1322,10 +1284,7 @@ class Analyze_Chemspace:
                         X.append(
                             fml_rep_bob(
                                 TP["coordinates"],
-                                [
-                                    str_atom_corr(charge)
-                                    for charge in TP["nuclear_charges"]
-                                ],
+                                [str_atom_corr(charge) for charge in TP["nuclear_charges"]],
                                 TP["rdkit_Boltzmann"],
                                 params,
                             )
@@ -1337,15 +1296,11 @@ class Analyze_Chemspace:
                 return X
 
             else:
-
                 for TP in TP_ALL:
                     try:
                         X.append(
                             generate_bob(
-                                [
-                                    str_atom_corr(charge)
-                                    for charge in TP["nuclear_charges"]
-                                ],
+                                [str_atom_corr(charge) for charge in TP["nuclear_charges"]],
                                 TP["coordinates"],
                                 asize=params["asize"],
                             )
@@ -1359,7 +1314,6 @@ class Analyze_Chemspace:
         elif params["rep_name"] == "CM":
             X = []
             if params["ensemble"]:
-
                 for TP in TP_ALL:
                     try:
                         X.append(
@@ -1393,7 +1347,6 @@ class Analyze_Chemspace:
                 return X
 
         elif params["rep_name"] == "SOAP":
-
             X = []
             if params["ensemble"]:
                 for TP in TP_ALL:
@@ -1431,7 +1384,6 @@ class Analyze_Chemspace:
         elif params["rep_name"] == "MBDF":
             X = []
             if params["ensemble"]:
-
                 for TP in TP_ALL:
                     try:
                         X.append(
@@ -1486,7 +1438,6 @@ class Analyze_Chemspace:
             return None
 
     def post_process(self, curr_h, X_I, params):
-
         if params["strictly_in"]:
             in_interval = curr_h["VALUES"] == 0.0
             SMILES = curr_h["SMILES"][in_interval].values
@@ -1497,7 +1448,6 @@ class Analyze_Chemspace:
             return [], []
 
         if params["rep_type"] == "3d":
-
             results = Parallel(n_jobs=params["NPAR"])(
                 delayed(self.process_smiles_to_3d)(smi, params) for smi in SMILES
             )
@@ -1524,10 +1474,7 @@ class Analyze_Chemspace:
                         [
                             fml_rep_bob(
                                 TP["coordinates"],
-                                [
-                                    str_atom_corr(charge)
-                                    for charge in TP["nuclear_charges"]
-                                ],
+                                [str_atom_corr(charge) for charge in TP["nuclear_charges"]],
                                 TP["rdkit_Boltzmann"],
                                 params,
                             )
@@ -1538,10 +1485,7 @@ class Analyze_Chemspace:
                     X_ALL = np.asarray(
                         [
                             generate_bob(
-                                [
-                                    str_atom_corr(charge)
-                                    for charge in TP["nuclear_charges"]
-                                ],
+                                [str_atom_corr(charge) for charge in TP["nuclear_charges"]],
                                 TP["coordinates"],
                                 asize=params["asize"],
                             )
@@ -1581,35 +1525,21 @@ class Analyze_Chemspace:
         else:
             if params["rep_type"] == "MolDescriptors":
                 SMILES = np.array(
-                    [
-                        Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi)))
-                        for smi in SMILES
-                    ]
+                    [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
                 )
-                explored_rdkit = np.array(
-                    [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES]
-                )
-                X_ALL = np.array(
-                    [calc_all_descriptors(rdkit_mol) for rdkit_mol in explored_rdkit]
-                )
+                explored_rdkit = np.array([Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES])
+                X_ALL = np.array([calc_all_descriptors(rdkit_mol) for rdkit_mol in explored_rdkit])
                 D = np.array([norm(X_I - X) for X in X_ALL])
                 SMILES = SMILES[np.argsort(D)]
                 SMILES = np.array(
-                    [
-                        Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi)))
-                        for smi in SMILES
-                    ]
+                    [Chem.MolToSmiles(Chem.RemoveHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
                 )
                 D = D[np.argsort(D)]
 
             if params["rep_type"] == "2d":
-
                 if params["rep_name"] == "inv_ECFP":
                     SMILES = np.array(
-                        [
-                            Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi)))
-                            for smi in SMILES
-                        ]
+                        [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
                     )
                     explored_rdkit = np.array(
                         [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES]
@@ -1627,19 +1557,22 @@ class Analyze_Chemspace:
 
                 elif params["rep_name"] == "inv_props":
                     from mosaics.minimized_functions import inversion_potentials
+
                     SMILES = np.array(
-                        [
-                            Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi)))
-                            for smi in SMILES
-                        ]
+                        [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
                     )
                     explored_rdkit = np.array(
                         [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES]
                     )
-                    X_ALL = np.array([inversion_potentials.compute_molecule_properties(rdkit_mol) for rdkit_mol in explored_rdkit])
-                    #get_all_FP(explored_rdkit, nBits=params["nBits"])
-                    D =  np.array([norm(X_I - X) for X in X_ALL])
-                    #np.array([tanimoto_distance(X_I, X) for X in X_ALL])
+                    X_ALL = np.array(
+                        [
+                            inversion_potentials.compute_molecule_properties(rdkit_mol)
+                            for rdkit_mol in explored_rdkit
+                        ]
+                    )
+                    # get_all_FP(explored_rdkit, nBits=params["nBits"])
+                    D = np.array([norm(X_I - X) for X in X_ALL])
+                    # np.array([tanimoto_distance(X_I, X) for X in X_ALL])
                     SMILES = SMILES[np.argsort(D)]
                     SMILES = np.array(
                         [
@@ -1651,10 +1584,7 @@ class Analyze_Chemspace:
 
                 elif params["rep_name"] == "ECFP":
                     SMILES = np.array(
-                        [
-                            Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi)))
-                            for smi in SMILES
-                        ]
+                        [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
                     )
                     explored_rdkit = np.array(
                         [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES]
@@ -1671,16 +1601,12 @@ class Analyze_Chemspace:
                     D = D[np.argsort(D)]
 
                 elif params["rep_name"] == "inv_latent":
-
                     model_transformer, scalar_features = (
                         params["model"],
                         params["scalar_features"],
                     )
                     SMILES = np.array(
-                        [
-                            Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi)))
-                            for smi in SMILES
-                        ]
+                        [Chem.MolToSmiles(Chem.AddHs(Chem.MolFromSmiles(smi))) for smi in SMILES]
                     )
                     explored_rdkit = np.array(
                         [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in SMILES]
@@ -1747,14 +1673,10 @@ def chemspacesampler_ECFP(smiles, params=None):
         mc_run(egc, min_func, "chemspacesampler", respath, f"results_{0}", params)
     else:
         Parallel(n_jobs=params["NPAR"])(
-            delayed(mc_run)(
-                egc, min_func, "chemspacesampler", respath, f"results_{i}", params
-            )
+            delayed(mc_run)(egc, min_func, "chemspacesampler", respath, f"results_{i}", params)
             for i in range(params["NPAR"])
         )
-    ana = Analyze_Chemspace(
-        respath + f"/*.pkl", rep_type="2d", full_traj=False, verbose=False
-    )
+    ana = Analyze_Chemspace(respath + f"/*.pkl", rep_type="2d", full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
     MOLS, D = ana.post_process(GLOBAL_HISTOGRAM, X, params)
     shutil.rmtree(respath)
@@ -1797,9 +1719,7 @@ def chemspacesampler_MolDescriptors(smiles, params=None):
         mc_run(egc, min_func, "chemspacesampler", respath, f"results_{0}", params)
     else:
         Parallel(n_jobs=params["NPAR"])(
-            delayed(mc_run)(
-                egc, min_func, "chemspacesampler", respath, f"results_{i}", params
-            )
+            delayed(mc_run)(egc, min_func, "chemspacesampler", respath, f"results_{i}", params)
             for i in range(params["NPAR"])
         )
     ana = Analyze_Chemspace(
@@ -1825,7 +1745,6 @@ def chemspacesampler_SOAP(smiles, params=None):
     """
 
     if params is None:
-
         num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
         elements = list({atom.GetSymbol() for atom in rdkit_init.GetAtoms()})
 
@@ -1851,9 +1770,7 @@ def chemspacesampler_SOAP(smiles, params=None):
             "verbose": False,
         }
 
-    init_egc, tp, rdkit_init = initialize_fml_from_smiles(
-        smiles, ensemble=params["ensemble"]
-    )
+    init_egc, tp, rdkit_init = initialize_fml_from_smiles(smiles, ensemble=params["ensemble"])
     coords, charges = tp["coordinates"], tp["nuclear_charges"]
 
     if params["ensemble"]:
@@ -1874,9 +1791,7 @@ def chemspacesampler_SOAP(smiles, params=None):
         )
     else:
         mc_run(init_egc, min_func, "chemspacesampler", respath, f"results_{0}", params)
-    ana = Analyze_Chemspace(
-        respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False
-    )
+    ana = Analyze_Chemspace(respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
     MOLS, D = ana.post_process(GLOBAL_HISTOGRAM, X, params)
     shutil.rmtree(respath)
@@ -1885,7 +1800,6 @@ def chemspacesampler_SOAP(smiles, params=None):
 
 
 def chemspacesampler_BoB(smiles, params=None):
-
     if params is None:
         num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
         elements = list({atom.GetSymbol() for atom in rdkit_init.GetAtoms()})
@@ -1909,27 +1823,21 @@ def chemspacesampler_BoB(smiles, params=None):
             "ensemble": True,
             "verbose": False,
         }
-    init_egc, tp, rdkit_init = initialize_fml_from_smiles(
-        smiles, ensemble=params["ensemble"]
-    )
+    init_egc, tp, rdkit_init = initialize_fml_from_smiles(smiles, ensemble=params["ensemble"])
     coords, charges = tp["coordinates"], tp["nuclear_charges"]
     symbols = [str_atom_corr(charge) for charge in charges]
 
     asize, max_n = max_element_counts([symbols * 3])
     asize_copy = asize.copy()
     elements_to_exclude = ["H"]
-    elements_not_excluded = [
-        key for key in asize_copy if key not in elements_to_exclude
-    ]
+    elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
 
     if elements_not_excluded:  # checks if list is not empty
         avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(
             elements_not_excluded
         )
     else:
-        avg_value = (
-            0  # or any other value you consider appropriate when there are no elements
-        )
+        avg_value = 0  # or any other value you consider appropriate when there are no elements
 
     for element in params["possible_elements"]:
         if element not in asize:
@@ -1956,11 +1864,8 @@ def chemspacesampler_BoB(smiles, params=None):
             for i in range(params["NPAR"])
         )
     else:
-
         mc_run(init_egc, min_func, "chemspacesampler", respath, f"results_{0}", params)
-    ana = Analyze_Chemspace(
-        respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False
-    )
+    ana = Analyze_Chemspace(respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
     MOLS, D = ana.post_process(GLOBAL_HISTOGRAM, X, params)
     shutil.rmtree(respath)
@@ -1969,9 +1874,7 @@ def chemspacesampler_BoB(smiles, params=None):
 
 
 def chemspacesampler_CM(smiles, params=None):
-    init_egc, tp, rdkit_init = initialize_fml_from_smiles(
-        smiles, ensemble=params["ensemble"]
-    )
+    init_egc, tp, rdkit_init = initialize_fml_from_smiles(smiles, ensemble=params["ensemble"])
 
     if params is None:
         num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
@@ -2021,9 +1924,7 @@ def chemspacesampler_CM(smiles, params=None):
     else:
         mc_run(init_egc, min_func, "chemspacesampler", respath, f"results_{0}", params)
 
-    ana = Analyze_Chemspace(
-        respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False
-    )
+    ana = Analyze_Chemspace(respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
     MOLS, D = ana.post_process(GLOBAL_HISTOGRAM, X, params)
     shutil.rmtree(respath)
@@ -2032,27 +1933,21 @@ def chemspacesampler_CM(smiles, params=None):
 
 
 def chemspacesampler_atomization_rep(smiles, params=None):
-    init_egc, tp, rdkit_init = initialize_fml_from_smiles(
-        smiles, ensemble=params["ensemble"]
-    )
+    init_egc, tp, rdkit_init = initialize_fml_from_smiles(smiles, ensemble=params["ensemble"])
     coords, charges = tp["coordinates"], tp["nuclear_charges"]
     symbols = [str_atom_corr(charge) for charge in charges]
 
     asize, max_n = max_element_counts([symbols * 3])
     asize_copy = asize.copy()
     elements_to_exclude = ["H"]
-    elements_not_excluded = [
-        key for key in asize_copy if key not in elements_to_exclude
-    ]
+    elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
 
     if elements_not_excluded:  # checks if list is not empty
         avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(
             elements_not_excluded
         )
     else:
-        avg_value = (
-            0  # or any other value you consider appropriate when there are no elements
-        )
+        avg_value = 0  # or any other value you consider appropriate when there are no elements
 
     for element in params["possible_elements"]:
         if element not in asize:
@@ -2063,9 +1958,7 @@ def chemspacesampler_atomization_rep(smiles, params=None):
         3 * max_n,
         list(asize.keys()),
     )
-    params["asize2"] = {
-        NUCLEAR_CHARGE[k]: v for k, v in zip(asize.keys(), asize.values())
-    }
+    params["asize2"] = {NUCLEAR_CHARGE[k]: v for k, v in zip(asize.keys(), asize.values())}
 
     if params["ensemble"]:
         print("Not implemented")
@@ -2086,9 +1979,7 @@ def chemspacesampler_atomization_rep(smiles, params=None):
     else:
         mc_run(init_egc, min_func, "chemspacesampler", respath, f"results_{0}", params)
 
-    ana = Analyze_Chemspace(
-        respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False
-    )
+    ana = Analyze_Chemspace(respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
     MOLS, D = ana.post_process(GLOBAL_HISTOGRAM, X, params)
     shutil.rmtree(respath)
@@ -2120,27 +2011,21 @@ def chemspacesampler_MBDF(smiles, params=None):
             "ensemble": True,
             "verbose": True,
         }
-    init_egc, tp, rdkit_init = initialize_fml_from_smiles(
-        smiles, ensemble=params["ensemble"]
-    )
+    init_egc, tp, rdkit_init = initialize_fml_from_smiles(smiles, ensemble=params["ensemble"])
     coords, charges = tp["coordinates"], tp["nuclear_charges"]
     symbols = [str_atom_corr(charge) for charge in charges]
 
     asize, max_n = max_element_counts([symbols * 3])
     asize_copy = asize.copy()
     elements_to_exclude = ["H"]
-    elements_not_excluded = [
-        key for key in asize_copy if key not in elements_to_exclude
-    ]
+    elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
 
     if elements_not_excluded:  # checks if list is not empty
         avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(
             elements_not_excluded
         )
     else:
-        avg_value = (
-            0  # or any other value you consider appropriate when there are no elements
-        )
+        avg_value = 0  # or any other value you consider appropriate when there are no elements
 
     for element in params["possible_elements"]:
         if element not in asize:
@@ -2151,9 +2036,7 @@ def chemspacesampler_MBDF(smiles, params=None):
         3 * max_n,
         list(asize.keys()),
     )
-    params["asize2"] = {
-        NUCLEAR_CHARGE[k]: v for k, v in zip(asize.keys(), asize.values())
-    }
+    params["asize2"] = {NUCLEAR_CHARGE[k]: v for k, v in zip(asize.keys(), asize.values())}
     params["grid1"], params["grid2"] = fourier_grid()
 
     if params["ensemble"]:
@@ -2173,9 +2056,7 @@ def chemspacesampler_MBDF(smiles, params=None):
     else:
         mc_run(init_egc, min_func, "chemspacesampler", respath, f"results_{0}", params)
 
-    ana = Analyze_Chemspace(
-        respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False
-    )
+    ana = Analyze_Chemspace(respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
 
     MOLS, D = ana.post_process(GLOBAL_HISTOGRAM, X, params)
@@ -2185,9 +2066,7 @@ def chemspacesampler_MBDF(smiles, params=None):
 
 
 def chemspacesampler_find_cliffs(smiles, params=None):
-    init_egc, tp, rdkit_init = initialize_fml_from_smiles(
-        smiles, ensemble=params["ensemble"]
-    )
+    init_egc, tp, rdkit_init = initialize_fml_from_smiles(smiles, ensemble=params["ensemble"])
     if params is None:
         num_heavy_atoms = rdkit_init.GetNumHeavyAtoms()
         elements = list({atom.GetSymbol() for atom in rdkit_init.GetAtoms()})
@@ -2230,9 +2109,7 @@ def chemspacesampler_find_cliffs(smiles, params=None):
     asize, max_n = max_element_counts([symbols * 3])
     asize_copy = asize.copy()
     elements_to_exclude = ["H"]
-    elements_not_excluded = [
-        key for key in asize_copy if key not in elements_to_exclude
-    ]
+    elements_not_excluded = [key for key in asize_copy if key not in elements_to_exclude]
 
     if elements_not_excluded:
         avg_value = sum(asize_copy[key] for key in elements_not_excluded) / len(
@@ -2270,9 +2147,7 @@ def chemspacesampler_find_cliffs(smiles, params=None):
         mc_run(init_egc, min_func, "chemspacesampler", respath, f"results_{0}", params)
 
     # TODO missing implementation of the postprocessing
-    ana = Analyze_Chemspace(
-        respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False
-    )
+    ana = Analyze_Chemspace(respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
     MOLS, D, P = ana.post_process(GLOBAL_HISTOGRAM, X, params)
     shutil.rmtree(respath)

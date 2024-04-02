@@ -1,15 +1,14 @@
 # The same example script as in 02_xTB_property_optimization, but capitalizing on distributed parallelism.
 # WARNING: It consumes a lot of CPU time. AND its occasional crash was the reason for the "10^7" crash remark in MOSAiCS paper SI.
-from mosaics.beta_choice import gen_exp_beta_array
-from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
-from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.minimized_functions.morfeus_quantity_estimates import (
-    LinComb_Morfeus_xTB_code,
-)
-from mosaics.distributed_random_walk import DistributedRandomWalk
-
 import random
+
 import numpy as np
+
+from mosaics.beta_choice import gen_exp_beta_array
+from mosaics.distributed_random_walk import DistributedRandomWalk
+from mosaics.minimized_functions.morfeus_quantity_estimates import LinComb_Morfeus_xTB_code
+from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
+from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
 
 random.seed(1)
 np.random.seed(1)
