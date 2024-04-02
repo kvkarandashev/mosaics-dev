@@ -35,13 +35,9 @@ Additional packages are required to run some example scripts.
    cd mosaics
    ```
 
-3. Install the package using `setuptools`
+3. Install the package using `Makefile` (which in turn uses `setuptools`)
    ```bash
-   python setup.py install
-   ```
-   or `pip`
-   ```bash
-   pip install .
+   make install
    ```
 
 ## :toolbox: Usage
@@ -70,6 +66,9 @@ Showcases the algorithm's ability to explore various regions of the chemical spa
 
 ## :handshake: Contributing
 We welcome contributions and feedback from the community. If you encounter any issues or have suggestions for improvements, please [open an issue](https://github.com/chemspacelab/mosaics/issues) on GitHub.
+
+## :straight_ruler: Tests
+Unfortunately, due to uncertain nature of Monte Carlo trajectories the only way to completely verify correctness of installation is by running a relatively long Monte Carlo calculation with a certain random number generator seed and compare it to the benchmark trajectory. Hence each example script in `examples` with a toy problem function also has a test version in `tests` that compares code output to a benchmark; the calculation takes significantly more time than a typical test. A reference environment for which the benchmarks could be reproduced is found in `tests/benchmark_env.yml` (in case, for example, an environment update changes the way random number generation works). Passing the test in `test/01_toy_minimization` should be enough to verify installation.
 
 ## :scroll: License
 This project is licensed under the MIT License
