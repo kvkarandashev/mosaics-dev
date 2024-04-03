@@ -43,7 +43,9 @@ if cloned_betas:
 else:
     num_exploration_betas = 256
     num_greedy_betas = 16
-betas = gen_exp_beta_array(num_greedy_betas, 8.0, num_exploration_betas, max_real_beta=0.125)
+betas = gen_exp_beta_array(
+    num_greedy_betas, 8.0, num_exploration_betas, max_real_beta=0.125
+)
 
 nbetas = len(betas)
 num_beta_subpopulation_clones = 2
@@ -109,7 +111,9 @@ sim_log.print_timestamp(comment="SIM_START")
 
 for propagation_step in range(num_propagations):
     drw.propagate()
-    sim_log.print_list(drw.current_trajectory_points, comment="STEP" + str(propagation_step))
+    sim_log.print_list(
+        drw.current_trajectory_points, comment="STEP" + str(propagation_step)
+    )
     sim_log.print_list(
         drw.saved_candidates,
         comment="BEST_AT_" + str(propagation_step),
@@ -119,3 +123,5 @@ for propagation_step in range(num_propagations):
 sim_log.print_list(drw.saved_candidates, comment="FINAL_BEST", sorted_comparison=True)
 
 sim_log.print_timestamp(comment="SIM_FINISH")
+
+print("BENCHMARK AGREEMENT:", (not sim_log.difference_encountered))

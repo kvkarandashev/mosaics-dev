@@ -10,6 +10,7 @@ dependencies=[
     "sortedcontainers",
     "scipy",
     "loky",
+    "joblib",
 ]
 authors=[
  {name="Konstantin Karandashev"},

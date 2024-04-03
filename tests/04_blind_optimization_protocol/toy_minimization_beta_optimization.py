@@ -5,13 +5,18 @@ import numpy as np
 
 from mosaics.minimized_functions import OrderSlide
 from mosaics.optimization_protocol import OptimizationProtocol
-from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.rdkit_utils import SMILES_to_egc
 from mosaics.test_utils import SimulationLogIO
+from mosaics import ExtGraphCompound
 
 max_nhatoms = 9  # Not 15 to cut down on the CPU time.
 
-init_SMILES = "C"
+init_ncharges = [6]
+init_adj_matrix = [[0]]
+init_egc = ExtGraphCompound(
+    nuclear_charges=init_ncharges,
+    adjacency_matrix=init_adj_matrix,
+    hydrogen_autofill=True,
+)
 
 possible_elements = ["B", "C", "N", "O", "F", "Si", "P", "S", "Cl", "Br"]
 
@@ -94,12 +99,14 @@ opt_protocol = OptimizationProtocol(
     significant_average_minfunc_change_rel_stddev=16.0,
     subpopulation_propagation_seed=seed,
     greedy_delete_checked_paths=True,
-    init_egc=SMILES_to_egc(init_SMILES),  # saved_candidates_max_difference=None,
+    init_egc=init_egc,  # saved_candidates_max_difference=None,
     saved_candidates_max_difference=0.5,
     debug=True,
 )
 
-sim_log = SimulationLogIO(filename="toy_opt.log", benchmark_filename="toy_opt_benchmark.log")
+sim_log = SimulationLogIO(
+    filename="toy_opt.log", benchmark_filename="toy_opt_benchmark.log"
+)
 sim_log.print_timestamp(comment="SIM_START")
 
 for iteration_id in opt_protocol:
@@ -151,8 +158,4 @@ sim_log.print_list(
 )
 sim_log.print_timestamp(comment="SIM_FINISH")
 
-print("Final best candidates:")
-for cand_id, candidate in enumerate(opt_protocol.saved_candidates()):
-    print("Candidate", cand_id, ":", candidate)
-    png_filename = "best_candidate_" + str(cand_id) + ".png"
-    draw_chemgraph_to_file(candidate.tp.chemgraph(), png_filename, file_format="PNG")
+print("BENCHMARK AGREEMENT:", (not sim_log.difference_encountered))
