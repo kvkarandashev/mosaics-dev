@@ -1495,28 +1495,35 @@ class Analyze_Chemspace:
                             for TP in TP_ALL
                         ]
 
-                if params["property"] == "gap":
-                    p_values = compute_values_parallel(SMILES, njobs=params["NPAR"])
-                    p_values = np.array(p_values)[:, 2]
-                elif params["property"] == "MolLogP":
-                    p_values = Parallel(n_jobs=params["NPAR"])(
-                        delayed(Crippen.MolLogP)(Chem.MolFromSmiles(smi), True) for smi in SMILES
-                    )
-                    p_values = np.array(p_values)
-                else:
-                    print("Property not implemented")
-                    p_values = None
-
             D = np.array([norm(X_I - X) for X in X_ALL])
+            # pdb.set_trace()
             non_nan_indices = np.where(~np.isnan(D))
             D_filtered = D[non_nan_indices]
             SMILES_filtered = SMILES[non_nan_indices]
 
             SMILES_filtered = SMILES_filtered[np.argsort(D_filtered)]
             D_filtered = D_filtered[np.argsort(D_filtered)]
-
+            # pdb.set_trace()
             if params["rep_name"] == "BoB_cliffs":
-                p_values = p_values[np.argsort(D_filtered)]
+                if params["property"] == "gap":
+
+                    # pdb.set_trace()
+                    # compute_values(SMILES[0])
+                    p_values = compute_values_parallel(
+                        SMILES_filtered, njobs=params["NPAR"]
+                    )
+                    p_values = np.array(p_values)[:, 2]
+                elif params["property"] == "MolLogP":
+                    p_values = Parallel(n_jobs=params["NPAR"])(
+                        delayed(Crippen.MolLogP)(Chem.MolFromSmiles(smi), True)
+                        for smi in SMILES_filtered
+                    )
+                    p_values = np.array(p_values)
+                else:
+                    print("Property not implemented")
+                    p_values = None
+                # p_values = p_values[non_nan_indices]
+                # p_values = p_values[np.argsort(D_filtered)]
 
             if params["rep_name"] != "BoB_cliffs":
                 return SMILES_filtered, D_filtered
