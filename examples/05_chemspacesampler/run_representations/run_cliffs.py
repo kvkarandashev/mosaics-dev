@@ -10,7 +10,7 @@ def main():
         "V_0_pot": 0.05,
         "V_0_synth": 0.05,
         "NPAR": 12,
-        "Nsteps": 200,
+        "Nsteps": 50,
         "bias_strength": "none",
         "possible_elements": ["C", "O", "N", "F"],
         "not_protonated": None,

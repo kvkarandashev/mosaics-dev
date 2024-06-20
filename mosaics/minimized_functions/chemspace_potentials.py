@@ -41,6 +41,7 @@ from mosaics.rdkit_utils import RdKitFailure, SMILES_to_egc, chemgraph_to_canoni
 from mosaics.utils import loadpkl
 
 import pdb
+
 # /home/jan/executables/mosaics/examples/03_chemspacesampler/representations.py
 
 
@@ -1484,7 +1485,6 @@ class Analyze_Chemspace:
                         ]
                     )
                 else:
-                    #pdb.set_trace()
                     X_ALL =  [
                             generate_bob(
                                 [str_atom_corr(charge) for charge in TP["nuclear_charges"]],
@@ -1495,17 +1495,17 @@ class Analyze_Chemspace:
                             for TP in TP_ALL
                         ]
 
-                p_values = []
-                for smi in SMILES:
-                    if params["property"] == "gap":
-                        prop = compute_values(smi)[2]
-                    elif params["property"] == "MolLogP":
-                        prop = Crippen.MolLogP(Chem.MolFromSmiles(smi), True)
-                    else:
-                        print("Property not implemented")
-                    p_values.append(prop)
-
-                p_values = np.array(p_values)
+                if params["property"] == "gap":
+                    p_values = compute_values_parallel(SMILES, njobs=params["NPAR"])
+                    p_values = np.array(p_values)[:, 2]
+                elif params["property"] == "MolLogP":
+                    p_values = Parallel(n_jobs=params["NPAR"])(
+                        delayed(Crippen.MolLogP)(Chem.MolFromSmiles(smi), True) for smi in SMILES
+                    )
+                    p_values = np.array(p_values)
+                else:
+                    print("Property not implemented")
+                    p_values = None
 
             D = np.array([norm(X_I - X) for X in X_ALL])
             non_nan_indices = np.where(~np.isnan(D))
@@ -2148,7 +2148,8 @@ def chemspacesampler_find_cliffs(smiles, params=None):
     else:
         mc_run(init_egc, min_func, "chemspacesampler", respath, f"results_{0}", params)
 
-    # TODO missing implementation of the postprocessing
+    print("now analyzing results...")
+
     ana = Analyze_Chemspace(respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
 
