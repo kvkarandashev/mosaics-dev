@@ -35,10 +35,12 @@ from mosaics.minimized_functions.morfeus_quantity_estimates import (
 )
 from mosaics.minimized_functions.representations import *
 from mosaics.misc_procedures import str_atom_corr
-from mosaics.random_walk import TrajectoryPoint, ordered_trajectory_from_restart
+from mosaics.random_walk import TrajectoryPoint
+from mosaics.trajectory_analysis import ordered_trajectory_from_restart
 from mosaics.rdkit_utils import RdKitFailure, SMILES_to_egc, chemgraph_to_canonical_rdkit
 from mosaics.utils import loadpkl
 
+import pdb
 # /home/jan/executables/mosaics/examples/03_chemspacesampler/representations.py
 
 
@@ -848,10 +850,10 @@ class potential_BoB_cliffs:
             else:
                 print("Property not implemented")
 
-            if abs(prop_t - self.prop_0) > self.jump * abs(self.prop_0):
+            if abs(prop_t) > self.jump*abs(self.prop_0):
                 pass
             else:
-                return 200
+                return 1000
 
             if self.ensemble:
                 if coords.shape[1] == charges.shape[0]:
@@ -1482,16 +1484,16 @@ class Analyze_Chemspace:
                         ]
                     )
                 else:
-                    X_ALL = np.asarray(
-                        [
+                    #pdb.set_trace()
+                    X_ALL =  [
                             generate_bob(
                                 [str_atom_corr(charge) for charge in TP["nuclear_charges"]],
                                 TP["coordinates"],
-                                asize=params["asize"],
+                                asize=params["asize"], 
                             )
+                            if TP["coordinates"] is not None else np.nan
                             for TP in TP_ALL
                         ]
-                    )
 
                 p_values = []
                 for smi in SMILES:
@@ -2149,7 +2151,8 @@ def chemspacesampler_find_cliffs(smiles, params=None):
     # TODO missing implementation of the postprocessing
     ana = Analyze_Chemspace(respath + f"/*.pkl", rep_type="3d", full_traj=False, verbose=False)
     _, GLOBAL_HISTOGRAM, _ = ana.parse_results()
+
     MOLS, D, P = ana.post_process(GLOBAL_HISTOGRAM, X, params)
     shutil.rmtree(respath)
 
-    return MOLS, D, P
+    return MOLS, D, P, prop_0
