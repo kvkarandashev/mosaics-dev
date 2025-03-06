@@ -7,7 +7,8 @@ from mosaics import ExtGraphCompound, RandomWalk
 from mosaics.beta_choice import gen_exp_beta_array
 from mosaics.minimized_functions import OrderSlide
 from mosaics.test_utils import SimulationLogIO
-from mosaics.valence_treatment import set_color_defining_neighborhood_radius
+from mosaics.chem_graph import set_color_defining_neighborhood_radius
+from mosaics.ext_graph_compound import str2ExtGraphCompound
 
 set_color_defining_neighborhood_radius(1)
 random.seed(1)
@@ -48,17 +49,7 @@ global_change_params = {
 }
 
 # All replicas are initialized in methane.
-init_ncharges = [6]
-init_adj_matrix = [[0]]
-
-init_egcs = [
-    ExtGraphCompound(
-        nuclear_charges=init_ncharges,
-        adjacency_matrix=init_adj_matrix,
-        hydrogen_autofill=True,
-    )
-    for _ in betas
-]
+init_egcs = [str2ExtGraphCompound("6#4") for _ in betas]
 
 min_func = OrderSlide(possible_elements=possible_elements)
 
@@ -97,7 +88,9 @@ sim_log.print(
     comment="number_of_calls_vs_histogram_size",
 )
 
-sim_log.print_list(rw.saved_candidates, comment="SAVED_CANDIDATES", sorted_comparison=True)
+sim_log.print_list(
+    rw.saved_candidates, comment="SAVED_CANDIDATES", sorted_comparison=True
+)
 
 sim_log.print_timestamp(comment="SIM_FINISH")
 

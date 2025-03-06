@@ -1,8 +1,13 @@
 import numpy as np
 
 from .data import NUCLEAR_CHARGE
-from .misc_procedures import int_atom_checked, intlog, sorted_by_membership, sorted_tuple
-from .valence_treatment import ChemGraph
+from .misc_procedures import (
+    int_atom_checked,
+    intlog,
+    sorted_by_membership,
+    sorted_tuple,
+)
+from .chem_graph import ChemGraph, str2ChemGraph
 
 hydrogen_equivalence_class = -1  # Equivalence class reserved for hydrogen.
 
@@ -15,8 +20,8 @@ class ExtGraphCompound:
         chemgraph=None,
         coordinates=None,
         elements=None,
-        hydrogen_autofill=False,
         bond_orders=None,
+        charge=0,
         additional_data={},
     ):
         """
@@ -34,8 +39,8 @@ class ExtGraphCompound:
                 self.chemgraph = ChemGraph(
                     adj_mat=adjacency_matrix,
                     nuclear_charges=nuclear_charges,
-                    hydrogen_autofill=hydrogen_autofill,
                     bond_orders=bond_orders,
+                    charge=charge,
                 )
                 # Mapping between hatoms in ChemGraph and atoms in init_nuclear_charges and init_adjacency_matrix.
         else:
@@ -67,16 +72,24 @@ class ExtGraphCompound:
         """
         Initialize arrays related to mapping between hatoms objects in self.chemgraph and the original nuclear_charges and adjacency_matrix.
         """
-        if (self.original_adjacency_matrix is None) or (self.original_nuclear_charges is None):
+        if (self.original_adjacency_matrix is None) or (
+            self.original_nuclear_charges is None
+        ):
             self.original_chemgraph_mapping = None
             self.inv_original_chemgraph_mapping = None
             return
-        self.original_chemgraph_mapping = np.zeros((self.chemgraph.natoms(),), dtype=int)
-        self.inv_original_chemgraph_mapping = np.zeros((self.chemgraph.nhatoms(),), dtype=int)
+        self.original_chemgraph_mapping = np.zeros(
+            (self.chemgraph.natoms(),), dtype=int
+        )
+        self.inv_original_chemgraph_mapping = np.zeros(
+            (self.chemgraph.nhatoms(),), dtype=int
+        )
         cur_hatom_index = 0
         for atom_id, nuclear_charge in enumerate(self.original_nuclear_charges):
             if nuclear_charge == 1:
-                self.original_chemgraph_mapping[atom_id] = self.original_hydrogen_hatom(atom_id)
+                self.original_chemgraph_mapping[atom_id] = self.original_hydrogen_hatom(
+                    atom_id
+                )
             else:
                 self.original_chemgraph_mapping[atom_id] = cur_hatom_index
                 self.inv_original_chemgraph_mapping[cur_hatom_index] = atom_id
@@ -86,7 +99,9 @@ class ExtGraphCompound:
         """
         Convert an array of indices corresponding to ChemGraph's heavy atoms to indices of original imported data.
         """
-        return np.array([self.inv_original_chemgraph_mapping[hatom_id] for hatom_id in hatom_ids])
+        return np.array(
+            [self.inv_original_chemgraph_mapping[hatom_id] for hatom_id in hatom_ids]
+        )
 
     def reverse_sorting_with_invariance_delta(self, sort_vals, delta):
         """
@@ -100,9 +115,12 @@ class ExtGraphCompound:
             self.chemgraph.get_inv_canonical_permutation(),
             self.inv_original_chemgraph_mapping,
         ):
-            modified_sort_vals[original_id] = sort_vals[original_id] * (1.0 + delta * canonical_id)
+            modified_sort_vals[original_id] = sort_vals[original_id] * (
+                1.0 + delta * canonical_id
+            )
         comp_tuples = [
-            (modified_val, atom_id) for atom_id, modified_val in enumerate(modified_sort_vals)
+            (modified_val, atom_id)
+            for atom_id, modified_val in enumerate(modified_sort_vals)
         ]
         comp_tuples.sort(reverse=True)
         return np.array([comp_tuple[1] for comp_tuple in comp_tuples])
@@ -118,7 +136,9 @@ class ExtGraphCompound:
         """
         # Generate averages of sort_vals over different equivalence classes.
         original_equivalence_classes = self.original_equivalence_classes()
-        equiv_class_sort_vals = sorted_by_membership(original_equivalence_classes, l=sort_vals)
+        equiv_class_sort_vals = sorted_by_membership(
+            original_equivalence_classes, l=sort_vals
+        )
         # Find averages corresponding to equivalence classes.
         equiv_class_comp_tuples = []
         for ec, vals in enumerate(equiv_class_sort_vals):
@@ -128,10 +148,14 @@ class ExtGraphCompound:
         equiv_class_comp_tuples.sort(reverse=True)
         # Dictionnary for ordering of equivalence classes according to sort_vals.
         equiv_class_order_dict = {}
-        for equiv_class_ordering, (_, equiv_class_id) in enumerate(equiv_class_comp_tuples):
+        for equiv_class_ordering, (_, equiv_class_id) in enumerate(
+            equiv_class_comp_tuples
+        ):
             equiv_class_order_dict[equiv_class_id] = equiv_class_ordering
         # Make sure hydrogens are put in the back.
-        equiv_class_order_dict[hydrogen_equivalence_class] = len(equiv_class_comp_tuples)
+        equiv_class_order_dict[hydrogen_equivalence_class] = len(
+            equiv_class_comp_tuples
+        )
         # Tuples corresponding to the final ordering of atom ids.
         atom_comp_tuples = []
         for atom_id, equiv_class in enumerate(original_equivalence_classes):
@@ -305,7 +329,9 @@ def atom_multiplicity_in_list(
             are_equivalent = True
         else:
             if save_equivalence_data:
-                are_equivalent = cg.atom_sets_equivalent(compared_atom_tuple, other_atom_tuple)
+                are_equivalent = cg.atom_sets_equivalent(
+                    compared_atom_tuple, other_atom_tuple
+                )
             else:
                 are_equivalent = cg.uninit_atom_sets_equivalent_wcolor_check(
                     compared_atom_tuple, other_atom_tuple
@@ -333,3 +359,8 @@ def log_atom_multiplicity_in_list(
             **other_kwargs,
         )
     )
+
+
+def str2ExtGraphCompound(input_string: str, shuffle=False) -> ExtGraphCompound:
+    cg = str2ChemGraph(input_string, shuffle=shuffle)
+    return ExtGraphCompound(chemgraph=cg)
