@@ -2,37 +2,15 @@
 
 # TODO Should be possible to optimize further by comparing HeavyAtom neighborhood representations instead of colors (should decrease the number of canonical permutation evaluations during simulation).
 
-import copy
 import itertools
 import operator
-import random
 
 import numpy as np
 from igraph import Graph
-from igraph.operators import disjoint_union
 
-
-from ..misc_procedures import (
-    VERBOSITY,
-    VERBOSITY_MUTED,
-    int_atom_checked,
-    set_verbosity,
-    sorted_by_membership,
-    sorted_tuple,
-    list2colors,
-    str_atom_corr,
-)
-from .heavy_atom import HeavyAtom, str2HeavyAtom, default_valence
-from ..periodic import (
-    coord_num_hybrid,
-    p_int,
-    period_int,
-    s_int,
-    unshared_pairs,
-    valences_int,
-    charge_feasibility_list,
-    charged_valences_int,
-)
+from ..misc_procedures import VERBOSITY, VERBOSITY_MUTED, list2colors, set_verbosity, sorted_tuple
+from ..periodic import coord_num_hybrid, unshared_pairs
+from .heavy_atom import HeavyAtom, default_valence
 
 
 class InvalidChange(Exception):
@@ -151,13 +129,13 @@ def ha_graph_comparison_list(
 
 
 # Auxiliary functions
-def adj_mat2bond_orders(adj_mat):
-    bos = {}
+def adj_mat2bond_list(adj_mat):
+    bond_list = []
     for atom1, adj_mat_row in enumerate(adj_mat):
         for atom2, adj_mat_val in enumerate(adj_mat_row[:atom1]):
             if adj_mat_val != 0:
-                bos[(atom2, atom1)] = adj_mat_val
-    return bos
+                bond_list.append((atom2, atom1))
+    return bond_list
 
 
 # TODO perhaps used SortedDict from sortedcontainers more here?
@@ -167,7 +145,7 @@ class BaseChemGraph:
         graph=None,
         hatoms=None,
         bond_orders=None,
-        all_bond_orders=None,
+        bond_list=None,
         adj_mat=None,
         nuclear_charges=None,
         charge=0,
@@ -179,7 +157,7 @@ class BaseChemGraph:
             graph (igraph.Graph or None): molecular graph.
             hatoms (list or None): list of HeavyAtom objects.
             bond_orders (dict or None): bond orders between heavy atoms (for the initialized resonance structure).
-            all_bond_orders (dict or None): bond orders between all atoms (for the initialized resonance structure).
+            bond_list (dict or None): bond orders between all atoms (for the initialized resonance structure).
             adj_mat (numpy.array or None): adjacency matrix between all atoms (including hydrogens).
             nuclear_charges (numpy.array or None): all nuclear charges (including hydrogens).
         """
@@ -187,63 +165,33 @@ class BaseChemGraph:
         self.graph = graph
         self.hatoms = hatoms
         self.bond_orders = bond_orders
-        self.all_bond_orders = all_bond_orders
         self.charge = charge
 
-        if self.hatoms is not None:
-            if nuclear_charges is None:
-                self.nuclear_charges = [ha.ncharge for ha in self.hatoms]
-                if graph is None:
-                    self.all_bond_orders = {}
-                    for t, bo in self.bond_orders.items():
-                        self.all_bond_orders[sorted_tuple(*t)] = bo
-                    cur_h_id = len(self.nuclear_charges)
-                    for ha_id, ha in enumerate(self.hatoms):
-                        for _ in range(ha.nhydrogens):
-                            self.nuclear_charges.append(1)
-                            self.all_bond_orders[(ha_id, cur_h_id)] = 1
-                            cur_h_id += 1
-                    nuclear_charges = self.nuclear_charges
-
-        if (self.all_bond_orders is None) and (self.bond_orders is None):
-            if self.graph is None:
-                bo_input = adj_mat2bond_orders(adj_mat)
-                self.all_bond_orders = bo_input
-            else:
-                self.bond_orders = {}
-                for e in self.graph.get_edgelist():
-                    self.bond_orders[e] = 1
-        if (self.graph is None) or (self.hatoms is None):
-            self.init_graph_natoms(
-                np.array(nuclear_charges),
-            )
-        # TODO Check for ways to combine finding resonance structures with reassigning pi bonds.
-        # Check that valences make sense.
-
+        if (self.graph is None) and (self.hatoms is None):
+            self.init_graph_natoms(np.array(nuclear_charges), bond_list=bond_list, adj_mat=adj_mat)
         self.changed()
 
-    def init_graph_natoms(self, nuclear_charges):
+    def init_graph_natoms(self, nuclear_charges, bond_list=None, adj_mat=None):
+        if bond_list is None:
+            assert adj_mat is not None
+            bond_list = adj_mat2bond_list(adj_mat)
         self.hatoms = []
-        self.bond_orders = {}
         heavy_atom_dict = {}
         for atom_id, ncharge in enumerate(nuclear_charges):
             if ncharge != DEFAULT_ELEMENT:
                 heavy_atom_dict[atom_id] = len(self.hatoms)
-                self.hatoms.append(HeavyAtom(ncharge, valence=0))
+                self.hatoms.append(HeavyAtom(ncharge))
         self.graph = Graph(n=len(self.hatoms), directed=False)
-        filled_bond_orders = self.all_bond_orders
-        for bond_tuple, bond_order in filled_bond_orders.items():
-            for ha_id1, ha_id2 in itertools.permutations(bond_tuple):
-                if ha_id1 in heavy_atom_dict:
-                    true_id = heavy_atom_dict[ha_id1]
-                    self.hatoms[true_id].valence += bond_order
-                    if ha_id2 in heavy_atom_dict:
-                        if ha_id1 < ha_id2:
-                            self.change_edge_order(
-                                true_id, heavy_atom_dict[ha_id2], bond_order
-                            )
-                    else:
-                        self.hatoms[true_id].nhydrogens += bond_order
+        for ha_id1, ha_id2 in bond_list:
+            if ha_id1 in heavy_atom_dict:
+                true_id = heavy_atom_dict[ha_id1]
+                if ha_id2 in heavy_atom_dict:
+                    self.graph.add_edge(true_id, heavy_atom_dict[ha_id2])
+                    continue
+            else:
+                assert ha_id2 in heavy_atom_dict
+                true_id = heavy_atom_dict[ha_id2]
+            self.hatoms[true_id].nhydrogens += 1
 
     def changed(self):
         """
@@ -257,9 +205,7 @@ class BaseChemGraph:
         # Colors calculated from self.ha_comparison_lists.
         self.colors = None
         # HeavyAtom object representations.
-        self.ha_trivial_comparison_lists = [
-            ha.get_comparison_list() for ha in self.hatoms
-        ]
+        self.ha_trivial_comparison_lists = [ha.get_comparison_list() for ha in self.hatoms]
         # Colors calculated from ha_trivial_comparison_lists.
         self.trivial_colors = list2colors(self.ha_trivial_comparison_lists)
 
@@ -310,9 +256,7 @@ class BaseChemGraph:
         neigh_trivial_comparison_lists = []
         central_ha_id_subgraph = 0
         for subgraph_hatom_id, hatom_id in enumerate(neighborhood_ids):
-            neigh_trivial_comparison_lists.append(
-                self.ha_trivial_comparison_lists[hatom_id]
-            )
+            neigh_trivial_comparison_lists.append(self.ha_trivial_comparison_lists[hatom_id])
             if hatom_id == central_ha_id:
                 central_ha_id_subgraph = subgraph_hatom_id
         neigh_trivial_colors = list2colors(neigh_trivial_comparison_lists)
@@ -321,9 +265,7 @@ class BaseChemGraph:
         (
             neigh_canonical_permutation,
             neigh_inv_canonical_permutation,
-        ) = canonical_permutation_with_inverse(
-            neighborhood_subgraph, neigh_trivial_colors
-        )
+        ) = canonical_permutation_with_inverse(neighborhood_subgraph, neigh_trivial_colors)
         # Use canonical permutation to create comparison list the same way it is done for the global ChemGraph.
         self.ha_comparison_lists[central_ha_id] = ha_graph_comparison_list(
             neighborhood_subgraph,
@@ -411,9 +353,7 @@ class BaseChemGraph:
 
     def init_equivalence_vector(self):
         if self.equivalence_vector is None:
-            self.equivalence_vector = np.repeat(
-                unassigned_equivalence_class_id, self.nhatoms()
-            )
+            self.equivalence_vector = np.repeat(unassigned_equivalence_class_id, self.nhatoms())
 
     def init_pair_equivalence_matrix(self):
         if self.pair_equivalence_matrix is None:
@@ -528,23 +468,16 @@ class BaseChemGraph:
     def check_equivalence_class(self, atom_id_set):
         atom_set_length = len(atom_id_set)
         self.init_equivalence_array(atom_set_length)
-        if (
-            self.unchecked_equivalence_class(atom_id_set)
-            == unassigned_equivalence_class_id
-        ):
+        if self.unchecked_equivalence_class(atom_id_set) == unassigned_equivalence_class_id:
             self.init_colors()
             for example_tuple in self.equiv_class_examples(atom_set_length):
-                if not self.atom_sets_equivalence_reasonable(
-                    atom_id_set, example_tuple
-                ):
+                if not self.atom_sets_equivalence_reasonable(atom_id_set, example_tuple):
                     continue
                 if self.uninit_atom_sets_equivalent(atom_id_set, example_tuple):
                     equiv_class_id = self.unchecked_equivalence_class(example_tuple)
                     self.assign_equivalence_class(atom_id_set, equiv_class_id)
                     return
-            self.assign_equivalence_class(
-                atom_id_set, self.num_equiv_classes(atom_set_length)
-            )
+            self.assign_equivalence_class(atom_id_set, self.num_equiv_classes(atom_set_length))
 
     def automorphism_check(self, **kwargs):
         # TODO : post 3.10 match would be better here.
@@ -577,9 +510,9 @@ class BaseChemGraph:
         if len(atom_set1) != len(atom_set2):
             return False
         self.init_colors()
-        if self.sorted_atom_set_color_list(
-            atom_set1
-        ) != self.sorted_atom_set_color_list(atom_set2):
+        if self.sorted_atom_set_color_list(atom_set1) != self.sorted_atom_set_color_list(
+            atom_set2
+        ):
             return False
         return self.uninit_atom_sets_equivalent(atom_set1, atom_set2)
 
@@ -603,9 +536,7 @@ class BaseChemGraph:
 
     def init_log_permutation_factor(self):
         self.init_colors()
-        self.log_permutation_factor = np.log(
-            self.graph.count_isomorphisms_vf2(color1=self.colors)
-        )
+        self.log_permutation_factor = np.log(self.graph.count_isomorphisms_vf2(color1=self.colors))
 
     def get_log_permutation_factor(self):
         """
@@ -713,6 +644,24 @@ class BaseChemGraph:
         else:
             self.bond_orders[true_bond_tuple] = new_edge_order
 
+    def assign_extra_edge_orders(self, changed_hatom_ids, extra_order_dict):
+        """
+        (Only used in ChemGraph for resonance structure assignment.)
+        """
+        for hatom_considered_num, hatom_id2 in enumerate(changed_hatom_ids):
+            hatom2_neighbors = self.neighbors(hatom_id2)
+            for hatom_id1 in changed_hatom_ids[:hatom_considered_num]:
+                if hatom_id1 in hatom2_neighbors:
+                    stuple = sorted_tuple(hatom_id1, hatom_id2)
+                    if stuple in extra_order_dict:
+                        self.set_edge_order(
+                            hatom_id1,
+                            hatom_id2,
+                            1 + extra_order_dict[stuple],
+                        )
+                    else:
+                        self.set_edge_order(hatom_id1, hatom_id2, 1)
+
     def change_edge_order(self, atom1, atom2, change=0):
         """
         Change molecular graph's edge order.
@@ -793,10 +742,7 @@ class BaseChemGraph:
         )
 
     def match_atom_id_sets(self, atom_id_sets, other_cg):
-        return [
-            self.match_atom_id_set(atom_id_set, other_cg)
-            for atom_id_set in atom_id_sets
-        ]
+        return [self.match_atom_id_set(atom_id_set, other_cg) for atom_id_set in atom_id_sets]
 
     def copy_equivalence_info_to(self, other_cg, linear_storage=False):
         if linear_storage:
@@ -825,15 +771,11 @@ class BaseChemGraph:
                 for equiv_class_member in equiv_class_members:
                     equiv_class_id = self.equiv_arr(atom_set_length)[equiv_class_member]
                     if equiv_class_id != unassigned_equivalence_class_id:
-                        copied_equivalence_classes[equiv_class_id] = (
-                            other_equiv_class_id
-                        )
+                        copied_equivalence_classes[equiv_class_id] = other_equiv_class_id
                         break
 
             for equiv_class_id in range(num_equiv_classes):
-                equiv_class_members = self.equiv_class_members(
-                    equiv_class_id, atom_set_length
-                )
+                equiv_class_members = self.equiv_class_members(equiv_class_id, atom_set_length)
                 other_cg_equiv_class_members = self.match_atom_id_sets(
                     equiv_class_members, other_cg
                 )
@@ -848,9 +790,7 @@ class BaseChemGraph:
                     )
 
     def canonical_atom_set_iterator(self, atom_set_length):
-        return itertools.product(
-            *[self.inv_canonical_permutation for _ in range(atom_set_length)]
-        )
+        return itertools.product(*[self.inv_canonical_permutation for _ in range(atom_set_length)])
 
     def __hash__(self):
         # TODO replace comparison_list with comparison_tuple?
@@ -905,9 +845,7 @@ class BaseChemGraph:
             hatom_string = str(self.hatoms[hatom_id])
             if len(canonical_neighbor_list) != 0:
                 canonical_neighbor_list.sort()
-                hatom_string += "@" + "@".join(
-                    str(cn_id) for cn_id in canonical_neighbor_list
-                )
+                hatom_string += "@" + "@".join(str(cn_id) for cn_id in canonical_neighbor_list)
             hatom_strings.append(hatom_string)
         rep_str = ":".join(hatom_strings)
         if self.charge != 0:

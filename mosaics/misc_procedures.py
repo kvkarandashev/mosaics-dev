@@ -2,9 +2,10 @@
 import copy
 import os
 import random
-from sortedcontainers import SortedList
-import numpy as np
 from itertools import groupby
+
+import numpy as np
+
 from .data import NUCLEAR_CHARGE
 
 
@@ -60,9 +61,7 @@ num_procs_name = "MOSAICS_NUM_PROCS"
 
 
 def default_num_procs(num_procs=None):
-    return checked_environ_val(
-        num_procs_name, expected_answer=num_procs, default_answer=1
-    )
+    return checked_environ_val(num_procs_name, expected_answer=num_procs, default_answer=1)
 
 
 # Sorting-related.
@@ -154,9 +153,7 @@ class weighted_array(list):
                 upper_cutoff = self[remaining_length - 1].rho
                 cut_rho = upper_cutoff * remaining_length + ignored_rhos
                 if cut_rho > (1.0 - remaining_rho):
-                    density_cut = (
-                        1.0 - remaining_rho - ignored_rhos
-                    ) / remaining_length
+                    density_cut = (1.0 - remaining_rho - ignored_rhos) / remaining_length
                     break
                 else:
                     ignored_rhos += upper_cutoff
@@ -220,9 +217,7 @@ class NaturalLogLookup:
         return new_saved_values, old_max_avail_val
 
     def fill_saved_values(self, new_max_avail_val):
-        new_saved_values, old_max_avail_val = self.gen_new_saved_values(
-            new_max_avail_val
-        )
+        new_saved_values, old_max_avail_val = self.gen_new_saved_values(new_max_avail_val)
         for i in range(old_max_avail_val, new_max_avail_val):
             new_saved_values[i] = intlog_no_precalc(i + 1)
         self.saved_values = new_saved_values
@@ -244,9 +239,7 @@ def llenlog(l):
 
 class FactorialLogLookup(NaturalLogLookup):
     def fill_saved_values(self, new_max_avail_val):
-        new_saved_values, old_max_avail_val = self.gen_new_saved_values(
-            new_max_avail_val
-        )
+        new_saved_values, old_max_avail_val = self.gen_new_saved_values(new_max_avail_val)
         if old_max_avail_val == 1:
             current_log = 0.0
         else:
@@ -286,9 +279,7 @@ def random_choice_from_dict(possibilities, choices=None, get_probability_of=None
         corr_prob_choice[choice] = prob
     if get_probability_of is None:
         if len(corr_prob_choice.keys()) == 0:
-            raise Exception(
-                "Something is wrong: encountered a molecule that cannot be changed"
-            )
+            raise Exception("Something is wrong: encountered a molecule that cannot be changed")
         final_choice = random.choices(
             list(corr_prob_choice.keys()), list(corr_prob_choice.values())
         )[0]
@@ -300,9 +291,7 @@ def random_choice_from_dict(possibilities, choices=None, get_probability_of=None
         )
 
 
-def random_choice_from_nested_dict(
-    possibilities, choices=None, get_probability_of=None
-):
+def random_choice_from_nested_dict(possibilities, choices=None, get_probability_of=None):
     continue_nested = True
     cur_possibilities = possibilities
     prob_log = 0.0

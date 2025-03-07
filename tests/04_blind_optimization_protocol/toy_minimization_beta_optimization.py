@@ -3,10 +3,10 @@ import random
 
 import numpy as np
 
+from mosaics.ext_graph_compound import str2ExtGraphCompound
 from mosaics.minimized_functions import OrderSlide
 from mosaics.optimization_protocol import OptimizationProtocol
 from mosaics.test_utils import SimulationLogIO
-from mosaics.ext_graph_compound import str2ExtGraphCompound
 
 max_nhatoms = 9  # Not 15 to cut down on the CPU time.
 
@@ -98,9 +98,7 @@ opt_protocol = OptimizationProtocol(
     debug=True,
 )
 
-sim_log = SimulationLogIO(
-    filename="toy_opt.log", benchmark_filename="toy_opt_benchmark.log"
-)
+sim_log = SimulationLogIO(filename="toy_opt.log", benchmark_filename="toy_opt_benchmark.log")
 sim_log.print_timestamp(comment="SIM_START")
 
 for iteration_id in opt_protocol:

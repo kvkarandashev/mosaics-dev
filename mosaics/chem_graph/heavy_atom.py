@@ -5,14 +5,14 @@ All procedures for handling nodes: heavy atoms with the hydrogens connected to t
 # NOTE For now I am leaving min_valence, max_valence, and next_valence working only with uncharged atoms, because they are only called during RandomWalks, which cannot currently change charges anyway.
 from sortedcontainers import SortedList
 
-from ..misc_procedures import int_atom_checked, str_atom_corr, InvalidAdjMat
+from ..misc_procedures import InvalidAdjMat, int_atom_checked, str_atom_corr
 from ..periodic import (
+    charge_feasibility_list,
+    charged_valences_int,
     p_int,
     period_int,
     s_int,
     valences_int,
-    charge_feasibility_list,
-    charged_valences_int,
 )
 
 
@@ -210,9 +210,7 @@ class HeavyAtom:
 
 
 # TODO check that the function is not duplicated elsewhere
-def next_valence(
-    ha: HeavyAtom, int_step: int = 1, valence_option_id: int or None = None
-):
+def next_valence(ha: HeavyAtom, int_step: int = 1, valence_option_id: int or None = None):
     """
     Next valence value.
     """

@@ -2,18 +2,15 @@
 Procedures for generating resonance structures inside ChemGraph objects.
 """
 
-import numpy as np
-from copy import deepcopy
-from ..misc_procedures import (
-    InvalidAdjMat,
-    sorted_tuple,
-    sorted_by_membership,
-    all_equal,
-)
-from .heavy_atom import HeavyAtom
-from .base_chem_graph import BaseChemGraph
-from ..periodic import max_charge_feasibility
 import itertools
+from copy import deepcopy
+
+import numpy as np
+
+from ..misc_procedures import InvalidAdjMat, all_equal, sorted_by_membership, sorted_tuple
+from ..periodic import max_charge_feasibility
+from .base_chem_graph import BaseChemGraph
+from .heavy_atom import HeavyAtom
 
 
 # Procedures for generating which valence and charge states to iterate over.
@@ -118,28 +115,20 @@ class ExtraValenceSubgraph:
             self.subgraph_avail_charges,
             self.subgraph_avail_valences,
         ):
-            checked_avail_charges, checked_avail_valences = (
-                feasibility_checked_charges_valences(
-                    avail_charges,
-                    avail_valences,
-                    self.chemgraph.hatoms[hatom_id],
-                    self.charge_feasibility,
-                )
+            checked_avail_charges, checked_avail_valences = feasibility_checked_charges_valences(
+                avail_charges,
+                avail_valences,
+                self.chemgraph.hatoms[hatom_id],
+                self.charge_feasibility,
             )
-            HeavyAtomChargeIterators.append(
-                zip(checked_avail_charges, checked_avail_valences)
-            )
+            HeavyAtomChargeIterators.append(zip(checked_avail_charges, checked_avail_valences))
         self.HeavyAtomCharges = iter_prod_list(HeavyAtomChargeIterators)
         if self.chemgraph.resonance_structures_merged:
-            charge_configuration_character_kwargs = {
-                "chemgraph_charge": self.chemgraph.charge
-            }
+            charge_configuration_character_kwargs = {"chemgraph_charge": self.chemgraph.charge}
         else:
             charge_configuration_character_kwargs = {}
         self.HeavyAtomCharges.sort(
-            key=lambda x: ChargeConfigurationCharacter(
-                x, **charge_configuration_character_kwargs
-            )
+            key=lambda x: ChargeConfigurationCharacter(x, **charge_configuration_character_kwargs)
         )
         self.HeavyAtomCharges_divisors = divide_by_character(
             self.HeavyAtomCharges,
@@ -148,10 +137,7 @@ class ExtraValenceSubgraph:
         )
 
     def init_piecewise_valences_charges_iterator(self):
-        if (
-            self.considered_charge_character_interval
-            == len(self.HeavyAtomCharges_divisors) - 1
-        ):
+        if self.considered_charge_character_interval == len(self.HeavyAtomCharges_divisors) - 1:
             raise StopIteration
         div1, div2 = self.HeavyAtomCharges_divisors[
             self.considered_charge_character_interval : self.considered_charge_character_interval
@@ -164,9 +150,7 @@ class ExtraValenceSubgraph:
             self.partialHeavyAtomCharges += list(
                 zip(itertools.repeat(charges, len(avail_valences)), avail_valences)
             )
-        self.partialHeavyAtomCharges.sort(
-            key=lambda x: ValenceConfigurationCharacter(x[1])
-        )
+        self.partialHeavyAtomCharges.sort(key=lambda x: ValenceConfigurationCharacter(x[1]))
         self.partialHeavyAtomCharges_iter = iter(self.partialHeavyAtomCharges)
 
     def __iter__(self):
@@ -195,17 +179,14 @@ class ExtraValenceSubgraph:
             self.init_piecewise_valences_charges_iterator()
             output = self.partialHeavyAtomCharges_iter.__next__()
         if (self.valid_valence_configuration_character is not None) and (
-            ValenceConfigurationCharacter(output[1])
-            != self.valid_valence_configuration_character
+            ValenceConfigurationCharacter(output[1]) != self.valid_valence_configuration_character
         ):
             raise StopIteration
         self.current_charges, self.current_valences = output
         return output
 
     def append_current_valence_state(self):
-        for i, (charge, valence) in enumerate(
-            zip(self.current_charges, self.current_valences)
-        ):
+        for i, (charge, valence) in enumerate(zip(self.current_charges, self.current_valences)):
             self.possible_charges[i].append(charge)
             self.possible_valences[i].append(valence)
 
@@ -222,9 +203,7 @@ class ExtraValenceSubgraph:
         ):
             ha = self.chemgraph.hatoms[true_id]
             ha.charge, ha.possible_charges = self.collapse_repetition(possible_charges)
-            ha.valence, ha.possible_valences = self.collapse_repetition(
-                possible_valences
-            )
+            ha.valence, ha.possible_valences = self.collapse_repetition(possible_valences)
 
     def get_extra_valences(self, valences):
         extra_valences = np.zeros(len(self.extra_val_ids), dtype=int)
@@ -301,9 +280,7 @@ def complete_valences_attempt(
     output = None
     added_edges = []
 
-    connection_opportunities = extra_valence_subgraph.get_connection_opportunities(
-        extra_valences
-    )
+    connection_opportunities = extra_valence_subgraph.get_connection_opportunities(extra_valences)
     if connection_opportunities is None:
         return output
 
@@ -345,12 +322,8 @@ def complete_valences_attempt(
                         ):
                             break
                 extra_valences[:] = saved_extra_valences[cur_decision_fork][:]
-                connection_opportunities[:] = saved_connection_opportunities[
-                    cur_decision_fork
-                ][:]
-                potential_other_atoms = deepcopy(
-                    saved_potential_other_atoms[cur_decision_fork]
-                )
+                connection_opportunities[:] = saved_connection_opportunities[cur_decision_fork][:]
+                potential_other_atoms = deepcopy(saved_potential_other_atoms[cur_decision_fork])
                 closed_atom = saved_closed_atom[cur_decision_fork]
                 del added_edges[added_edges_stops[cur_decision_fork] :]
             else:
@@ -359,27 +332,21 @@ def complete_valences_attempt(
                 saved_connection_opportunities[cur_decision_fork] = np.copy(
                     connection_opportunities
                 )
-                saved_potential_other_atoms[cur_decision_fork] = deepcopy(
-                    potential_other_atoms
-                )
+                saved_potential_other_atoms[cur_decision_fork] = deepcopy(potential_other_atoms)
                 saved_closed_atom[cur_decision_fork] = closed_atom
                 added_edges_stops[cur_decision_fork] = len(added_edges)
             choice = path_taken[cur_decision_fork]
         other_closed_atom = potential_other_atoms[choice]
 
         # Add the extra nonsigma bond.
-        added_edges.append(
-            (extra_val_ids[closed_atom], extra_val_ids[other_closed_atom])
-        )
+        added_edges.append((extra_val_ids[closed_atom], extra_val_ids[other_closed_atom]))
         # Delete the now tied valence atoms.
         for cur_id in [closed_atom, other_closed_atom]:
             extra_valences[cur_id] -= 1
             if extra_valences[cur_id] == 0:
                 connection_opportunities[cur_id] = 0
                 # Neighbors of an atom with "spent" extra valence electrons can no longer connect to it.
-                for neigh_id in extra_valence_subgraph.extra_val_subgraph.neighbors(
-                    cur_id
-                ):
+                for neigh_id in extra_valence_subgraph.extra_val_subgraph.neighbors(cur_id):
                     if connection_opportunities[neigh_id] != 0:
                         connection_opportunities[neigh_id] -= 1
         if np.all(extra_valences == 0):
@@ -409,10 +376,8 @@ def gen_avail_charges_valences(chemgraph: BaseChemGraph, coordination_numbers: l
     extra_valence_coord_numbers = []
     for hatom_id, hatom in enumerate(chemgraph.hatoms):
         coord_num = coordination_numbers[hatom_id]
-        avail_charges, avail_valences, has_extra_valence = (
-            hatom.get_available_valences_charges(
-                coord_num, charge_feasibility=chemgraph.overall_charge_feasibility
-            )
+        avail_charges, avail_valences, has_extra_valence = hatom.get_available_valences_charges(
+            coord_num, charge_feasibility=chemgraph.overall_charge_feasibility
         )
         if not has_extra_valence:
             continue
@@ -517,9 +482,7 @@ def create_local_resonance_structure_single_charge_feasibility(
         if subgraph_res_struct_list is None:
             continue
         if valid_valence_configuration_character is None:
-            valid_valence_configuration_character = ValenceConfigurationCharacter(
-                valences
-            )
+            valid_valence_configuration_character = ValenceConfigurationCharacter(valences)
             extra_valence_subgraph.valid_valence_configuration_character = (
                 valid_valence_configuration_character
             )
@@ -531,20 +494,24 @@ def create_local_resonance_structure_single_charge_feasibility(
         current_valence_option += 1
 
     if valid_valence_configuration_character is None:
-        return False
+        return False, None
 
     extra_valence_subgraph.dump_appended_valence_states()
+
+    if len(tot_subgraph_res_struct) <= 1:
+        if len(tot_subgraph_res_struct) == 1:
+            chemgraph.assign_extra_edge_orders(
+                extra_valence_subgraph.extra_val_ids, tot_subgraph_res_struct[0]
+            )
+        return True, True
 
     if all_equal(valence_option_ids):
         # No need to adjust valences depending on the resonance structure
         valence_option_ids = [None for _ in valence_option_ids]
-
     chemgraph.resonance_structure_valence_vals.append(valence_option_ids)
     chemgraph.resonance_structure_orders.append(tot_subgraph_res_struct)
-    chemgraph.resonance_structure_inverse_map.append(
-        extra_valence_subgraph.extra_val_ids
-    )
-    return True
+    chemgraph.resonance_structure_inverse_map.append(extra_valence_subgraph.extra_val_ids)
+    return True, False
 
 
 def create_resonance_structures_single_charge_feasibility(
@@ -575,21 +542,26 @@ def create_resonance_structures_single_charge_feasibility(
         all_avail_valences,
     )
 
-    for cur_resonance_region_id, extra_valence_subgraph in enumerate(
-        extra_valence_subgraph_list
-    ):
+    cur_resonance_region_id = 0
+    for extra_valence_subgraph in extra_valence_subgraph_list:
         for charge_feasibility in range(chemgraph.overall_charge_feasibility + 1):
-            completed = create_local_resonance_structure_single_charge_feasibility(
+            (
+                completed,
+                res_struct_redundant,
+            ) = create_local_resonance_structure_single_charge_feasibility(
                 chemgraph, extra_valence_subgraph, charge_feasibility
             )
             if completed:
                 break
         if not completed:
             raise InvalidAdjMat
+        if res_struct_redundant:
+            continue
         chemgraph.resonance_structure_charge_feasibilities.append(charge_feasibility)
         assign_neighboring_pairs_to_resonance_structure_map(
             extra_valence_subgraph.extra_val_ids, chemgraph, cur_resonance_region_id
         )
+        cur_resonance_region_id += 1
 
 
 def create_resonance_structures(chemgraph: BaseChemGraph):
@@ -597,14 +569,11 @@ def create_resonance_structures(chemgraph: BaseChemGraph):
     chemgraph.overall_charge_feasibility = 0
     chemgraph.resonance_structures_merged = False
     coordination_numbers = [
-        chemgraph.coordination_number(hatom_id)
-        for hatom_id in range(chemgraph.nhatoms())
+        chemgraph.coordination_number(hatom_id) for hatom_id in range(chemgraph.nhatoms())
     ]
     while True:
         try:
-            create_resonance_structures_single_charge_feasibility(
-                chemgraph, coordination_numbers
-            )
+            create_resonance_structures_single_charge_feasibility(chemgraph, coordination_numbers)
             # check that the charge are conserved
             tot_charge = sum(ha.charge for ha in chemgraph.hatoms)
             if tot_charge == chemgraph.charge:
@@ -616,6 +585,5 @@ def create_resonance_structures(chemgraph: BaseChemGraph):
         except InvalidAdjMat:
             # try assigning more charges
             chemgraph.overall_charge_feasibility += 1
-            assert (
-                chemgraph.overall_charge_feasibility < max_charge_feasibility
-            ), InvalidAdjMat
+            if chemgraph.overall_charge_feasibility >= max_charge_feasibility:
+                raise InvalidAdjMat

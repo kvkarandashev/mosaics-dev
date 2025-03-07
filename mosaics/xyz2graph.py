@@ -5,23 +5,23 @@ from joblib import Parallel, delayed
 from rdkit import Chem
 from xyz2mol import AC2mol, chiral_stereo_check, xyz2AC
 
+from .chem_graph import ChemGraph
 from .ext_graph_compound import ExtGraphCompound
 from .misc_procedures import (
     VERBOSITY,
     VERBOSITY_MUTED,
+    InvalidAdjMat,
     default_num_procs,
     default_parallel_backend,
     int_atom_checked,
-    InvalidAdjMat,
 )
+from .random_walk import TrajectoryPoint
 from .rdkit_utils import (
     FFInconsistent,
     chemgraph_to_canonical_rdkit,
     chemgraph_to_canonical_rdkit_wcoords_no_check,
 )
 from .utils import read_xyz_file
-from .chem_graph import ChemGraph
-from .random_walk import TrajectoryPoint
 
 
 def xyz2mol_graph(nuclear_charges, charge, coords, get_chirality=False):
@@ -49,9 +49,9 @@ def xyz2mol_graph(nuclear_charges, charge, coords, get_chirality=False):
 
 def xyz_list2mols_extgraph(xyz_file_list, leave_nones=False, xyz_to_add_data=False):
     read_xyzs = [read_xyz_file(xyz_file) for xyz_file in xyz_file_list]
-    unfiltered_list = Parallel(
-        n_jobs=default_num_procs(), backend=default_parallel_backend
-    )(delayed(xyz2mol_extgraph)(None, read_xyz=read_xyz) for read_xyz in read_xyzs)
+    unfiltered_list = Parallel(n_jobs=default_num_procs(), backend=default_parallel_backend)(
+        delayed(xyz2mol_extgraph)(None, read_xyz=read_xyz) for read_xyz in read_xyzs
+    )
     output = []
     for egc_id, (egc, xyz_name) in enumerate(zip(unfiltered_list, xyz_file_list)):
         if egc is None:
@@ -76,9 +76,7 @@ def chemgraph_from_ncharges_coords(nuclear_charges, coordinates, charge=0):
     converted_coordinates = [
         [float(atom_coord) for atom_coord in atom_coords] for atom_coords in coordinates
     ]
-    adj_matrix, ncharges, _ = xyz2mol_graph(
-        converted_ncharges, charge, converted_coordinates
-    )
+    adj_matrix, ncharges, _ = xyz2mol_graph(converted_ncharges, charge, converted_coordinates)
     return ChemGraph(adj_mat=adj_matrix, nuclear_charges=ncharges, charge=charge)
 
 
@@ -91,9 +89,7 @@ def egc_from_ncharges_coords(nuclear_charges, coordinates, charge=0):
     converted_coordinates = [
         [float(atom_coord) for atom_coord in atom_coords] for atom_coords in coordinates
     ]
-    bond_order_matrix, _, _ = xyz2mol_graph(
-        converted_ncharges, charge, converted_coordinates
-    )
+    bond_order_matrix, _, _ = xyz2mol_graph(converted_ncharges, charge, converted_coordinates)
     return ExtGraphCompound(
         adjacency_matrix=bond_order_matrix,
         nuclear_charges=np.array(converted_ncharges),
@@ -144,16 +140,12 @@ def chemgraph_to_canonical_rdkit_wcoords(cg: ChemGraph, **kwargs):
     output : RDKit molecule, indices of the heavy atoms, indices of heavy atoms to which a given hydrogen is connected,
     SMILES generated from the canonical RDKit molecules, and the RDKit's coordinates
     """
-    (mol, canon_SMILES, rdkit_coords) = chemgraph_to_canonical_rdkit_wcoords_no_check(
-        cg, **kwargs
-    )
+    (mol, canon_SMILES, rdkit_coords) = chemgraph_to_canonical_rdkit_wcoords_no_check(cg, **kwargs)
 
     rdkit_nuclear_charges = np.array([atom.GetAtomicNum() for atom in mol.GetAtoms()])
     # Additionally check that the coordinates actually correspond to the molecule.
     try:
-        coord_based_cg = chemgraph_from_ncharges_coords(
-            rdkit_nuclear_charges, rdkit_coords
-        )
+        coord_based_cg = chemgraph_from_ncharges_coords(rdkit_nuclear_charges, rdkit_coords)
     except InvalidAdjMat:
         raise FFInconsistent
     if coord_based_cg != cg:

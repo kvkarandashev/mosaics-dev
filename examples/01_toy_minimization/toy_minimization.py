@@ -2,10 +2,10 @@ import random
 
 import numpy as np
 
-from mosaics import ExtGraphCompound, RandomWalk
+from mosaics import RandomWalk
 from mosaics.beta_choice import gen_exp_beta_array
-from mosaics.minimized_functions import OrderSlide
 from mosaics.ext_graph_compound import str2ExtGraphCompound
+from mosaics.minimized_functions import OrderSlide
 
 random.seed(1)
 np.random.seed(1)

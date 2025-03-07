@@ -6,9 +6,6 @@ from rdkit.Chem import AllChem
 from rdkit.Chem.rdmolfiles import MolToSmiles
 from rdkit.Chem.rdmolops import GetAdjacencyMatrix
 
-from .ext_graph_compound import ExtGraphCompound
-from .misc_procedures import int_atom_checked
-from .test_utils import print_to_separate_file_wprefix
 from .chem_graph import (
     ChemGraph,
     canonically_permuted_ChemGraph,
@@ -16,6 +13,8 @@ from .chem_graph import (
     str2ChemGraph,
 )
 from .chem_graph.heavy_atom import default_valence
+from .ext_graph_compound import ExtGraphCompound
+from .test_utils import print_to_separate_file_wprefix
 
 
 class RdKitFailure(Exception):
@@ -28,7 +27,11 @@ def rdkit_to_egc(rdkit_mol, return_chemgraph=False):
     adjacency_matrix = GetAdjacencyMatrix(rdkit_mol)
 
     if return_chemgraph:
-        return ChemGraph(adj_mat=adjacency_matrix, nuclear_charges=nuclear_charges)
+        return ChemGraph(
+            adj_mat=adjacency_matrix,
+            nuclear_charges=nuclear_charges,
+            charge=Chem.GetFormalCharge(rdkit_mol),
+        )
 
     try:
         coordinates = rdkit_mol.GetConformer().GetPositions()
@@ -46,7 +49,7 @@ def SMILES_to_egc(smiles_string, return_chemgraph=False):
     mol = Chem.MolFromSmiles(smiles_string)
     if mol is None:
         raise RdKitFailure
-    mol = Chem.AddHs(mol, explicitOnly=False)
+    mol = Chem.AddHs(mol)
     egc_out = rdkit_to_egc(mol, return_chemgraph=return_chemgraph)
     if not return_chemgraph:
         egc_out.additional_data["SMILES"] = smiles_string
@@ -54,7 +57,7 @@ def SMILES_to_egc(smiles_string, return_chemgraph=False):
 
 
 def SMILES_to_chemgraph(SMILES):
-    return SMILES_to_egc(SMILES).chemgraph
+    return SMILES_to_egc(SMILES, return_chemgraph=True)
 
 
 def rdkit_to_chemgraph(rdkit_mol):
@@ -206,9 +209,7 @@ rdkit_coord_optimizer = {
 }
 
 
-def RDKit_FF_optimize_coords(
-    mol, coord_optimizer, num_attempts=1, corresponding_cg=None
-):
+def RDKit_FF_optimize_coords(mol, coord_optimizer, num_attempts=1, corresponding_cg=None):
     AllChem.EmbedMolecule(mol)
     # KK: If we start working with this again uncomment and add individual exceptions.
     # try:
@@ -274,9 +275,7 @@ def RDKit_FF_min_en_conf(mol, ff_type, num_attempts=1, corresponding_cg=None):
             continue
         try:
             cur_coords = np.array(np.array(cur_mol.GetConformer().GetPositions()))
-            cur_nuclear_charges = np.array(
-                [atom.GetAtomicNum() for atom in cur_mol.GetAtoms()]
-            )
+            cur_nuclear_charges = np.array([atom.GetAtomicNum() for atom in cur_mol.GetAtoms()])
         except ValueError:
             cur_coords = None
             cur_nuclear_charges = None
@@ -395,8 +394,7 @@ def canonical_connected_rdkit_list_from_tp(tp, SMILES_only=False):
     """
     connected_chemgraphs = split_chemgraph_into_connected_fragments(tp.egc.chemgraph)
     return [
-        chemgraph_to_canonical_rdkit(cg, SMILES_only=SMILES_only)
-        for cg in connected_chemgraphs
+        chemgraph_to_canonical_rdkit(cg, SMILES_only=SMILES_only) for cg in connected_chemgraphs
     ]
 
 
