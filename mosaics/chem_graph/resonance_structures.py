@@ -24,7 +24,11 @@ def divide_by_character(input_list, character_function, **character_function_kwa
             continue
         character = new_character
         divisors.append(i)
-    divisors.append(len(input_list))
+    if character == np.inf:
+        if len(divisors) == 1:
+            raise StopIteration
+    else:
+        divisors.append(len(input_list))
     return divisors
 
 
@@ -46,7 +50,10 @@ def ChargeConfigurationCharacter(charges_valences: list, chemgraph_charge=None):
         charge_deviation += np.abs(charge)
 
     if chemgraph_charge is not None:
-        tot_charge -= chemgraph_charge
+        if tot_charge == chemgraph_charge:
+            return charge_deviation
+        else:
+            return np.inf
     return np.abs(tot_charge), charge_deviation
 
 
@@ -466,11 +473,14 @@ def create_local_resonance_structure_single_charge_feasibility(
     charge_feasibility: int,
 ):
     extra_valence_subgraph.charge_feasibility = charge_feasibility
-    extra_valence_iterator = iter(extra_valence_subgraph)
     valid_valence_configuration_character = None
     tot_subgraph_res_struct = []
     valence_option_ids = []
     current_valence_option = 0
+    try:
+        extra_valence_iterator = iter(extra_valence_subgraph)
+    except StopIteration:
+        return False, None
     while True:
         try:
             _, valences = extra_valence_iterator.__next__()
@@ -582,8 +592,9 @@ def create_resonance_structures(chemgraph: BaseChemGraph):
                 raise InvalidAdjMat
             else:
                 chemgraph.resonance_structures_merged = True
+                chemgraph.overall_charge_feasibility = 1
         except InvalidAdjMat:
             # try assigning more charges
             chemgraph.overall_charge_feasibility += 1
-            if chemgraph.overall_charge_feasibility >= max_charge_feasibility:
+            if chemgraph.overall_charge_feasibility > max_charge_feasibility:
                 raise InvalidAdjMat

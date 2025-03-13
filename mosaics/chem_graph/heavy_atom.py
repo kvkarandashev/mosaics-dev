@@ -7,6 +7,7 @@ from sortedcontainers import SortedList
 
 from ..misc_procedures import InvalidAdjMat, int_atom_checked, str_atom_corr
 from ..periodic import (
+    available_charges_lists,
     charge_feasibility_list,
     charged_valences_int,
     p_int,
@@ -17,8 +18,8 @@ from ..periodic import (
 
 
 def can_be_charged(atom_id, charge_feasibility=0):
-    for p in range(charge_feasibility):
-        if atom_id in charge_feasibility_list[p]:
+    for cur_charge_list in charge_feasibility_list[:charge_feasibility]:
+        if atom_id in cur_charge_list:
             return True
     return False
 
@@ -112,7 +113,16 @@ class HeavyAtom:
             avail_charges, avail_valences, self.ncharge, 0, coordination_number
         )
         if self.can_be_charged(charge_feasibility=charge_feasibility):
-            for charge in charged_valences_int[self.ncharge].keys():
+            additional_charges = []
+            for avail_charges_dict in available_charges_lists[:charge_feasibility]:
+                if self.ncharge not in avail_charges_dict:
+                    continue
+                cur_add_charges = avail_charges_dict[self.ncharge]
+                if isinstance(cur_add_charges, int):
+                    additional_charges.append(cur_add_charges)
+                else:
+                    additional_charges += cur_add_charges
+            for charge in additional_charges:
                 cur_has_extra_valence = add_avail_charges_valences(
                     avail_charges,
                     avail_valences,

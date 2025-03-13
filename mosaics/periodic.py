@@ -96,7 +96,8 @@ p_int = {
 
 # Priority list of charged species.
 # Introduced in order charges to C were assigned only if options of fitting valences with adding charges to O and N were exhausted.
-charge_feasibility_list = [[5, 7, 8], [6]]
+charge_feasibility_list = [[5, 7, 8], [], [6]]
+available_charges_lists = [{5: -1, 7: 1, 8: -1}, {7: -1}, {6: [-1, 1]}]
 max_charge_feasibility = len(charge_feasibility_list)
 # which valences can be
-charged_valences_int = {5: {-1: 4}, 6: {-1: 3}, 7: {1: 4}, 8: {-1: 1}}
+charged_valences_int = {5: {-1: 4}, 6: {-1: 3, 1: 3}, 7: {1: 4, -1: 2}, 8: {-1: 1}}
