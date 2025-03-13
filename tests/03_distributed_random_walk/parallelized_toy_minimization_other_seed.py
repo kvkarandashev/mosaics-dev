@@ -122,3 +122,5 @@ for propagation_step in range(num_propagations):
 sim_log.print_list(drw.saved_candidates, comment="FINAL_BEST", sorted_comparison=True)
 
 sim_log.print_timestamp(comment="SIM_FINISH")
+
+print("BENCHMARK AGREEMENT:", (not sim_log.difference_encountered))
