@@ -145,6 +145,8 @@ class HeavyAtom:
         return avail_charges, avail_valences, has_extra_valence
 
     def clear_possibilities(self):
+        self.valence = None
+        self.charge = None
         self.possible_valences = None
         self.possible_charges = None
 

@@ -131,7 +131,11 @@ class ExtraValenceSubgraph:
             HeavyAtomChargeIterators.append(zip(checked_avail_charges, checked_avail_valences))
         self.HeavyAtomCharges = iter_prod_list(HeavyAtomChargeIterators)
         if self.chemgraph.resonance_structures_merged:
-            charge_configuration_character_kwargs = {"chemgraph_charge": self.chemgraph.charge}
+            unaccounted_charge = self.chemgraph.charge
+            for ha in self.chemgraph.hatoms:
+                if ha.charge is not None:
+                    unaccounted_charge -= ha.charge
+            charge_configuration_character_kwargs = {"chemgraph_charge": unaccounted_charge}
         else:
             charge_configuration_character_kwargs = {}
         self.HeavyAtomCharges.sort(
