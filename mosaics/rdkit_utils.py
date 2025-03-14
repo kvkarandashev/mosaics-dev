@@ -160,7 +160,11 @@ def chemgraph_to_rdkit(
         # Convert RWMol to Mol object
         mol = mol.GetMol()
         # TODO: Do we need to sanitize?
-        Chem.SanitizeMol(mol)
+        try:
+            Chem.SanitizeMol(mol)
+        except Chem.rdchem.AtomValenceException:
+            # more exception types should be added as encountered
+            print("WARNING: Failed to sanitize", cg)
     if include_SMILES:
         return mol, SMILES
     else:
