@@ -539,6 +539,7 @@ def create_resonance_structures_single_charge_feasibility(
 
     for ha in chemgraph.hatoms:
         ha.clear_possibilities()
+    chemgraph.bond_orders = {}
 
     (
         all_avail_charges,

@@ -158,7 +158,17 @@ class HeavyAtom:
 
     def charge_reasonable(self, charge_feasibility=0):
         if self.can_be_charged(charge_feasibility=charge_feasibility):
-            return self.ncharge in charged_valences_int[self.ncharge].keys()
+            for avail_charge_dict in available_charges_lists[:charge_feasibility]:
+                if self.ncharge not in avail_charge_dict:
+                    continue
+                charges = avail_charge_dict[self.ncharge]
+                if isinstance(charges, int):
+                    if self.charge == charges:
+                        return True
+                else:
+                    if self.charge in charges:
+                        return True
+            return False
         else:
             return self.charge == 0
 
