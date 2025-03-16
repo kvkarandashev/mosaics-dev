@@ -48,9 +48,7 @@ class ChemGraph(BaseChemGraph):
             charge=charge,
         )
         if self.info_incomplete():
-            self.bond_orders = {}
             self.init_resonance_structures()
-            self.fill_missing_bond_orders()
 
     def info_incomplete(self):
         if self.bond_orders is None:
@@ -417,6 +415,9 @@ class ChemGraph(BaseChemGraph):
                 # we don't need to adjust bonds
                 continue
             self.adjust_resonance_bond_no_valences_no_init(resonance_region_id, 0)
+        # create_resonance_structures first sets self.bond_orders to {}, then initializes
+        # all the bonds with extra valences. All other ("missing") bond orders should be given order 1.
+        self.fill_missing_bond_orders()
 
     # More sophisticated commands that are to be called in the "modify" module.
     def change_bond_order(self, atom1, atom2, bond_order_change, resonance_structure_id=None):
