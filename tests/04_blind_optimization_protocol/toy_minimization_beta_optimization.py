@@ -3,7 +3,6 @@ import random
 
 import numpy as np
 
-
 from mosaics.ext_graph_compound import str2ExtGraphCompound
 from mosaics.minimized_functions import OrderSlide
 from mosaics.optimization_protocol import OptimizationProtocol
