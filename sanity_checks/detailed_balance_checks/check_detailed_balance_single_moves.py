@@ -4,9 +4,9 @@ import sys
 
 import numpy as np
 
+from mosaics.chem_graph.chem_graph import str2ChemGraph
 from mosaics.modify import TrajectoryPoint
 from mosaics.test_utils import all_procedure_prop_probability_checks
-from mosaics.valence_treatment import str2ChemGraph
 
 seed = 1
 

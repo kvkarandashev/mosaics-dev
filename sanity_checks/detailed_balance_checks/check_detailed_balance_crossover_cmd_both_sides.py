@@ -4,10 +4,10 @@ import sys
 
 import numpy as np
 
+from mosaics.chem_graph.chem_graph import str2ChemGraph
 from mosaics.minimized_functions.toy_problems import ChargeSum
 from mosaics.random_walk import TrajectoryPoint
 from mosaics.test_utils import check_prop_probability
-from mosaics.valence_treatment import str2ChemGraph
 
 
 def get_tps(chemgraph_strings):
