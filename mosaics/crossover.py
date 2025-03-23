@@ -523,18 +523,10 @@ def crossover_outcomes(cg_pair, chosen_sizes, origin_points, forbidden_bonds=Non
         return new_chemgraph_pairs, new_origin_points
 
 
-# temporary addition for testing.
-def sorted_bond_tuple_dict(bond_tuple_dict):
-    output = {}
-    for bo in sorted(bond_tuple_dict.keys()):
-        output[bo] = sorted(bond_tuple_dict[bo])
-    return output
-
-
 class RandomTupleBondReconnector:
     def __init__(self, status1, status2):
-        bo_tuple_dict1 = sorted_bond_tuple_dict(status1.bond_tuple_dict)
-        bo_tuple_dict2 = sorted_bond_tuple_dict(status2.bond_tuple_dict)
+        bo_tuple_dict1 = status1.bond_tuple_dict
+        bo_tuple_dict2 = status2.bond_tuple_dict
 
         self.tuples_correspondence = {}
         for bo1, tuples1 in bo_tuple_dict1.items():
