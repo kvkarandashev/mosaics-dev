@@ -13,6 +13,7 @@ from xtb.utils import get_method, get_solvent
 
 from ..data import conversion_coefficient, room_T
 from ..misc_procedures import (
+    InvalidAdjMat,
     all_None_dict,
     any_element_in_list,
     checked_environ_val,
@@ -20,7 +21,6 @@ from ..misc_procedures import (
     weighted_array,
 )
 from ..rdkit_utils import chemgraph_to_canonical_rdkit
-from ..valence_treatment import InvalidAdjMat
 from ..xyz2graph import chemgraph_from_ncharges_coords
 
 RDLogger.DisableLog("rdApp.*")
@@ -133,7 +133,8 @@ def xTB_singlepoint_res_no_error_check(
 def xTB_singlepoint_res(*args, **kwargs):
     try:
         return xTB_singlepoint_res_no_error_check(*args, **kwargs)
-    except:
+    except Exception as ex:
+        print("PROBLEM:", ex)
         return None
 
 
