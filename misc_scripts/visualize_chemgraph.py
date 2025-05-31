@@ -1,8 +1,9 @@
 import os
 import sys
 
+from mosaics.chem_graph import str2ChemGraph
+from mosaics.misc_procedures import InvalidAdjMat
 from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.valence_treatment import InvalidAdjMat, str2ChemGraph
 
 chemgraph_str = sys.argv[1]
 
