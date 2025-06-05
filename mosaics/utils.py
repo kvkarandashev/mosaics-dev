@@ -253,3 +253,17 @@ def mkdir(dirname):
 
 def rmdir(dirname):
     run("rm", "-Rf", dirname)
+
+
+# For using comparison lists as data pointers.
+def calc_max_comparison_list_length(nhatoms, max_valence=6):
+    """
+    Maximum length of a graph comparison list (w. color_defining_neighborhood_radius=0) obtained for ChemGraphs with up to nhatoms heavy atoms that have a maximum of max_valence valence.
+    """
+    # 1 entry optionally corresponds to charge
+    max_comparison_list_length = 1
+    # for each heavy atom write its nuclear charge, number of hydrogens, and number of neighbors listed after the corresponding entry
+    max_comparison_list_length += 3 * nhatoms
+    # total length of neighbor lists.
+    max_comparison_list_length += nhatoms * max_valence // 2
+    return max_comparison_list_length
