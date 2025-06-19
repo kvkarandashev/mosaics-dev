@@ -112,7 +112,7 @@ def ha_graph_comparison_list(
     Create an integer list uniquely representing a graph with HeavyAtom objects as nodes with a known canonical permutation.
     Used to define instances of ChemGraph along with node neighborhoods.
     """
-    comparison_list = []
+    comparison_list = [len(ha_trivial_comparison_lists)]
     for perm_hatom_id, hatom_id in enumerate(inv_canonical_permutation):
         comparison_list += list(ha_trivial_comparison_lists[hatom_id])
         perm_neighs = []
