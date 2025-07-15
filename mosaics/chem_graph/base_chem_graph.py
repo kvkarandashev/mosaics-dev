@@ -8,7 +8,14 @@ import operator
 import numpy as np
 from igraph import Graph
 
-from ..misc_procedures import VERBOSITY, VERBOSITY_MUTED, list2colors, set_verbosity, sorted_tuple
+from ..misc_procedures import (
+    VERBOSITY,
+    VERBOSITY_MUTED,
+    list2colors,
+    permutation_inverse,
+    set_verbosity,
+    sorted_tuple,
+)
 from ..periodic import coord_num_hybrid, unshared_pairs
 from .heavy_atom import HeavyAtom, default_valence
 
@@ -95,9 +102,7 @@ def canonical_permutation_with_inverse(graph, colors):
     Return canonical permutation in terms of both forward and inverse arrays.
     """
     canonical_permutation = np.array(graph.canonical_permutation(color=colors))
-    inv_canonical_permutation = np.zeros(len(colors), dtype=int)
-    for pos_counter, pos in enumerate(canonical_permutation):
-        inv_canonical_permutation[pos] = pos_counter
+    inv_canonical_permutation = permutation_inverse(canonical_permutation)
     return canonical_permutation, inv_canonical_permutation
 
 
@@ -714,6 +719,10 @@ class BaseChemGraph:
             self.canonical_permutation,
             self.inv_canonical_permutation,
         ) = canonical_permutation_with_inverse(self.graph, self.colors)
+
+    def get_canonical_permutation(self):
+        self.init_canonical_permutation()
+        return self.canonical_permutation
 
     def get_inv_canonical_permutation(self):
         self.init_canonical_permutation()

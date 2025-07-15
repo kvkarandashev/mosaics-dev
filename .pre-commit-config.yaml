@@ -63,3 +63,8 @@ repos:
                 # ignore ambiguous variable name (E741)
                 "--ignore=E501,E203,W503,E741",
             ]
+
+    -   repo: https://github.com/kieran-ryan/pyprojectsort
+        rev: v0.4.0
+        hooks:
+        -   id: pyprojectsort
