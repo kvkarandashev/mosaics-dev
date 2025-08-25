@@ -11,13 +11,13 @@ from igraph import Graph
 from ..misc_procedures import (
     VERBOSITY,
     VERBOSITY_MUTED,
+    InvalidAdjMat,
     list2colors,
     permutation_inverse,
     set_verbosity,
     sorted_tuple,
 )
 from ..periodic import coord_num_hybrid, unshared_pairs
-from ..utils import InvalidAdjMat
 from .heavy_atom import HeavyAtom, default_valence
 
 
