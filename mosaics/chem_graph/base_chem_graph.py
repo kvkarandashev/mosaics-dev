@@ -17,6 +17,7 @@ from ..misc_procedures import (
     sorted_tuple,
 )
 from ..periodic import coord_num_hybrid, unshared_pairs
+from ..utils import InvalidAdjMat
 from .heavy_atom import HeavyAtom, default_valence
 
 
@@ -193,6 +194,9 @@ class BaseChemGraph:
                     self.graph.add_edge(true_id, heavy_atom_dict[ha_id2])
                     continue
             else:
+                if ha_id2 not in heavy_atom_dict:
+                    # this means the graph contains molecular hydrogen; the code was not designed for that.
+                    raise InvalidAdjMat("Contains molecular hydrogen.")
                 assert ha_id2 in heavy_atom_dict
                 true_id = heavy_atom_dict[ha_id2]
             self.hatoms[true_id].nhydrogens += 1
