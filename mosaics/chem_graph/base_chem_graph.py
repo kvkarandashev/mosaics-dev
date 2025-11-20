@@ -647,9 +647,12 @@ class BaseChemGraph:
         if new_edge_order < 0:
             raise InvalidChange
         if new_edge_order == 0:
-            self.graph.delete_edges([true_bond_tuple])
+            if self.graph.are_connected(*true_bond_tuple):
+                self.graph.delete_edges([true_bond_tuple])
             del self.bond_orders[true_bond_tuple]
         else:
+            if not self.graph.are_connected(*true_bond_tuple):
+                self.graph.add_edge(*true_bond_tuple)
             self.bond_orders[true_bond_tuple] = new_edge_order
 
     def assign_extra_edge_orders(self, changed_hatom_ids, extra_order_dict):
@@ -683,7 +686,6 @@ class BaseChemGraph:
             cur_edge_order = self.bond_orders[true_bond_tuple]
         except KeyError:
             cur_edge_order = 0
-            self.graph.add_edge(*true_bond_tuple)
         new_edge_order = cur_edge_order + change
         if new_edge_order < 0:
             raise InvalidChange

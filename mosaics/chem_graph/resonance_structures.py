@@ -8,7 +8,7 @@ from copy import deepcopy
 import numpy as np
 
 from ..misc_procedures import InvalidAdjMat, all_equal, sorted_by_membership, sorted_tuple
-from ..periodic import max_charge_feasibility
+from ..periodic import get_max_charge_feasibility
 from .base_chem_graph import BaseChemGraph
 from .heavy_atom import HeavyAtom
 
@@ -144,7 +144,7 @@ class ExtraValenceSubgraph:
         self.HeavyAtomCharges_divisors = divide_by_character(
             self.HeavyAtomCharges,
             ChargeConfigurationCharacter,
-            **charge_configuration_character_kwargs
+            **charge_configuration_character_kwargs,
         )
 
     def init_piecewise_valences_charges_iterator(self):
@@ -601,5 +601,5 @@ def create_resonance_structures(chemgraph: BaseChemGraph):
         except InvalidAdjMat:
             # try assigning more charges
             chemgraph.overall_charge_feasibility += 1
-            if chemgraph.overall_charge_feasibility > max_charge_feasibility:
+            if chemgraph.overall_charge_feasibility > get_max_charge_feasibility():
                 raise InvalidAdjMat

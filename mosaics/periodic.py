@@ -100,6 +100,31 @@ p_int = {
 # Introduced in order charges to C were assigned only if options of fitting valences with adding charges to O and N were exhausted.
 charge_feasibility_list = [[5, 7, 8], [], [6]]
 available_charges_lists = [{5: -1, 7: 1, 8: -1}, {7: -1}, {6: -1}]
-max_charge_feasibility = len(charge_feasibility_list)
 # which valences can be
 charged_valences_int = {5: {-1: 4}, 6: {-1: 3}, 7: {1: 4, -1: 2}, 8: {-1: 1}}
+
+
+def get_max_charge_feasibility():
+    return len(charge_feasibility_list)
+
+
+def adjust_list_length(adjusted_list, new_max_index, default_element):
+    if len(adjusted_list) > new_max_index:
+        return
+    for _ in range(new_max_index + 1 - len(adjusted_list)):
+        adjusted_list.append(default_element)
+
+
+def add_custom_element(
+    ncharge, valences, charge_feasibility_index=None, available_charges=None, charged_valences=None
+):
+    valences_int[ncharge] = valences
+    if charge_feasibility_index is not None:
+        adjust_list_length(charge_feasibility_list, charge_feasibility_index, [])
+        charge_feasibility_list[charge_feasibility_index].append(ncharge)
+    if available_charges is not None:
+        for feasibility_index, charges in available_charges.items():
+            adjust_list_length(available_charges_lists, feasibility_index, {})
+            available_charges_lists[feasibility_index][ncharge] = charges
+    if charged_valences is not None:
+        charged_valences_int[ncharge] = charged_valences
