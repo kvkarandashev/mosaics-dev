@@ -419,6 +419,13 @@ class ChemGraph(BaseChemGraph):
         # all the bonds with extra valences. All other ("missing") bond orders should be given order 1.
         self.fill_missing_bond_orders()
 
+    def check_is_reasonable(self):
+        """
+        Check that the ChemGraph instance's adjacency matrix and charge make sense.
+        """
+        self.changed()
+        self.init_resonance_structures()
+
     # More sophisticated commands that are to be called in the "modify" module.
     def change_bond_order(self, atom1, atom2, bond_order_change, resonance_structure_id=None):
         if bond_order_change != 0:
