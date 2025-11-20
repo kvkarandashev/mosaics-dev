@@ -115,14 +115,12 @@ def adjust_list_length(adjusted_list, new_max_index, default_element):
         adjusted_list.append(default_element)
 
 
-def add_custom_element(
-    ncharge, valences, charge_feasibility_index=None, available_charges=None, charged_valences=None
-):
+def add_custom_element(ncharge, valences, available_charges=None, charged_valences=None):
     valences_int[ncharge] = valences
-    if charge_feasibility_index is not None:
+    if available_charges is not None:
+        charge_feasibility_index = min(available_charges.keys())
         adjust_list_length(charge_feasibility_list, charge_feasibility_index, [])
         charge_feasibility_list[charge_feasibility_index].append(ncharge)
-    if available_charges is not None:
         for feasibility_index, charges in available_charges.items():
             adjust_list_length(available_charges_lists, feasibility_index, {})
             available_charges_lists[feasibility_index][ncharge] = charges
