@@ -696,6 +696,15 @@ class BaseChemGraph:
         if self.hatoms[atom_id].nhydrogens < 0:
             raise InvalidChange
 
+    def append_heavy_atom(self, atom_ncharge, nhydrogens=None):
+        """
+        Simply append a new heavy atom with nuclear charge of atom_ncharge and nhydrogens attached hydrogens without checking correctness of the resulting valences or creating any new bonds.
+        """
+        if nhydrogens is None:
+            nhydrogens = default_valence(atom_ncharge)
+        self.graph.add_vertex()
+        self.hatoms.append(HeavyAtom(atom_ncharge, nhydrogens=nhydrogens))
+
     # Output properties that include hydrogens.
     def full_ncharges(self):
         output = np.ones(self.natoms(), dtype=int)

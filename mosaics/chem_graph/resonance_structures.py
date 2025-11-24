@@ -81,7 +81,8 @@ def feasibility_checked_charges_valences(
     if hatom.can_be_charged(charge_feasibility):
         return avail_charges, avail_valences
     else:
-        assert avail_charges[0] == 0, InvalidAdjMat
+        if avail_charges[0] != 0:
+            raise InvalidAdjMat
         return avail_charges[:1], avail_valences[:1]
 
 

@@ -498,7 +498,10 @@ class ChemGraph(BaseChemGraph):
                 new_tuple.append(b)
             new_bond_orders[tuple(new_tuple)] = bond_order
         self.bond_orders = new_bond_orders
+        removed_charge = self.hatoms[atom_id].charge
         del self.hatoms[atom_id]
+        if removed_charge is not None:
+            self.charge -= removed_charge
         self.changed()
 
     def remove_heavy_atoms(self, atom_ids):

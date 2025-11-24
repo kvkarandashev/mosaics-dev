@@ -22,7 +22,10 @@ class RdKitFailure(Exception):
 
 
 #   For going between rdkit and egc objects.
-def rdkit_to_egc(rdkit_mol, return_chemgraph=False):
+def rdkit_to_egc(rdkit_mol, return_chemgraph=False, explicit_hydrogens=False):
+    if not explicit_hydrogens:
+        rdkit_mol = Chem.AddHs(rdkit_mol)
+
     nuclear_charges = [atom.GetAtomicNum() for atom in rdkit_mol.GetAtoms()]
     adjacency_matrix = GetAdjacencyMatrix(rdkit_mol)
 
@@ -45,19 +48,20 @@ def rdkit_to_egc(rdkit_mol, return_chemgraph=False):
 
 
 #   For converting SMILES to egc.
-def SMILES_to_egc(smiles_string, return_chemgraph=False):
+def SMILES_to_egc(smiles_string, return_chemgraph=False, explicit_hydrogens=False):
     mol = Chem.MolFromSmiles(smiles_string)
     if mol is None:
         raise RdKitFailure
-    mol = Chem.AddHs(mol)
-    egc_out = rdkit_to_egc(mol, return_chemgraph=return_chemgraph)
+    egc_out = rdkit_to_egc(
+        mol, return_chemgraph=return_chemgraph, explicit_hydrogens=explicit_hydrogens
+    )
     if not return_chemgraph:
         egc_out.additional_data["SMILES"] = smiles_string
     return egc_out
 
 
-def SMILES_to_chemgraph(SMILES):
-    return SMILES_to_egc(SMILES, return_chemgraph=True)
+def SMILES_to_chemgraph(SMILES, explicit_hydrogens=False):
+    return SMILES_to_egc(SMILES, return_chemgraph=True, explicit_hydrogens=explicit_hydrogens)
 
 
 def rdkit_to_chemgraph(rdkit_mol):
