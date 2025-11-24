@@ -113,7 +113,7 @@ class HeavyAtom:
                 if isinstance(cur_add_charges, int):
                     additional_charges.append(cur_add_charges)
                 else:
-                    additional_charges += cur_add_charges
+                    additional_charges += list(cur_add_charges)
             for charge in additional_charges:
                 cur_has_extra_valence = add_avail_charges_valences(
                     avail_charges,

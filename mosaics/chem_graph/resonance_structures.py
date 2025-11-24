@@ -1,5 +1,7 @@
 """
 Procedures for generating resonance structures inside ChemGraph objects.
+
+TODO: bit of a mess, should be revised
 """
 
 import itertools
@@ -109,6 +111,9 @@ class ExtraValenceSubgraph:
         self.subgraph_avail_valences = subgraph_avail_valences
 
         self.charge_feasibility = charge_feasibility
+
+    def assign_charge_feasibility(self, new_charge_feasibility):
+        self.charge_feasibility = new_charge_feasibility
 
     def empty_id_lists(self):
         return [[] for _ in self.extra_val_ids]
@@ -477,14 +482,14 @@ def create_local_resonance_structure_single_charge_feasibility(
     extra_valence_subgraph: ExtraValenceSubgraph,
     charge_feasibility: int,
 ):
-    extra_valence_subgraph.charge_feasibility = charge_feasibility
+    extra_valence_subgraph.assign_charge_feasibility(charge_feasibility)
     valid_valence_configuration_character = None
     tot_subgraph_res_struct = []
     valence_option_ids = []
     current_valence_option = 0
     try:
         extra_valence_iterator = iter(extra_valence_subgraph)
-    except StopIteration:
+    except (StopIteration, InvalidAdjMat):
         return False, None
     while True:
         try:
