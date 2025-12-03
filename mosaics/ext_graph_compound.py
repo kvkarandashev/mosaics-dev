@@ -65,6 +65,24 @@ class ExtGraphCompound:
             self.adjacency_matrix = self.chemgraph.full_adjmat()
         return self.adjacency_matrix
 
+    def get_original_corrected_adjacency_matrix(self):
+        """
+        Recover the original adjacency matrix with bonds between heavy atoms corrected according to the underlying ChemGraph instance.
+        """
+        full_adj_mat = np.copy(self.original_adjacency_matrix)
+        for i1, nc1 in enumerate(self.original_nuclear_charges):
+            for i2, nc2 in enumerate(self.original_nuclear_charges[:i1]):
+                if nc1 == 1 or nc2 == 1:
+                    continue
+                if full_adj_mat[i1, i2] == 0:
+                    continue
+                cg_i1 = self.original_chemgraph_mapping[i1]
+                cg_i2 = self.original_chemgraph_mapping[i2]
+                corrected_bond_order = self.chemgraph.bond_order(cg_i1, cg_i2)
+                full_adj_mat[i1, i2] = corrected_bond_order
+                full_adj_mat[i2, i1] = corrected_bond_order
+        return full_adj_mat
+
     def original_hydrogen_hatom(self, hydrogen_id):
         adj_mat_row = self.original_adjacency_matrix[hydrogen_id]
         bond_order = 1
