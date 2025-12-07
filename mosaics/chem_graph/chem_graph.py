@@ -779,7 +779,7 @@ def split_chemgraph_into_connected_fragments(cg_input, copied=False):
     )
 
 
-def combine_chemgraphs(cg1, cg2):
+def combine_chemgraphs(cg1: ChemGraph, cg2: ChemGraph):
     new_hatoms = copy.deepcopy(cg1.hatoms + cg2.hatoms)
     new_graph = disjoint_union([cg1.graph, cg2.graph])
     id2_shift = cg1.nhatoms()
@@ -787,7 +787,12 @@ def combine_chemgraphs(cg1, cg2):
     for bond_tuple, bond_order in cg2.bond_orders.items():
         new_bond_tuple = tuple(np.array(bond_tuple) + id2_shift)
         new_bond_orders[new_bond_tuple] = bond_order
-    return ChemGraph(hatoms=new_hatoms, bond_orders=new_bond_orders, graph=new_graph)
+    return ChemGraph(
+        hatoms=new_hatoms,
+        bond_orders=new_bond_orders,
+        graph=new_graph,
+        charge=cg1.charge + cg2.charge,
+    )
 
 
 def h2chemgraph():
