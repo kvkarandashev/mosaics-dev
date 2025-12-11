@@ -226,6 +226,13 @@ def egc_to_original_rdkit(egc: ExtGraphCompound):
     mol = Chem.RWMol()
     for atom_id1, nc1 in enumerate(original_nuclear_charges):
         new_atom = Chem.Atom(int(nc1))
+
+        if nc1 != 1:
+            hatom_id1 = egc.original_chemgraph_mapping[atom_id1]
+            current_charge = get_current_charge(egc.chemgraph, hatom_id1)
+            if current_charge != 0:
+                new_atom.SetFormalCharge(current_charge)
+
         mol.AddAtom(new_atom)
         for atom_id2 in range(atom_id1):
             bo = original_corrected_adj_mat[atom_id1, atom_id2]
