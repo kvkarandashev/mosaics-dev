@@ -214,7 +214,25 @@ def chemgraph_to_rdkit(
 
 
 def egc_to_rdkit(egc: ExtGraphCompound, **kwargs):
-    return chemgraph_to_rdkit(egc.chemgraoh, **kwargs)
+    return chemgraph_to_rdkit(egc.chemgraph, **kwargs)
+
+
+def egc_to_original_rdkit(egc: ExtGraphCompound):
+    """
+    From ExtGraphCompound instance generate an RDKit molecule whose atom order is strictly the same as in the original adjacency matrix and nuclear charges used to define the ExtGraphCompound instance.
+    """
+    original_corrected_adj_mat = egc.get_original_corrected_adjacency_matrix()
+    original_nuclear_charges = egc.original_nuclear_charges
+    mol = Chem.RWMol()
+    for atom_id1, nc1 in enumerate(original_nuclear_charges):
+        new_atom = Chem.Atom(int(nc1))
+        mol.AddAtom(new_atom)
+        for atom_id2 in range(atom_id1):
+            bo = original_corrected_adj_mat[atom_id1, atom_id2]
+            if bo == 0:
+                continue
+            mol.AddBond(atom_id1, atom_id2, rdkit_bond_type[bo])
+    return mol
 
 
 def chemgraph_to_canonical_rdkit(
