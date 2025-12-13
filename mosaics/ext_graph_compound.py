@@ -3,6 +3,7 @@ import numpy as np
 from .chem_graph import ChemGraph, str2ChemGraph
 from .data import NUCLEAR_CHARGE
 from .misc_procedures import (
+    InvalidAdjMat,
     int_atom_checked,
     intlog,
     permutation_inverse,
@@ -32,6 +33,7 @@ class ExtGraphCompound:
             nuclear_charges = [NUCLEAR_CHARGE[element] for element in elements]
         self.original_nuclear_charges = nuclear_charges
         self.original_adjacency_matrix = adjacency_matrix
+        self.original_hydrogens_sanity_check()
         self.coordinates = coordinates
         if chemgraph is None:
             if (nuclear_charges is not None) and (
@@ -59,6 +61,24 @@ class ExtGraphCompound:
         self.original_canonical_permutation = None
         self.inv_original_canonical_permutation = None
         self.original_equivalence_vector = None
+
+    def original_hydrogens_sanity_check(self):
+        """
+        Separately check that hydrogen valences make sense and there are no hydrogen molecules present.
+        """
+        # Done here because wayward hydrogens can cause very sneaky bugs.
+        if self.original_nuclear_charges is None or self.original_adjacency_matrix is None:
+            return
+        for atom_id, ncharge in enumerate(self.original_nuclear_charges):
+            if ncharge != 1:
+                continue
+            connected_atoms = np.where(self.original_adjacency_matrix[atom_id] != 0)[0]
+            if connected_atoms.shape[0] != 1:
+                raise InvalidAdjMat("Valence of a hydrogen not equal one!")
+            if self.original_nuclear_charges[connected_atoms[0]] == 1:
+                raise InvalidAdjMat(
+                    "Found hydrogen atoms connected to each other; molecular hydrogen not supported!"
+                )
 
     def get_adjacency_matrix(self):
         if self.adjacency_matrix is None:
