@@ -98,12 +98,12 @@ def misc_global_variables_current_kwargs():
     }
 
 
-def canonical_permutation_with_inverse(graph, colors):
+def canonical_permutation_with_inverse(graph: Graph, colors):
     """
     Return canonical permutation in terms of both forward and inverse arrays.
     """
-    canonical_permutation = np.array(graph.canonical_permutation(color=colors))
-    inv_canonical_permutation = permutation_inverse(canonical_permutation)
+    inv_canonical_permutation = np.array(graph.canonical_permutation(color=colors))
+    canonical_permutation = permutation_inverse(inv_canonical_permutation)
     return canonical_permutation, inv_canonical_permutation
 
 

@@ -1,4 +1,7 @@
-class InvalidElement(KeyError):
+from .misc_procedures import InvalidGraphDefinition
+
+
+class InvalidElement(KeyError, InvalidGraphDefinition):
     pass
 
 
