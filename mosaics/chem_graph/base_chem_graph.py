@@ -616,6 +616,12 @@ class BaseChemGraph:
         """
         return sum(hatom.nhydrogens for hatom in self.hatoms)
 
+    def tot_nelectrons(self):
+        """
+        Total number of electrons in the molecule.
+        """
+        return self.tot_nhydrogens() + sum(ha.ncharge for ha in self.hatoms) - self.charge
+
     def natoms(self):
         """
         Total number of atoms.
