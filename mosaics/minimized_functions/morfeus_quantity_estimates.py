@@ -3,6 +3,7 @@ import copy
 import numpy as np
 
 # Morfeus - used for coordinate generation.
+# NOTE: used morfeus-ml <=0.7.2
 from morfeus.conformer import ConformerEnsemble
 from rdkit import RDLogger
 from xtb.interface import Calculator
@@ -34,7 +35,7 @@ def morfeus_coord_info_from_tp(
     all_confs=False,
     temperature=room_T,
     coord_validity_check=True,
-    **dummy_kwargs
+    **dummy_kwargs,
 ):
     """
     Coordinates generated for a TrajectoryPoint object using Morfeus.
@@ -212,7 +213,7 @@ def morfeus_FF_xTB_code_quants_weighted(
     quantities=[],
     remaining_rho=None,
     coord_validity_check=True,
-    **xTB_quants_kwargs
+    **xTB_quants_kwargs,
 ):
     coord_info = morfeus_coord_info_from_tp(
         tp,
@@ -248,7 +249,7 @@ def morfeus_FF_xTB_code_quants(
     ff_type="MMFF94",
     quantities=[],
     remaining_rho=None,
-    **xTB_quants_kwargs
+    **xTB_quants_kwargs,
 ):
     """
     Use morfeus-ml FF coordinates with Grimme lab's xTB code to calculate some quantities.
@@ -262,7 +263,7 @@ def morfeus_FF_xTB_code_quants(
             ff_type=ff_type,
             quantities=quantities,
             remaining_rho=remaining_rho,
-            **xTB_quants_kwargs
+            **xTB_quants_kwargs,
         )
         if av_res is None:
             quant_arrs = all_None_dict(quantities)
@@ -306,7 +307,7 @@ class LinComb_Morfeus_xTB_code:
         add_mult_funcs=None,
         add_mult_func_powers=None,
         xTB_res_dict_name="xTB_res",
-        **xTB_related_kwargs
+        **xTB_related_kwargs,
     ):
         self.quantities = quantities
         self.coefficients = coefficients
