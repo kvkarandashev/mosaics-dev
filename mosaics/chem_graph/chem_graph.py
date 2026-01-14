@@ -772,11 +772,21 @@ def split_chemgraph_no_dissociation_check(cg_input, membership_vector, copied=Fa
     return output
 
 
-def split_chemgraph_into_connected_fragments(cg_input, copied=False):
+def split_chemgraph_into_connected_fragments(cg_input: ChemGraph, copied=False):
     connected_fragment_membership_vector = cg_input.graph.components().membership
     return split_chemgraph_no_dissociation_check(
         cg_input, connected_fragment_membership_vector, copied=copied
     )
+
+
+def split_chemgraph_into_counted_connected_fragments(cg_input: ChemGraph, copied=False):
+    fragment_list = split_chemgraph_into_connected_fragments(cg_input, copied=copied)
+    output_dict = {}
+    for cg in fragment_list:
+        if cg not in output_dict:
+            output_dict[cg] = 0
+        output_dict[cg] += 1
+    return output_dict
 
 
 def combine_chemgraphs(cg1: ChemGraph, cg2: ChemGraph):
