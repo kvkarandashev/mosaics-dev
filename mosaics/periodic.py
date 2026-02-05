@@ -125,12 +125,12 @@ p_int = ElementDict(
 
 # Priority list of charged species.
 # Introduced in order charges to C were assigned only if options of fitting valences with adding charges to O and N were exhausted.
-charge_feasibility_list = [[5, 7, 8, 16], [], [], [6, 15]]
+charge_feasibility_list = [[5, 7, 8, 9, 16, 17], [], [], [6, 14, 15]]
 available_charges_lists = [
-    {5: -1, 7: 1, 8: -1, 16: 1},
+    {5: -1, 7: 1, 8: -1, 9: -1, 16: 1, 17: -1},
     {8: 1, 16: -1},
     {7: -1},
-    {6: -1, 15: (-1, 1)},
+    {6: -1, 14: -1, 15: (-1, 1)},
 ]
 # which valences can be
 charged_valences_int = {
@@ -138,8 +138,11 @@ charged_valences_int = {
     6: {-1: 3},
     7: {1: 4, -1: 2},
     8: {-1: 1, 1: 3},
+    9: {-1: 0},
+    14: {-1: 3},
     15: {1: 4, -1: 2},
     16: {1: 3, -1: 1},
+    17: {-1: 0},
 }
 
 
