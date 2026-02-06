@@ -309,8 +309,10 @@ def complete_valences_attempt(
     added_edges_stops = {}
     cur_decision_fork = 0
     while True:
-        min_connectivity = 0
-        if np.any(connection_opportunities != 0):
+        if np.all(connection_opportunities == 0):
+            min_connectivity = 0
+            closed_atom = None
+        else:
             # Check extra electrons from which atom can be connected to the least number of neighboring atoms.
             min_connectivity = np.min(
                 connection_opportunities[np.nonzero(connection_opportunities)]
@@ -319,8 +321,6 @@ def complete_valences_attempt(
             potential_other_atoms = possible_closed_pairs(
                 closed_atom, extra_valences, extra_valence_subgraph.extra_val_subgraph
             )
-        else:
-            closed_atom = None
         if min_connectivity == 1:
             # We add an extra nonsigma bond between closed_atom and the only atom for which the other such connection is possible.
             choice = 0
@@ -374,11 +374,14 @@ def complete_valences_attempt(
                 else:
                     raise InvalidAdjMat
             if all_possibilities:
+                added_bonds_dict_canon_key = frozenset(added_bonds_dict.items())
                 if output is None:
                     output = [added_bonds_dict]
+                    added_bond_dict_canon_keys = {added_bonds_dict_canon_key}
                 else:
-                    if added_bonds_dict not in output:
+                    if added_bonds_dict_canon_key not in added_bond_dict_canon_keys:
                         output.append(added_bonds_dict)
+                        added_bond_dict_canon_keys.add(added_bonds_dict_canon_key)
             else:
                 return added_bonds_dict
 
