@@ -13,6 +13,13 @@ from ..periodic import get_max_charge_feasibility
 from .base_chem_graph import BaseChemGraph
 from .heavy_atom import HeavyAtom
 
+max_resonance_structure_number = None
+
+
+def set_max_resonance_structure_number(new_max_resonance_structure_number):
+    global max_resonance_structure_number
+    max_resonance_structure_number = new_max_resonance_structure_number
+
 
 # Procedures for generating which valence and charge states to iterate over.
 # TODO Need a smarter way to iterate that does not involve creating a long list and sorting it.
@@ -254,23 +261,16 @@ def max_bo(hatom1, hatom2):
 class ExtraValenceAddedEdgesIterator:
     def __init__(self, extra_valence_subgraph: ExtraValenceSubgraph, valences):
         self.extra_valence_subgraph = extra_valence_subgraph
-        self.extra_valences = extra_valence_subgraph.get_extra_valences(valences)
         self.extra_val_ids = extra_valence_subgraph.extra_val_ids
         self.saved_neighbors = {}
-
-        self.connection_opportunities = np.zeros(len(self.extra_val_ids), dtype=int)
-        # Check how many neighboring atoms a given atom can be connected to with the nonsigma bonds.
-        for cur_id in np.nonzero(self.extra_valences)[0]:
-            self.connection_opportunities[cur_id] = sum(
-                1 for _ in self.internal_neighbors_wvalences(cur_id)
-            )
+        self.valences = valences
 
     def internal_neighbors(self, atom_id):
         atom_id = int(atom_id)
         if atom_id not in self.saved_neighbors:
-            self.saved_neighbors[
-                atom_id
-            ] = self.extra_valence_subgraph.extra_val_subgraph.neighbors(atom_id)
+            self.saved_neighbors[atom_id] = list(
+                self.extra_valence_subgraph.extra_val_subgraph.neighbors(atom_id)
+            )
         return self.saved_neighbors[atom_id]
 
     def internal_neighbors_wvalences(self, atom_id):
@@ -280,13 +280,38 @@ class ExtraValenceAddedEdgesIterator:
             if self.extra_valences[neigh_id] != 0
         )
 
+    def get_cur_decision_lbound(self, atom_id):
+        return self.decision_lbounds[atom_id][-1]
+
+    def neighbor_above_lbound(self, atom_id, neighbor_id):
+        return (
+            atom_id not in self.decision_lbounds
+            or self.get_cur_decision_lbound(atom_id) <= neighbor_id
+        )
+
+    def get_atom_connection_opportunities(self, atom_id):
+        return (
+            neigh_id
+            for neigh_id in self.internal_neighbors_wvalences(atom_id)
+            if self.neighbor_above_lbound(atom_id, neigh_id)
+        )
+
+    def count_atom_connection_opportunities(self, atom_id):
+        return sum(1 for _ in self.get_atom_connection_opportunities(atom_id))
+
+    def update_atom_connection_opportunities(self, *atom_ids):
+        for atom_id in atom_ids:
+            self.connection_opportunities[atom_id] = self.count_atom_connection_opportunities(
+                atom_id
+            )
+
     def get_cur_bond_dict(self):
         """
         Transform a list of added edges into a bond order dictionnary.
         """
         add_bond_orders = {}
         hatoms = self.extra_valence_subgraph.chemgraph.hatoms
-        for edge_tuple in zip(self.cur_closed_atoms[0::2], self.cur_closed_atoms[1::2]):
+        for edge_tuple in self.cur_closed_atom_pairs:
             se = sorted_tuple(*[self.extra_val_ids[i] for i in edge_tuple])
             if se in add_bond_orders:
                 add_bond_orders[se] += 1
@@ -296,69 +321,78 @@ class ExtraValenceAddedEdgesIterator:
                 add_bond_orders[se] = 1
         return add_bond_orders
 
-    def remove_valence_electrons(self, *atom_ids):
-        for atom_id in atom_ids:
-            self.extra_valences[atom_id] -= 1
-            if self.extra_valences[atom_id] == 0:
-                for neigh_id in self.internal_neighbors_wvalences(atom_id):
-                    if self.connection_opportunities[neigh_id] != 0:
-                        self.connection_opportunities[neigh_id] -= 1
-                self.connection_opportunities[atom_id] = 0
+    def update_affected_neighbors(self, atom_ids, need_update_vals):
+        for atom_id, need_update_val in zip(atom_ids, need_update_vals):
+            if not need_update_val:
+                continue
+            for neigh in self.internal_neighbors_wvalences(atom_id):
+                self.update_atom_connection_opportunities(neigh)
 
-    def add_valence_electrons(self, *atom_ids):
-        for atom_id in atom_ids:
-            if self.extra_valences[atom_id] == 0:
-                for neigh_id in self.internal_neighbors_wvalences(atom_id):
-                    self.connection_opportunities[neigh_id] += 1
-                    self.connection_opportunities[atom_id] += 1
-            self.extra_valences[atom_id] += 1
+    def add_valence_electron(self, atom_id):
+        previously_no_valence = self.extra_valences[atom_id] == 0
+        self.extra_valences[atom_id] += 1
+        return previously_no_valence
 
-    def close_atom(self, closed_atom_id):
+    def reopen_pair(self, *atom_ids):
+        created_valence_vals = [self.add_valence_electron(atom_id) for atom_id in atom_ids]
+        self.update_atom_connection_opportunities(*atom_ids)
+        self.update_affected_neighbors(atom_ids, created_valence_vals)
+
+    def remove_valence_electron(self, atom_id):
+        self.extra_valences[atom_id] -= 1
+        currently_no_valence = self.extra_valences[atom_id] == 0
+        if self.extra_valences[atom_id] == 0:
+            self.connection_opportunities[atom_id] = 0
+        return currently_no_valence
+
+    def close_pair(self, *atom_ids):
+        no_valence_vals = [self.remove_valence_electron(atom_id) for atom_id in atom_ids]
+        for atom_id, no_valence in zip(atom_ids, no_valence_vals):
+            if not no_valence:
+                self.update_atom_connection_opportunities(atom_id)
+        self.cur_closed_atom_pairs.append(atom_ids)
+        self.update_affected_neighbors(atom_ids, no_valence_vals)
         self.cur_decision_level += 1
-        self.cur_closed_atoms.append(closed_atom_id)
-        if self.starting_bond_atom is None:
-            self.starting_bond_atom = closed_atom_id
-        else:
-            self.remove_valence_electrons(self.starting_bond_atom, closed_atom_id)
-            self.starting_bond_atom = None
 
-    def get_current_opportunities(self):
-        if self.starting_bond_atom is not None:
-            choices = list(self.internal_neighbors_wvalences(self.starting_bond_atom))
-            if len(choices) == 1:
-                return int(choices[0])
-            else:
-                return choices
-        nonzero_connection_opportunities = np.nonzero(self.connection_opportunities)[0]
-        if nonzero_connection_opportunities.shape[0] == 1:
-            return int(nonzero_connection_opportunities[0])
-        min_connectivity = np.min(self.connection_opportunities[nonzero_connection_opportunities])
-        min_connectivity_choices = np.where(self.connection_opportunities == min_connectivity)[0]
+    def get_nonzero_extra_valences(self):
+        return np.nonzero(self.extra_valences)[0]
 
-        if min_connectivity == 1 or len(min_connectivity_choices) == 1:
-            return int(min_connectivity_choices[0])
-        return min_connectivity_choices
+    def get_starting_bond_atom(self):
+        # we choose an atom from which outstretch a bond
+        possible_starting_bond_atoms = np.nonzero(self.connection_opportunities)[0]
+        if len(possible_starting_bond_atoms) == 1:
+            return int(possible_starting_bond_atoms[0])
+        min_connectivity = np.min(self.connection_opportunities[possible_starting_bond_atoms])
+        return int(np.where(self.connection_opportunities == min_connectivity)[0][0])
 
     def complete_current_closed_atoms(self):
-        while np.any(self.connection_opportunities != 0):
-            current_opportunities = self.get_current_opportunities()
-            if isinstance(current_opportunities, int):
-                final_opportunity = current_opportunities
-            else:
-                final_opportunity = current_opportunities[0]
-                self.decision_possibilities[self.cur_decision_level] = current_opportunities
+        while np.any(self.extra_valences != 0):
+            if np.all(self.connection_opportunities == 0):
+                return
+            starting_bond_atom = self.get_starting_bond_atom()
+            atom_connection_opportunities = list(
+                self.get_atom_connection_opportunities(starting_bond_atom)
+            )
+            final_opportunity = atom_connection_opportunities[0]
+
+            if len(atom_connection_opportunities) != 1:
+                assert len(atom_connection_opportunities) != 0
+                self.decision_possibilities[
+                    self.cur_decision_level
+                ] = atom_connection_opportunities
                 self.decisions[self.cur_decision_level] = 0
-            self.close_atom(final_opportunity)
+                if starting_bond_atom in self.decision_lbounds:
+                    self.decision_lbounds[starting_bond_atom].append(final_opportunity)
+                else:
+                    self.decision_lbounds[starting_bond_atom] = [final_opportunity]
+
+            self.close_pair(starting_bond_atom, final_opportunity)
 
     def next_closed_atoms(self):
+        found = False
         while self.cur_decision_level != 0:
             self.cur_decision_level -= 1
-            prev_atom = self.cur_closed_atoms.pop()
-            if self.starting_bond_atom is None:
-                self.starting_bond_atom = self.cur_closed_atoms[-1]
-                self.add_valence_electrons(prev_atom, self.starting_bond_atom)
-            else:
-                self.starting_bond_atom = None
+            prev_starting_atom, prev_other_atom = self.cur_closed_atom_pairs.pop()
             if self.cur_decision_level in self.decisions:
                 self.decisions[self.cur_decision_level] += 1
                 decision_possibilities = self.decision_possibilities[self.cur_decision_level]
@@ -366,21 +400,36 @@ class ExtraValenceAddedEdgesIterator:
                 if new_decision == len(decision_possibilities):
                     del self.decisions[self.cur_decision_level]
                     del self.decision_possibilities[self.cur_decision_level]
+                    self.decision_lbounds[prev_starting_atom].pop()
+                    if len(self.decision_lbounds[prev_starting_atom]) == 0:
+                        del self.decision_lbounds[prev_starting_atom]
                 else:
                     new_atom_id = self.decision_possibilities[self.cur_decision_level][
                         new_decision
                     ]
-                    self.close_atom(new_atom_id)
-                    return
+                    self.decision_lbounds[prev_starting_atom][-1] = new_atom_id
+                    found = True
+            self.reopen_pair(prev_starting_atom, prev_other_atom)
+            if found:
+                self.close_pair(prev_starting_atom, new_atom_id)
+                return
         raise StopIteration
 
     def __iter__(self):
         self.cur_decision_level = 0
-        self.cur_closed_atoms = []
-        self.starting_bond_atom = None
+        self.cur_closed_atom_pairs = []
         self.decision_possibilities = {}
         self.decisions = {}
+        self.decision_lbounds = {}
         self.stopped = False
+
+        self.connection_opportunities = np.zeros(len(self.extra_val_ids), dtype=int)
+        # Check how many neighboring atoms a given atom can be connected to with the nonsigma bonds.
+        self.extra_valences = self.extra_valence_subgraph.get_extra_valences(self.valences)
+        if np.all(self.extra_valences == 0):
+            return iter(({},))
+        for cur_id in self.get_nonzero_extra_valences():
+            self.update_atom_connection_opportunities(cur_id)
         return self
 
     def __next__(self):
@@ -405,21 +454,19 @@ def complete_valences_attempt(extra_valence_subgraph, valences, all_possibilitie
     coordination numbers coord_nums, generate assignment of all non-sigma valence electrons into nonsigma bonds.
     If all_possibilities is False returns one such resonance structure, otherwise enumerate and return all resonance structures.
     """
-    added_bonds_dict_iterator = ExtraValenceAddedEdgesIterator(extra_valence_subgraph, valences)
-    if np.all(added_bonds_dict_iterator.extra_valences == 0):
-        if all_possibilities:
-            return [{}]
-        else:
-            return {}
-
     if all_possibilities:
         full_list = []
         added_bond_dict_canon_keys = set()
-    for added_bonds_dict in added_bonds_dict_iterator:
+    for added_bonds_dict in ExtraValenceAddedEdgesIterator(extra_valence_subgraph, valences):
         if all_possibilities:
             added_bonds_dict_canon_key = frozenset(added_bonds_dict.items())
             if added_bonds_dict_canon_key not in added_bond_dict_canon_keys:
                 full_list.append(added_bonds_dict)
+                if (
+                    max_resonance_structure_number is not None
+                    and max_resonance_structure_number == len(full_list)
+                ):
+                    return full_list
                 added_bond_dict_canon_keys.add(added_bonds_dict_canon_key)
         else:
             return added_bonds_dict
