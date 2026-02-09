@@ -125,14 +125,14 @@ p_int = ElementDict(
 
 # Priority list of charged species.
 # Introduced in order charges to C were assigned only if options of fitting valences with adding charges to O and N were exhausted.
-charge_feasibility_list = [[5, 7, 8, 9, 16, 17], [], [], [6, 14, 15]]
+charge_feasibility_list = [[5, 7, 8, 9, 16, 17], [], [15], [6, 14]]
 available_charges_lists = [
     {5: -1, 7: 1, 8: -1, 9: -1, 16: 1, 17: -1},
     {8: 1, 16: -1},
-    {7: -1},
-    {6: -1, 14: -1, 15: (-1, 1)},
+    {7: -1, 15: 1},
+    {6: -1, 14: -1, 15: -1},
 ]
-# which valences can be
+# which valences can be induced by charges
 charged_valences_int = {
     5: {-1: 4},
     6: {-1: 3},
@@ -144,6 +144,26 @@ charged_valences_int = {
     16: {1: 3, -1: 1},
     17: {-1: 0},
 }
+
+default_max_bo = 3
+# normally atoms are allowed to form bonds up to order default_max_bo; exceptions are handled here
+max_bo_atom_exceptions = {}
+
+
+def add_max_bo_atom_exception(ncharge, max_bo):
+    global max_bo_atom_exceptions
+    max_bo_atom_exceptions[ncharge] = max_bo
+
+
+def max_bo_ncharge(ncharge):
+    if ncharge in max_bo_atom_exceptions:
+        return max_bo_atom_exceptions[ncharge]
+    else:
+        return default_max_bo
+
+
+def max_bo_ncharges(ncharge1, ncharge2):
+    return min(max_bo_ncharge(ncharge1), max_bo_ncharge(ncharge2))
 
 
 def get_max_charge_feasibility():
