@@ -321,10 +321,14 @@ class ExtraValenceAddedEdgesIterator:
         return sum(1 for _ in self.get_atom_connection_opportunities(atom_id))
 
     def update_atom_connection_opportunities(self, *atom_ids):
+        has_isolated_valence = False
         for atom_id in atom_ids:
             self.connection_opportunities[atom_id] = self.count_atom_connection_opportunities(
                 atom_id
             )
+            if self.connection_opportunities[atom_id] == 0:
+                has_isolated_valence = True
+        return has_isolated_valence
 
     def finalize_bond_dict(self, internal_added_bond_dict):
         """
@@ -337,10 +341,17 @@ class ExtraValenceAddedEdgesIterator:
         return add_bond_orders
 
     def update_affected_neighbors(self, atom_ids, need_update_vals):
+        has_isolated_valence = False
         for atom_id, need_update_val in zip(atom_ids, need_update_vals):
             if not need_update_val:
                 continue
-            self.update_atom_connection_opportunities(*self.internal_neighbors_wvalences(atom_id))
+            has_isolated_valence = (
+                self.update_atom_connection_opportunities(
+                    *self.internal_neighbors_wvalences(atom_id)
+                )
+                or has_isolated_valence
+            )
+        return has_isolated_valence
 
     def add_valence_electron(self, atom_id):
         previously_no_valence = self.extra_valences[atom_id] == 0
@@ -371,12 +382,18 @@ class ExtraValenceAddedEdgesIterator:
         else:
             self.cur_bond_dict[bt] = 1
         no_valence_vals = [self.remove_valence_electron(atom_id) for atom_id in atom_ids]
+        has_isolated_valence = False
         for atom_id, no_valence in zip(atom_ids, no_valence_vals):
             if not no_valence:
-                self.update_atom_connection_opportunities(atom_id)
+                has_isolated_valence = (
+                    self.update_atom_connection_opportunities(atom_id) or has_isolated_valence
+                )
         self.cur_closed_atom_pairs.append(atom_ids)
-        self.update_affected_neighbors(atom_ids, no_valence_vals)
+        has_isolated_valence = (
+            self.update_affected_neighbors(atom_ids, no_valence_vals) or has_isolated_valence
+        )
         self.cur_decision_level += 1
+        return has_isolated_valence
 
     def get_nonzero_extra_valences(self):
         return np.nonzero(self.extra_valences)[0]
@@ -409,8 +426,9 @@ class ExtraValenceAddedEdgesIterator:
                     self.decision_lbounds[starting_bond_atom].append(final_opportunity)
                 else:
                     self.decision_lbounds[starting_bond_atom] = [final_opportunity]
-
-            self.close_pair(starting_bond_atom, final_opportunity)
+            has_isolated_valence = self.close_pair(starting_bond_atom, final_opportunity)
+            if has_isolated_valence:
+                return
 
     def next_closed_atoms(self):
         found = False
