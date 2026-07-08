@@ -205,7 +205,7 @@ class RandomWalk:
         bias_pot_all_replicas: bool = True,
         randomized_change_params: dict = {},
         starting_histogram: list or None = None,
-        conserve_stochiometry: bool = False,
+        conserve_stoichiometry: bool = False,
         bound_enforcing_coeff: float or None = None,
         keep_histogram: bool = False,
         histogram_save_rejected: bool = True,
@@ -320,8 +320,8 @@ class RandomWalk:
         self.bound_enforcing_coeff = bound_enforcing_coeff
 
         # TODO previous implementation deprecated; perhaps re-implement as a ``soft'' constraint?
-        # Or make a special dictionnary of changes that conserve stochiometry.
-        self.conserve_stochiometry = conserve_stochiometry
+        # Or make a special dictionnary of changes that conserve stoichiometry.
+        self.conserve_stoichiometry = conserve_stoichiometry
 
         self.hydrogen_nums = None
 
@@ -733,7 +733,7 @@ class RandomWalk:
             changed_tp,
             visited_tp_list=self.histogram,
             delete_chosen_mod_path=delete_chosen_mod_path,
-            **self.used_randomized_change_params
+            **self.used_randomized_change_params,
         )
         if new_tp is None:
             return False

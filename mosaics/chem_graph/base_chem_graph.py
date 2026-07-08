@@ -235,7 +235,7 @@ class BaseChemGraph:
             ha.possible_charges = None
 
         # Comparison list based on stochimetry of different HeavyAtom neighborhoods.
-        self.stochiometry_comparison_list = None
+        self.stoichiometry_comparison_list = None
         # Comparison list based on proper canonical ordering.
         self.comparison_list = None
         # Number of automorphisms.
@@ -313,13 +313,13 @@ class BaseChemGraph:
         self.colors = np.array(new_colors)
         self.reinit_temp_colors()
 
-    def init_stochiometry_comparison_list(self):
+    def init_stoichiometry_comparison_list(self):
         """
-        Initialize list used to compare stochiometry (in terms of either nodes or, if color_defining_neighborhood_radius !=0, in terms of neighborhoods). Created to avoid calculating canonical permutations of the entire molecular graph when possible.
+        Initialize list used to compare stoichiometry (in terms of either nodes or, if color_defining_neighborhood_radius !=0, in terms of neighborhoods). Created to avoid calculating canonical permutations of the entire molecular graph when possible.
         """
-        if self.stochiometry_comparison_list is not None:
+        if self.stoichiometry_comparison_list is not None:
             return
-        self.stochiometry_comparison_list = []
+        self.stoichiometry_comparison_list = []
         self.init_all_ha_comparison_lists()
         comp_list_nums = {}
         for comp_list in self.ha_comparison_lists:
@@ -329,13 +329,13 @@ class BaseChemGraph:
             comp_list_nums[comp_tuple] += 1
         ordered_comp_list_nums = sorted(list(comp_list_nums.items()))
         for comp_tuple, num in ordered_comp_list_nums:
-            self.stochiometry_comparison_list.append(num)
-            self.stochiometry_comparison_list.append(len(comp_tuple))
-            self.stochiometry_comparison_list += list(comp_tuple)
+            self.stoichiometry_comparison_list.append(num)
+            self.stoichiometry_comparison_list.append(len(comp_tuple))
+            self.stoichiometry_comparison_list += list(comp_tuple)
 
-    def get_stochiometry_comparison_list(self):
-        self.init_stochiometry_comparison_list()
-        return self.stochiometry_comparison_list
+    def get_stoichiometry_comparison_list(self):
+        self.init_stoichiometry_comparison_list()
+        return self.stoichiometry_comparison_list
 
     def polyvalent_atoms_present(self):
         for ha in self.hatoms:
@@ -837,8 +837,8 @@ class BaseChemGraph:
             return comp_operator(self.charge, cg2.charge)
         if not using_two_level_comparison:
             return self.brute_comparison(cg2, comp_operator)
-        cg1_stoch = self.get_stochiometry_comparison_list()
-        cg2_stoch = cg2.get_stochiometry_comparison_list()
+        cg1_stoch = self.get_stoichiometry_comparison_list()
+        cg2_stoch = cg2.get_stoichiometry_comparison_list()
         if cg1_stoch == cg2_stoch:
             return self.brute_comparison(cg2, comp_operator)
         else:
